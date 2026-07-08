@@ -1,0 +1,7 @@
+# OS 잡동사니
+Thumbs.db
+.DS_Store
+*.log
+
+# 로컬 전용 클로드 설정 (팀/클라우드에 올릴 필요 없는 것만)
+.claude/settings.local.json

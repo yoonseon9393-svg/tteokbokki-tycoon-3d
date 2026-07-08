@@ -1,0 +1,11 @@
+{
+  "name": "tteokbokki-tycoon-3d",
+  "version": "1.0.0",
+  "description": "🍢 미니 떡볶이 타이쿤 3D — 벚꽃 마을 골목길의 파스텔 미니어처 가게 경영 게임 (Three.js)",
+  "scripts": {
+    "start": "npx serve -l 3000 ."
+  },
+  "stackblitz": {
+    "startCommand": "npx serve -l 3000 ."
+  }
+}
