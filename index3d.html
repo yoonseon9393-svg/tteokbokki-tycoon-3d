@@ -30,6 +30,22 @@
     white-space: nowrap;
   }
   #goldChip { color: #b8860b; }
+  #repChip { color: #e8a33d; }
+
+  /* ── 🔥 피버타임 화면 이펙트 ─────────────── */
+  #feverFx {
+    position: fixed; inset: 0; pointer-events: none; z-index: 15; display: none;
+    box-shadow: inset 0 0 90px rgba(255, 200, 60, .55);
+    animation: feverPulse .7s ease-in-out infinite alternate;
+  }
+  @keyframes feverPulse { from { opacity: .5; } to { opacity: 1; } }
+  #feverFx::after {
+    content: '🔥 피버타임! 보상 2배!';
+    position: absolute; top: 118px; left: 50%; transform: translateX(-50%);
+    background: linear-gradient(135deg, #ffd166, #ff9f68); color: #fff;
+    padding: 8px 18px; border-radius: 999px; font-weight: 800; font-size: 14px;
+    box-shadow: 0 4px 14px rgba(255, 160, 60, .5); white-space: nowrap;
+  }
   #goldChip.pulse { animation: pulse .35s ease; }
   @keyframes pulse { 50% { transform: scale(1.18); } }
 
@@ -49,14 +65,16 @@
   .bigbtn:active { transform: translateY(3px); box-shadow: none; }
   #shopBtn { background: #ff9f68; }
   #researchBtn { background: #7ec8a9; }
+  #expandBtn { background: #ff8fab; }
   .bigbtn:disabled { background: #c9c2bc; cursor: not-allowed; }
 
   /* ── 상점 패널 ───────────────────────── */
-  #shopOverlay {
+  #shopOverlay, #menuOverlay {
     position: fixed; inset: 0; background: rgba(70,55,45,.35);
     z-index: 29; display: none;
   }
-  #shopPanel {
+  #menuPanel .locked { opacity: .5; }
+  #shopPanel, #menuPanel {
     position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
     background: linear-gradient(160deg, #fff8ec, #ffeddb);
     border: 3px solid #ffd9b8; border-radius: 24px;
@@ -64,8 +82,8 @@
     box-shadow: 0 14px 40px rgba(90,60,40,.35);
     width: min(340px, 90vw); max-height: 70vh; overflow-y: auto;
   }
-  #shopPanel h3 { color: #5a4a42; font-size: 17px; margin-bottom: 12px; text-align: center; }
-  #shopClose {
+  #shopPanel h3, #menuPanel h3 { color: #5a4a42; font-size: 17px; margin-bottom: 12px; text-align: center; }
+  #shopClose, #menuClose {
     position: absolute; top: 12px; right: 14px;
     border: none; background: #ffd9b8; color: #7a5c3a;
     width: 32px; height: 32px; border-radius: 50%;
@@ -150,6 +168,15 @@
     touch-action: manipulation;
   }
   #resetBtn:active { transform: rotate(180deg); }
+  #catBtn {
+    position: fixed; top: calc(58px + env(safe-area-inset-top)); right: 12px;
+    z-index: 10; border: none; cursor: pointer;
+    background: rgba(255,255,255,.9);
+    width: 38px; height: 38px; border-radius: 50%;
+    font-size: 17px; box-shadow: 0 3px 10px rgba(90,60,40,.18);
+    touch-action: manipulation;
+  }
+  #catBtn:active { transform: scale(1.2); }
   #resetOverlay {
     position: fixed; inset: 0; background: rgba(70,55,45,.45);
     z-index: 44; display: none;
@@ -198,7 +225,7 @@
       padding: 10px 6px; font-size: 14px; line-height: 1.3;
       border-radius: 16px; white-space: normal;
     }
-    #shopPanel { max-height: 62vh; }
+    #shopPanel, #menuPanel { max-height: 62vh; }
     #toast {
       bottom: calc(160px + env(safe-area-inset-bottom));
       max-width: 90vw; text-align: center; font-size: 13px;
@@ -214,11 +241,15 @@
   <div class="chip" id="goldChip">💰 0 G</div>
   <div class="chip" id="menuChip">🍲 기본 떡볶이</div>
   <div class="chip" id="servedChip">😋 손님 0명</div>
+  <div class="chip" id="repChip">★★★☆☆ 3.0</div>
 </div>
+
+<div id="feverFx"></div>
 
 <div id="bottombar">
   <button class="bigbtn" id="shopBtn">🛒 가구 상점</button>
   <button class="bigbtn" id="researchBtn">🔬 메뉴 연구</button>
+  <button class="bigbtn" id="expandBtn">🏗️ 확장</button>
 </div>
 
 <div id="shopOverlay"></div>
@@ -226,6 +257,13 @@
   <button id="shopClose">✕</button>
   <h3>🛒 가구 상점</h3>
   <div id="shopItems"></div>
+</div>
+
+<div id="menuOverlay"></div>
+<div id="menuPanel">
+  <button id="menuClose">✕</button>
+  <h3>📖 메뉴 개발 연구소</h3>
+  <div id="menuList"></div>
 </div>
 
 <div id="placeHint">🧱 초록 칸을 터치해서 배치! <button id="cancelPlaceBtn">✕ 취소</button></div>
@@ -241,6 +279,7 @@
 </div>
 
 <button id="resetBtn" title="처음부터 다시 시작">🔄</button>
+<button id="catBtn" title="고양이 알바 고용 (1500G)">🐱</button>
 <div id="resetOverlay"></div>
 <div id="resetPanel">
   <p>🥺 정말 <b>처음부터</b> 다시 시작할까요?<br>지금까지 모은 골드와 가구,<br>가게 이름이 모두 사라져요!</p>
@@ -261,19 +300,20 @@
    ============================================================ */
 
 /* ── 게임 데이터 ─────────────────────────────────────────── */
-// 메뉴 도감: 연구할 때마다 하나씩 '추가 해금' (0 ~ state.menuLevel 까지 주문 가능)
-// tag = 손님 머리 위 말풍선에 뜨는 미니 표기
+// 메뉴 도감: 개발할 때마다 하나씩 '추가 해금' (0 ~ state.menuLevel 까지 주문 가능)
+// tag = 말풍선 미니 표기 / sauce = 솥 소스 색 / topping = 고명 조각 색 (없으면 null)
 const MENU_LEVELS = [
-  { name: '기본 떡볶이',      tag: '🍲 기본',   income: 10,  cost: 0    },
-  { name: '치즈 떡볶이',      tag: '🧀 치즈',   income: 16,  cost: 120  },
-  { name: '로제 떡볶이',      tag: '🧡 로제',   income: 24,  cost: 300  },
-  { name: '차돌 로제 떡볶이', tag: '🥩 차돌',   income: 45,  cost: 800  },
-  { name: '마라 떡볶이',      tag: '🔥 마라',   income: 70,  cost: 1600 },
-  { name: '트러플 떡볶이',    tag: '💎 트러플', income: 100, cost: 3000 },
+  { name: '기본 떡볶이',      tag: '🍲 기본',   income: 10,  cost: 0,    sauce: 0xff4d4d, topping: null     },
+  { name: '치즈 떡볶이',      tag: '🧀 치즈',   income: 16,  cost: 120,  sauce: 0xff6347, topping: 0xffd94d },
+  { name: '로제 떡볶이',      tag: '🧡 로제',   income: 24,  cost: 300,  sauce: 0xff9a76, topping: 0xffe3d6 },
+  { name: '짜장 떡볶이',      tag: '🖤 짜장',   income: 33,  cost: 550,  sauce: 0x54422f, topping: 0x9fd98f },
+  { name: '차돌 로제 떡볶이', tag: '🥩 차돌',   income: 45,  cost: 800,  sauce: 0xff8566, topping: 0xd9b08c },
+  { name: '마라 떡볶이',      tag: '🔥 마라',   income: 70,  cost: 1600, sauce: 0xc92f22, topping: 0x7a2e1d },
+  { name: '트러플 떡볶이',    tag: '💎 트러플', income: 100, cost: 3000, sauce: 0x8a6f52, topping: 0xf5ecd9 },
 ];
 
 const state = {
-  gold: 1000,   // 초기 자본 (세트 가구를 여유롭게 테스트할 수 있는 금액)
+  gold: 3000,   // 초기 운영자금 (확장·가구·메뉴 연구를 여유롭게 시작할 수 있는 금액)
   menuLevel: 0,
   served: 0,
   placing: null,    // 현재 배치 중인 상점 아이템 키
@@ -281,6 +321,9 @@ const state = {
   hoverTile: null,  // 배치 중 마지막으로 가리킨 칸
   shopName: '떡볶이', // 간판에 표시되는 가게 이름 (최대 7글자)
   opened: false,     // 창업(오픈하기) 완료 여부 — 오픈 전엔 손님이 안 옴
+  shopLevel: 1,      // 🏗️ 가게 확장 레벨 (1~3): 2=테라스, 3=알전구+테라스 확장
+  catHired: false,   // 🐱 고양이 알바생 고용 여부 (동전 자동 수거 도우미)
+  reputation: 3,     // ⭐ 가게 평판 (1.0~5.0) — 높을수록 손님 유입 가속, 5.0=피버타임!
 };
 
 /* ── 💾 세이브/로드 매니저 (localStorage) ─────────────────── */
@@ -301,6 +344,9 @@ function saveGame() {
       served: state.served,
       shopName: state.shopName,
       opened: state.opened,
+      shopLevel: state.shopLevel,
+      catHired: state.catHired,
+      reputation: state.reputation,
       furniture: placedFurniture,
     }));
   } catch (e) {}   // 저장 공간 문제 등이 있어도 게임은 계속
@@ -358,35 +404,46 @@ const camCtl = {
   zoom: 1,                   // 핀치 줌 배율 (1 = 기본)
   minZoom: 0.6, maxZoom: 2.4,
   panLimitX: 8, panLimitZ: 7, // 맵 밖으로 너무 나가지 않게
-  orbit: 0,                          // 좌우 궤도 회전 각도 (라디안)
-  orbitLimit: Math.PI / 3.6          // 정면 기준 좌우 약 ±50도 제한
+  orbit: 0.25,                       // 좌우 궤도 회전 (기본값: 모서리가 정면을 보는 대각선 뷰)
+  orbitLimit: Math.PI / 3.6,         // 좌우 약 ±50도 제한
+  tilt: 0                            // 상하 틸트 (fitCamera에서 33°~60°로 엄격 클램프 — 절대 안 눕음!)
 };
 const camera = new THREE.OrthographicCamera();
 function fitCamera() {
   const a = window.innerWidth / window.innerHeight;
   let halfH, px, py, pz, tx, tz;
   if (a >= 1) {
-    // 가로(PC) 화면: 기존 45도 쿼터뷰
+    // 가로(PC) 화면: 위에서 시원하게 내려다보는 높은 시점 (원상복구!)
     halfH = FRUSTUM;
     px = 11; py = 13; pz = 13; tx = 0; tz = 0.5;
   } else {
-    // 세로(모바일) 화면: 카메라를 정면 쪽으로 살짝 틀어
-    // 가게 전체 폭이 좁은 화면에 잘리지 않고 꽉 차게 들어오도록
+    // 세로(모바일) 화면: 매장 바닥이 훤히 보이는 높은 시점 (원상복구!)
+    // 대각선 느낌은 camCtl.orbit 기본 회전값이 담당
     halfH = Math.min(PORTRAIT_HALF_W / a, PORTRAIT_MAX_H);
     px = 4; py = 12.5; pz = 15; tx = 0; tz = 0.2;
   }
+  // 🏗️ 매장이 오른쪽으로 확장되면 카메라 중심도 살짝 따라가 테라스까지 한눈에
+  tx += (state.shopLevel - 1) * 0.8;
   camera.left = -halfH * a; camera.right = halfH * a;
   camera.top = halfH; camera.bottom = -halfH;
   camera.near = 0.1; camera.far = 100;
   camera.zoom = camCtl.zoom;                                    // 핀치 줌 반영
   camera.updateProjectionMatrix();
-  // 궤도 회전: 바라보는 중심점 주위로 카메라 위치를 Y축 회전
+  // 🎥 구면 궤도 카메라: 높은 기본 앙각 + 좌우 회전(orbit) + 상하 틸트(tilt)
   const ox = px - tx, oz = pz - tz;
-  const cosA = Math.cos(camCtl.orbit), sinA = Math.sin(camCtl.orbit);
-  const rx = ox * cosA + oz * sinA;
-  const rz = -ox * sinA + oz * cosA;
+  const hDist = Math.hypot(ox, oz);
+  const dist = Math.hypot(hDist, py);
+  const baseAz = Math.atan2(ox, oz);
+  const baseElev = Math.atan2(py, hDist);   // 기본 앙각 약 39° (시원한 부감)
+  // 앙각을 33°~60° 사이로 엄격 클램프 — 카메라가 절대 낮게 눕지 못하는 안전장치
+  const elev = Math.max(0.58, Math.min(1.05, baseElev + camCtl.tilt));
+  const az = baseAz + camCtl.orbit;
   const cx2 = tx + camCtl.panX, cz2 = tz + camCtl.panZ;         // 드래그 이동 반영된 중심
-  camera.position.set(cx2 + rx, py, cz2 + rz);
+  camera.position.set(
+    cx2 + Math.sin(az) * Math.cos(elev) * dist,
+    Math.sin(elev) * dist,
+    cz2 + Math.cos(az) * Math.cos(elev) * dist
+  );
   camera.lookAt(cx2, 0, cz2);
 }
 fitCamera();
@@ -398,6 +455,11 @@ function setZoom(z) {
 // 궤도 회전 각도 설정 (좌우 ±50도 제한으로 길 잃지 않게)
 function setOrbit(a) {
   camCtl.orbit = Math.max(-camCtl.orbitLimit, Math.min(camCtl.orbitLimit, a));
+  fitCamera();
+}
+// 상하 틸트 설정 (fitCamera의 33°~60° 절대 클램프와 이중 안전장치)
+function setTilt(t) {
+  camCtl.tilt = Math.max(-0.11, Math.min(0.37, t));
   fitCamera();
 }
 // 화면 픽셀 이동량 → 지면 기준 월드 이동량으로 변환해서 카메라 팬
@@ -431,8 +493,8 @@ const sun = new THREE.DirectionalLight(0xfffcf5, 0.55);            // 은은한 
 sun.position.set(9, 15, 6);
 sun.castShadow = true;
 sun.shadow.mapSize.set(2048, 2048);
-sun.shadow.camera.left = -12; sun.shadow.camera.right = 12;
-sun.shadow.camera.top = 12; sun.shadow.camera.bottom = -12;
+sun.shadow.camera.left = -15; sun.shadow.camera.right = 15;
+sun.shadow.camera.top = 15; sun.shadow.camera.bottom = -15;
 sun.shadow.camera.far = 45;
 scene.add(sun);
 
@@ -463,6 +525,9 @@ restaurantGroup.add(base);
 const tileMeshes = [];           // 가게 내부 타일 (배치 가능 구역)
 const allTileMeshes = [];        // 맵의 모든 타일 (배치 모드 레이캐스트용)
 const occupied = new Set();      // '가로,세로' 형태로 점유된 칸
+let shellMeshes = [];            // 🏗️ 매장 셸(내부 바닥+벽) — 레벨업 시 재구성됨
+let shellOccupied = [];          // 셸(벽)이 점유한 칸 키 목록 (재구성 시 해제)
+let catWorker = null;            // 🐱 고양이 알바생 (세이브 로드 시에도 참조되므로 여기서 선언)
 
 function addTile(gx, gz, color, interior = false) {
   const t = box(0.98, 0.12, 0.98, color);
@@ -477,11 +542,9 @@ function addTile(gx, gz, color, interior = false) {
 
 for (let gz = 0; gz < D; gz++) {
   for (let gx = 0; gx < W; gx++) {
-    let color, interior = false;
-    if (gz <= 6) {                       // 가게 영역
-      color = (gx + gz) % 2 ? 0xf5f2eb : 0xe7e0d3;   // 밀크 화이트 + 연한 베이지 체크 (채도 최소화)
-      if (gz >= 1 && gz <= 5 && gx >= 1 && gx <= 12) interior = true;
-    } else if (gz === 7 || gz === 8) {   // 인도
+    if (gz <= 6) continue;               // 🏗️ 가게 존(0~6행)은 레벨별 셸(buildShopShell)이 담당
+    let color;
+    if (gz === 7 || gz === 8) {          // 인도
       color = (gx % 2) ? 0xd9d0be : 0xcfc4ae;
     } else if (gz === 9 || gz === 10) {  // 도로
       color = 0x8f99a8;
@@ -490,7 +553,7 @@ for (let gz = 0; gz < D; gz++) {
     } else {                             // 잔디
       color = 0xa7cf8b;
     }
-    addTile(gx, gz, color, interior);
+    addTile(gx, gz, color, false);
   }
 }
 
@@ -514,14 +577,11 @@ function addWall(gx, gz, h, color) {
   cap.position.set(wx(gx), h + 0.045, wz(gz));
   restaurantGroup.add(cap);
   occupied.add(gx + ',' + gz);
+  // 🏗️ 레벨업 시 재구성할 수 있게 셸 목록에 등록
+  shellMeshes.push(wMesh, cap);
+  shellOccupied.push(gx + ',' + gz);
 }
-for (let gx = 0; gx < W; gx++) addWall(gx, 0, 1.6, 0xf0b9c6);           // 뒷벽
-for (let gz = 1; gz <= 6; gz++) addWall(0, gz, 1.6, 0xf0b9c6);          // 왼쪽 벽
-for (let gz = 1; gz <= 6; gz++) addWall(13, gz, 0.45, 0xf3cbd4);        // 오른쪽 낮은 벽
-for (let gx = 1; gx <= 12; gx++) {
-  if (gx === 6 || gx === 7) continue;                                    // 출입문
-  addWall(gx, 6, 0.45, 0xf3cbd4);                                        // 앞 낮은 벽
-}
+// 🏗️ 벽은 레벨별 셸(buildShopShell)이 매장 크기에 맞춰 생성/재구성함
 
 /* 간판 + 차양 (유저가 지은 가게 이름이 실시간으로 반영되는 캔버스 간판) */
 let signCanvas = null, signTexture = null;
@@ -571,6 +631,27 @@ function updateSignText(name) {
 })();
 
 /* 주방 카운터 + 떡볶이 솥 (gz 2, gx 1~4 점유) */
+let potSauce = null, potToppings = null;
+// 🍲 최신 개발 메뉴에 맞춰 솥 비주얼 변신 (소스 색 + 고명 조각)
+function updateKitchenVisual() {
+  const m = MENU_LEVELS[state.menuLevel];
+  potSauce.material.color.setHex(m.sauce);
+  while (potToppings.children.length) {           // 기존 고명 제거
+    const t = potToppings.children[0];
+    potToppings.remove(t);
+    t.geometry.dispose(); t.material.dispose();
+  }
+  if (m.topping) {                                // 새 고명 조각 뿌리기
+    for (let i = 0; i < 6; i++) {
+      const bit = box(0.075, 0.035, 0.075, m.topping);
+      bit.castShadow = false;
+      const a = Math.random() * Math.PI * 2, rr = 0.06 + Math.random() * 0.2;
+      bit.position.set(Math.cos(a) * rr, 0, Math.sin(a) * rr);
+      bit.rotation.y = Math.random() * Math.PI;
+      potToppings.add(bit);
+    }
+  }
+}
 (function buildCounter() {
   const counter = box(4, 0.7, 0.9, 0xffb385);
   counter.position.set(wx(2.5), 0.35, wz(2));
@@ -587,6 +668,10 @@ function updateSignText(name) {
   const sauce = cyl(0.36, 0.36, 0.06, 0xff4d4d);
   sauce.position.set(wx(2), 1.06, wz(2));
   scene.add(sauce);
+  potSauce = sauce;                       // 메뉴별 소스 색 변경용 참조
+  potToppings = new THREE.Group();        // 메뉴별 고명 조각들
+  potToppings.position.set(wx(2), 1.1, wz(2));
+  scene.add(potToppings);
   // 떡 몇 개
   for (let i = 0; i < 4; i++) {
     const tteok = cyl(0.05, 0.05, 0.16, 0xf2ead9, 8);
@@ -746,22 +831,26 @@ const villageGroup = new THREE.Group();
 scene.add(villageGroup);
 (function buildVillage() {
   // 1) 지면 패드: 메인 받침대와 같은 높이로 이어지는 마을 땅 (살짝 톤다운)
-  function pad(w, d, x, z) {
-    const p = box(w, 0.6, d, 0xd2c1a0);
+  function pad(w, d, x, z, color = 0xd2c1a0) {
+    const p = box(w, 0.6, d, color);
     p.position.set(x, -0.36, z);
     villageGroup.add(p);
   }
-  pad(16.4, 3.4, 0, -8.75);   // 뒤편 골목 땅
-  pad(2.8, 14.2, -9, 0);      // 왼쪽 골목 땅
-  pad(2.8, 14.2, 9, 0);       // 오른쪽 골목 땅
+  // 🏞️ 마을 땅 대폭 확장: 가게가 골목 중심부에 든든하게 자리잡도록
+  pad(28, 5.0, 0, -9.55);            // 뒤편 골목 땅 (깊고 넓게)
+  pad(4.6, 21, -9.9, -1.5);          // 왼쪽 골목 땅
+  pad(6.4, 21, 10.8, -1.5);          // 오른쪽 골목 땅 (테라스·빵집·이웃집까지)
+  pad(15.4, 2.6, 0, 8.35, 0x9cc487); // 앞쪽 풀밭 (잔디 절벽 방지)
 
-  // 2) 도로가 좌우 허공으로 끊기지 않고 옆 골목으로 이어지는 연출
-  for (const px of [-9, 9]) {
-    const roadExt = box(2.8, 0.05, 2.0, 0x8f99a8);
-    roadExt.position.set(px, -0.045, 3.5);
-    roadExt.castShadow = false;
-    villageGroup.add(roadExt);
-  }
+  // 2) 도로가 좌우 허공으로 끊기지 않고 옆 골목 끝까지 이어지는 연출
+  const roadL = box(4.6, 0.05, 2.0, 0x8f99a8);
+  roadL.position.set(-9.9, -0.045, 3.5);
+  roadL.castShadow = false;
+  villageGroup.add(roadL);
+  const roadR = box(6.4, 0.05, 2.0, 0x8f99a8);
+  roadR.position.set(10.8, -0.045, 3.5);
+  roadR.castShadow = false;
+  villageGroup.add(roadR);
 
   // 3) 아기자기한 배경 건물: 상자 몸통 + 사각뿔 지붕 + 문/창문
   function buildHouse(x, z, opts) {
@@ -797,13 +886,24 @@ scene.add(villageGroup);
     g.rotation.y = o.ry;
     villageGroup.add(g);
   }
-  // 뒤편 골목: 이웃집 두 채
+  // 뒤편 골목: 이웃집 세 채
   buildHouse(-3.4, -8.8, { w: 2.4, h: 1.9, body: 0xefe3d0, roof: 0x9fb4c8, chimney: true });
   buildHouse(2.7, -8.9,  { w: 2.1, h: 1.6, body: 0xebd2c0, roof: 0xb99f8a });
-  // 왼쪽 골목: 작은 카페 (도로 쪽을 바라봄)
+  buildHouse(8.4, -9.5,  { w: 2.3, h: 1.7, body: 0xefe3d0, roof: 0xa8bfa0, chimney: true });
+  // 왼쪽 골목: 작은 카페 + 뒤편 이웃집
   buildHouse(-8.95, 1.0, { w: 2.0, d: 1.9, h: 1.8, body: 0xdcd8d2, roof: 0xa8bfa0, chimney: true, sign: 0xfff2dc, ry: Math.PI / 2 });
-  // 오른쪽 골목: 아담한 빵집 (도로 쪽을 바라봄)
-  buildHouse(8.95, 0.7,  { w: 2.2, d: 2.0, h: 1.7, body: 0xecd9bd, roof: 0xd98e7a, sign: 0xfff2dc, ry: -Math.PI / 2 });
+  buildHouse(-10.1, -5.2, { w: 2.0, d: 1.9, h: 1.6, body: 0xebd2c0, roof: 0xb99f8a, ry: Math.PI / 2 });
+  // 오른쪽 골목: 아담한 빵집 (🚪 테라스 길목을 비우도록 오른쪽으로 이사!) + 이웃집
+  buildHouse(11.6, 0.7,  { w: 2.2, d: 2.0, h: 1.7, body: 0xecd9bd, roof: 0xd98e7a, sign: 0xfff2dc, ry: -Math.PI / 2 });
+  buildHouse(11.9, -4.8, { w: 2.1, d: 2.0, h: 1.8, body: 0xdfe3e8, roof: 0x9fb4c8, ry: -Math.PI / 2 });
+
+  // 🌳 넓어진 마을 곳곳에 나무 심기 (초록 + 벚꽃 믹스)
+  buildTree(-9.7, 6.4, 0.9);
+  buildTree(13.1, 2.0, 1.0);
+  buildCherryTree(12.2, -8.2, 0.95);
+  buildCherryTree(-10.4, -8.9, 1.05);
+  buildCherryTree(-4.3, 8.35, 0.9);
+  buildCherryTree(4.6, 8.4, 1.0);
 })();
 
 /* ── 캐릭터(레고풍 미니피규어) ───────────────────────────── */
@@ -1049,7 +1149,31 @@ function buildQuadSet() {   // 2×2칸: 원형 테이블 + 사방 의자 4
   return g;
 }
 
+function buildTerraceSet() {   // ⛱️ 테라스 전용: 미니 테이블 + 의자 + 파스텔 파라솔
+  const g = new THREE.Group();
+  addTableBlock(g, 0, -0.16, 0.6, 0.5);
+  addChair(g, 0, 0.33, Math.PI, 0xffd9a3);
+  const pole = cyl(0.035, 0.035, 1.75, 0xf5efe2);
+  pole.position.set(0.34, 0.95, -0.34);
+  g.add(pole);
+  const canopy = new THREE.Mesh(new THREE.ConeGeometry(0.8, 0.4, 8), mat(0xffb3c9));
+  canopy.position.set(0.34, 1.92, -0.34);
+  canopy.castShadow = true;
+  g.add(canopy);
+  const tip = new THREE.Mesh(new THREE.SphereGeometry(0.05, 6, 6), mat(0xfff6ea));
+  tip.position.set(0.34, 2.15, -0.34);
+  g.add(tip);
+  return g;
+}
+
 const SHOP_ITEMS = {
+  terrace: {
+    name: '테라스 파라솔 세트', emoji: '⛱️', price: 180,
+    desc: '야외 우드 데크 전용! (Lv2 확장 후 데크 위 1칸)',
+    build: buildTerraceSet, cells: [[0, 0]],
+    seats: [{ x: 0, z: 0.33, ry: Math.PI }],
+    terraceOnly: true,
+  },
   solo: {
     name: '1인용 혼밥 세트', emoji: '🍚', price: 80,
     desc: '미니 테이블 + 의자 1개 (1칸 차지)',
@@ -1101,12 +1225,7 @@ function serveQueue(dt) {
   seat.taken = true;
   c.seat = seat;
   c.state = 'arriving';
-  c.waypoints = [
-    { x: DOOR_X, z: SIDEWALK_Z },
-    { x: DOOR_X, z: wz(6) },
-    { x: DOOR_X, z: wz(5) },
-    { x: seat.x, z: seat.z },
-  ];
+  c.waypoints = seatPath(seat);   // 실내석은 문으로, 테라스석은 옆길로
   showBubble(c.group, '🎉');   // 와아! 자리가 났다!
   // 남은 대기 손님들은 한 칸씩 앞으로 총총
   waitingQueue.forEach((q, i) => {
@@ -1129,15 +1248,24 @@ function rotCell(dx, dz, rot) {
     default: return [-dz, dx];
   }
 }
-// 가게 안이면서 비어있는 칸인지
+// 가게 안이면서 비어있는 칸인지 (레벨에 따라 내부 폭이 넓어짐)
 function cellFree(gx, gz) {
-  return gx >= 1 && gx <= 12 && gz >= 1 && gz <= 5 && !occupied.has(gx + ',' + gz);
+  return gx >= 1 && gx <= SHOP_X1[state.shopLevel] && gz >= 1 && gz <= 5 && !occupied.has(gx + ',' + gz);
+}
+// 아이템 종류별 배치 가능 판정: 테라스 전용은 데크 칸(벽+3열)만, 일반 가구는 실내만
+function cellOkFor(item, gx, gz) {
+  if (item.terraceOnly) {
+    return state.shopLevel >= 2 &&
+      gx === SHOP_X1[state.shopLevel] + 3 && gz >= 1 && gz <= 5 &&
+      !occupied.has(gx + ',' + gz);
+  }
+  return cellFree(gx, gz);
 }
 
 function placeFurniture(key, gx, gz, rot, free = false) {
   const item = SHOP_ITEMS[key];
   const g = item.build();
-  g.position.set(wx(gx), 0, wz(gz));
+  g.position.set(wx(gx), gx > 12 ? 0.09 : 0, wz(gz));   // 테라스 가구는 우드 데크 위에
   g.rotation.y = rot * Math.PI / 2;
   scene.add(g);
   for (const [dx, dz] of item.cells) {
@@ -1149,13 +1277,261 @@ function placeFurniture(key, gx, gz, rot, free = false) {
     group: g,
     seats: item.seats.map(s => {
       const [px, pz] = rotCell(s.x, s.z, rot);   // 좌표 회전 (실수도 동일 공식)
-      return { x: wx(gx) + px, z: wz(gz) + pz, ry: s.ry + rot * Math.PI / 2, taken: false };
+      return { x: wx(gx) + px, z: wz(gz) + pz, ry: s.ry + rot * Math.PI / 2, taken: false, terrace: gx > 12 };
     }),
   });
   if (!free) {
     state.gold -= item.price;
     updateUI(true);
   }
+}
+
+/* ── 🏗️ 가게 확장 시스템 (Lv1 노점 → Lv2 테라스 → Lv3 알전구 만점) ──
+   레벨 비주얼은 expansionGroup에 모아 레벨에 맞게 재구성하고,
+   테라스 보너스 테이블은 격자 밖(gx 15)에 placeFurniture로 설치되어
+   기존 좌석 AI·세이브에 자동으로 편입됨 */
+const SHOP_LEVEL_COST = [0, 1000, 3000];   // [사용안함, Lv1→2, Lv2→3]
+const SHOP_X1 = [0, 8, 10, 12];            // 레벨별 매장 내부 오른쪽 끝 칸 (폭 8→10→12칸)
+const expansionGroup = new THREE.Group();
+scene.add(expansionGroup);
+let stringBulbs = [];   // Lv3 반짝이 알전구들
+
+// 🏗️ 매장 셸 재구성: 레벨에 맞춰 내부 바닥(크림 체크)과 벽을 다시 지음
+// 오른쪽 벽이 바깥으로 이동하며 평수가 넓어지고, 벽 밖은 플라자 포장으로 처리
+function buildShopShell() {
+  // 기존 셸 철거 (타일/벽 메시 + 벽 점유 칸 해제)
+  for (const m of shellMeshes) {
+    restaurantGroup.remove(m);
+    let idx = allTileMeshes.indexOf(m);
+    if (idx >= 0) allTileMeshes.splice(idx, 1);
+    idx = tileMeshes.indexOf(m);
+    if (idx >= 0) tileMeshes.splice(idx, 1);
+    m.geometry.dispose();
+    m.material.dispose();
+  }
+  shellMeshes = [];
+  while (shellOccupied.length) occupied.delete(shellOccupied.pop());
+
+  const x1 = SHOP_X1[state.shopLevel];   // 내부 오른쪽 끝
+  const R = x1 + 1;                      // 오른쪽 벽 칸
+  // 1) 존(0~6행) 바닥: 매장+벽 아래는 크림 체크, 벽 밖은 플라자 포장
+  for (let gz = 0; gz <= 6; gz++) {
+    for (let gx = 0; gx < W; gx++) {
+      const inside = gx >= 1 && gx <= x1 && gz >= 1 && gz <= 5;
+      const color = gx <= R
+        ? ((gx + gz) % 2 ? 0xf5f2eb : 0xe7e0d3)   // 매장 크림 체크 바닥
+        : ((gx % 2) ? 0xd9d0be : 0xcfc4ae);        // 매장 밖 플라자 포장 (테라스와 연결)
+      const t = addTile(gx, gz, color, inside);
+      shellMeshes.push(t);
+    }
+  }
+  // 2) 벽: 뒤/왼쪽 높게, 오른쪽/앞 낮게 (쿼터뷰에서 내부가 보이도록)
+  for (let gx = 0; gx <= R; gx++) addWall(gx, 0, 1.6, 0xf0b9c6);        // 뒷벽
+  for (let gz = 1; gz <= 6; gz++) addWall(0, gz, 1.6, 0xf0b9c6);        // 왼쪽 벽
+  for (let gz = 1; gz <= 6; gz++) addWall(R, gz, 0.45, 0xf3cbd4);       // 오른쪽 낮은 벽 (레벨업 시 이동!)
+  for (let gx = 1; gx <= R - 1; gx++) {
+    if (gx === 6 || gx === 7) continue;                                  // 출입문 (고정)
+    addWall(gx, 6, 0.45, 0xf3cbd4);                                      // 앞 낮은 벽
+  }
+}
+
+// 테라스 중심/입구 X좌표: 항상 '오른쪽 벽 + 2칸' — 벽이 이동하면 테라스도 함께 이동
+function terraceGateX() { return wx(SHOP_X1[state.shopLevel] + 3); }
+
+// 🌿 감성 야외 테라스: 투톤 우드 데크 + 아이보리 펜스 + 화분 + 파라솔 + 조명등
+function buildTerrace() {
+  const tx = terraceGateX();
+  const zc = -3;   // 데크 중심 z
+  // 받침 스커트: 바닥 단차를 감싸서 어디에 놓여도 들뜨지 않음
+  const skirt = box(2.5, 0.14, 5.2, 0xc9a87e);
+  skirt.position.set(tx, -0.02, zc);
+  skirt.castShadow = false;
+  expansionGroup.add(skirt);
+  // 투톤 우드 플랭크 패턴 (널빤지 7장)
+  for (let i = 0; i < 7; i++) {
+    const plank = box(0.33, 0.09, 5.0, i % 2 ? 0xe8cba8 : 0xdfc09a);
+    plank.position.set(tx - 1.11 + i * 0.37, 0.045, zc);
+    plank.castShadow = false;
+    expansionGroup.add(plank);
+  }
+  // 아이보리 미니 펜스 (위쪽 가운데는 입구로 비워둠)
+  const post = (x, z) => {
+    const p = box(0.07, 0.34, 0.07, 0xfff6ea);
+    p.position.set(x, 0.26, z);
+    expansionGroup.add(p);
+  };
+  const rail = (x, z, w, d) => {
+    const r = box(w, 0.05, d, 0xfff6ea);
+    r.position.set(x, 0.41, z);
+    r.castShadow = false;
+    expansionGroup.add(r);
+  };
+  for (let i = 0; i <= 6; i++) post(tx + 1.28, -0.5 - i * 0.83);   // 오른쪽 펜스
+  rail(tx + 1.28, zc, 0.06, 5.0);
+  for (let i = 0; i <= 3; i++) post(tx - 1.28 + i * 0.85, -5.5);   // 아래쪽 펜스
+  rail(tx, -5.5, 2.6, 0.06);
+  post(tx - 1.28, -0.5);                                            // 입구 왼쪽 펜스
+  rail(tx - 1.0, -0.5, 0.62, 0.06);
+  rail(tx + 1.0, -0.5, 0.62, 0.06);                                 // 입구 오른쪽 펜스
+  // 🚪 테라스 전용 미니 아치문 — 손님은 반드시 이 문으로 통과!
+  for (const px of [tx - 0.72, tx + 0.72]) {
+    const gatePost = box(0.09, 0.95, 0.09, 0xfff6ea);
+    gatePost.position.set(px, 0.47, -0.5);
+    expansionGroup.add(gatePost);
+  }
+  const gateBeam = box(1.62, 0.12, 0.14, 0xfff6ea);
+  gateBeam.position.set(tx, 1.0, -0.5);
+  expansionGroup.add(gateBeam);
+  const gateHeart = new THREE.Mesh(new THREE.SphereGeometry(0.09, 8, 7), mat(0xffb3c9));
+  gateHeart.position.set(tx, 1.15, -0.5);
+  expansionGroup.add(gateHeart);
+  // 아치 기둥을 타고 오르는 덩굴꽃
+  const vineA = new THREE.Mesh(new THREE.SphereGeometry(0.07, 7, 6), mat(0xffb3c9));
+  vineA.position.set(tx - 0.72, 0.78, -0.42); expansionGroup.add(vineA);
+  const vineB = new THREE.Mesh(new THREE.SphereGeometry(0.07, 7, 6), mat(0x9fd98f));
+  vineB.position.set(tx + 0.72, 0.66, -0.42); expansionGroup.add(vineB);
+  // 입구 양옆 미니 화분 (테라코타 + 분홍 꽃 + 초록 잎)
+  for (const px of [tx - 0.45, tx + 0.45]) {
+    const pot = cyl(0.12, 0.09, 0.17, 0xe07a5f);
+    pot.position.set(px, 0.18, -0.55); expansionGroup.add(pot);
+    const bloom = new THREE.Mesh(new THREE.SphereGeometry(0.13, 8, 7), mat(0xffb3c9));
+    bloom.position.set(px, 0.36, -0.55); bloom.castShadow = true; expansionGroup.add(bloom);
+    const leaf = new THREE.Mesh(new THREE.SphereGeometry(0.08, 7, 6), mat(0x9fd98f));
+    leaf.position.set(px + 0.09, 0.3, -0.47); expansionGroup.add(leaf);
+  }
+  // ⛱️ 파라솔 테이블은 이제 가구 상점에서 구매해 직접 배치!
+  // 배치 클릭 판정용 보이지 않는 데크 칸 5개 (벽+3열, gz 1~5)
+  const tg = SHOP_X1[state.shopLevel] + 3;
+  for (let gz = 1; gz <= 5; gz++) {
+    const t = new THREE.Mesh(
+      new THREE.BoxGeometry(0.98, 0.02, 0.98),
+      new THREE.MeshBasicMaterial({ visible: false })
+    );
+    t.position.set(wx(tg), 0.1, wz(gz));
+    t.userData.tile = { gx: tg, gz, terrace: true };
+    expansionGroup.add(t);
+    allTileMeshes.push(t);
+  }
+  // 💡 데크 모서리 전구 조명등 2개
+  for (const [lx, lz] of [[tx - 1.05, -0.75], [tx + 1.05, -5.25]]) {
+    const pole = cyl(0.05, 0.06, 1.15, 0x8a7a6a);
+    pole.position.set(lx, 0.57, lz);
+    expansionGroup.add(pole);
+    const bulb = new THREE.Mesh(
+      new THREE.SphereGeometry(0.13, 10, 10),
+      new THREE.MeshLambertMaterial({ color: 0xfff2b0, emissive: 0xffd764, emissiveIntensity: 0.9 })
+    );
+    bulb.position.set(lx, 1.22, lz);
+    expansionGroup.add(bulb);
+  }
+}
+
+// 오른쪽 벽이 이동하면 기존 테라스 가구(gx>12)도 같은 거리만큼 함께 이동
+function shiftTerraceFurniture(dx) {
+  placedFurniture.forEach((f, i) => {
+    if (f.gx <= 12) return;   // 실내 가구는 그대로
+    const item = SHOP_ITEMS[f.key];
+    for (const [cdx, cdz] of item.cells) {
+      const [rx, rz] = rotCell(cdx, cdz, f.rot);
+      occupied.delete((f.gx + rx) + ',' + (f.gz + rz));
+      occupied.add((f.gx + dx + rx) + ',' + (f.gz + rz));
+    }
+    f.gx += dx;               // 세이브 기록도 새 위치로
+    const t = tables[i];
+    t.group.position.x += dx;
+    t.seats.forEach(s => { s.x += dx; });
+  });
+  // 이동한 테라스석에 앉아 있거나 걸어가던 손님 보정
+  customers.forEach(c => {
+    if (!c.seat || !c.seat.terrace) return;
+    if (c.state === 'eating') c.group.position.x = c.seat.x;
+    if (c.state === 'arriving' && c.waypoints.length) {
+      c.waypoints[c.waypoints.length - 1] = { x: c.seat.x, z: c.seat.z };
+    }
+  });
+}
+
+function applyShopLevelVisuals() {
+  buildShopShell();       // 매장 평수를 레벨에 맞춰 재구성
+  fitCamera();            // 확장된 매장+테라스가 화면에 들어오게 카메라 보정
+  stringBulbs = [];
+  while (expansionGroup.children.length) {   // 기존 확장 오브젝트 정리 후 재구성
+    const o = expansionGroup.children[0];
+    expansionGroup.remove(o);
+    const ti = allTileMeshes.indexOf(o);     // 테라스 레이캐스트 칸이면 목록에서도 제거
+    if (ti >= 0) allTileMeshes.splice(ti, 1);
+    o.traverse(m => {
+      if (m.isMesh) {
+        m.geometry.dispose();
+        (Array.isArray(m.material) ? m.material : [m.material]).forEach(x => x.dispose());
+      }
+    });
+  }
+  if (state.shopLevel >= 2) buildTerrace();   // 🌿 감성 테라스 (오른쪽 벽에 붙어 함께 이동)
+  if (state.shopLevel >= 3) {
+    // ✨ 매장 상단을 가로지르는 알전구 스트링 (반짝반짝)
+    const colors = [0xffd166, 0xff9ecb, 0xa8e6ff, 0xfff2b0];
+    for (let i = 0; i <= 16; i++) {
+      const x = -6.3 + i * (12.6 / 16);
+      const y = 1.92 + Math.sin(i * 1.15) * 0.09;   // 살짝 출렁이는 줄 느낌
+      const b = new THREE.Mesh(
+        new THREE.SphereGeometry(0.075, 8, 8),
+        new THREE.MeshLambertMaterial({ color: colors[i % 4], emissive: colors[i % 4], emissiveIntensity: 0.8 })
+      );
+      b.position.set(x, y, wz(6) + 0.1);
+      b.userData.ph = i * 0.7;
+      b.castShadow = false;
+      expansionGroup.add(b);
+      stringBulbs.push(b);
+    }
+  }
+}
+
+function upgradeShop() {
+  if (state.shopLevel >= 3) return;
+  const cost = SHOP_LEVEL_COST[state.shopLevel];
+  if (state.gold < cost) { toast('💸 골드가 부족해요! (' + cost + 'G 필요)'); return; }
+  state.gold -= cost;
+  state.shopLevel++;
+  if (state.shopLevel === 2) {
+    toast('🎉 가게 확장 Lv2! 테라스 데크 오픈 — 상점에서 ⛱️ 파라솔 세트를 배치하세요!');
+  } else if (state.shopLevel === 3) {
+    shiftTerraceFurniture(2);   // 직접 배치한 테라스 가구도 벽 따라 2칸 함께 이동
+    toast('🏆 최고 레벨 Lv3! 풀사이즈 매장 + 알전구 — 테라스 가구도 함께 이사했어요!');
+  }
+  applyShopLevelVisuals();
+  showBubble(cook, '🎉');
+  updateUI(true);
+}
+
+// 좌석까지의 이동 경로 (🌿 테라스석은 문을 거치지 않고 옆길로 돌아감)
+function seatPath(seat) {
+  if (seat.terrace) return [
+    { x: terraceGateX(), z: SIDEWALK_Z },
+    { x: terraceGateX(), z: 0.8 },
+    { x: terraceGateX(), z: -0.75 },   // 🚪 아치문 정중앙 통과
+    { x: seat.x, z: seat.z },
+  ];
+  return [
+    { x: DOOR_X, z: SIDEWALK_Z },
+    { x: DOOR_X, z: wz(6) },
+    { x: DOOR_X, z: wz(5) },
+    { x: seat.x, z: seat.z },
+  ];
+}
+function leavePath(seat, exitDir) {
+  if (seat.terrace) return [
+    { x: terraceGateX(), z: -0.75 },   // 🚪 아치문으로 나가기
+    { x: terraceGateX(), z: 0.8 },
+    { x: terraceGateX(), z: SIDEWALK_Z },
+    { x: EDGE_X * exitDir, z: SIDEWALK_Z },
+  ];
+  return [
+    { x: DOOR_X, z: wz(5) },
+    { x: DOOR_X, z: wz(6) },
+    { x: DOOR_X, z: SIDEWALK_Z },
+    { x: EDGE_X * exitDir, z: SIDEWALK_Z },
+  ];
 }
 
 // 💾 게임 시작: 세이브 데이터가 있으면 골드·가구를 그대로 복원, 없으면 새 게임
@@ -1168,16 +1544,22 @@ function placeFurniture(key, gx, gz, rot, free = false) {
     state.shopName = (saved.shopName || '떡볶이').slice(0, 7);
     // 예전 세이브(opened 없음)는 오픈 완료로 간주, 이름 짓기 전 새로고침했으면 다시 팝업
     state.opened = saved.opened !== undefined ? !!saved.opened : true;
+    state.shopLevel = Math.min(Math.max(saved.shopLevel || 1, 1), 3);
+    state.catHired = !!saved.catHired;
+    state.reputation = Math.min(5, Math.max(1, saved.reputation || 3));
     for (const f of saved.furniture) {
       if (!SHOP_ITEMS[f.key]) continue;   // 알 수 없는 가구는 건너뜀
       placeFurniture(f.key, f.gx, f.gz, f.rot || 0, true);
     }
   } else {
-    // 첫 접속: 기본 시작 가구 = 2인용 커플 세트 1개, 창업 팝업 대기
+    // 첫 접속: 기본 시작 가구 = 2인용 커플 세트 1개 (Lv1 아담한 매장 중앙)
     state.opened = false;
-    placeFurniture('couple', 8, 3, 0, true);
+    placeFurniture('couple', 4, 3, 0, true);
   }
   updateSignText(state.shopName);   // 간판에 가게 이름 반영
+  updateKitchenVisual();            // 솥 소스/고명도 해금 메뉴에 맞춰 반영
+  applyShopLevelVisuals();          // 확장 레벨(테라스/알전구) 비주얼 반영
+  if (state.catHired) spawnCat();   // 🐱 고용된 고양이 알바 복원
 })();
 
 /* ── 배치 모드 (고스트 미리보기) ─────────────────────────── */
@@ -1190,6 +1572,10 @@ function startPlacing(key) {
   cancelPlacing();
   const item = SHOP_ITEMS[key];
   if (state.gold < item.price) { toast('💸 골드가 부족해요!'); return; }
+  if (item.terraceOnly && state.shopLevel < 2) {
+    toast('⛱️ 테라스 가구는 가게 확장 Lv2부터 배치할 수 있어요!');
+    return;
+  }
   state.placing = key;
   state.placeRot = 0;
   ghost = item.build();
@@ -1244,15 +1630,15 @@ function updatePlacementPreview(gx, gz) {
   state.hoverTile = { gx, gz };
   const item = SHOP_ITEMS[state.placing];
   ghost.visible = true;
-  ghost.position.set(wx(gx), 0, wz(gz));
+  ghost.position.set(wx(gx), item.terraceOnly ? 0.09 : 0, wz(gz));   // 테라스 고스트는 데크 위
   let allOk = true;
   item.cells.forEach((cell, i) => {
     const [rx, rz] = rotCell(cell[0], cell[1], state.placeRot);
     const cgx = gx + rx, cgz = gz + rz;
-    const ok = cellFree(cgx, cgz);
+    const ok = cellOkFor(item, cgx, cgz);
     if (!ok) allOk = false;
     const plane = cursorGroup.children[i];
-    plane.position.set(wx(cgx), 0.085, wz(cgz));
+    plane.position.set(wx(cgx), item.terraceOnly ? 0.14 : 0.085, wz(cgz));
     plane.material.color.setHex(ok ? 0x2fae6e : 0xe03434);
     plane.material.opacity = ok ? 0.5 : 0.65;
   });
@@ -1285,20 +1671,33 @@ let placementGrid = null;
 function showPlacementGrid() {
   hidePlacementGrid();
   placementGrid = new THREE.Group();
-  for (let gz = 1; gz <= 5; gz++) {
-    for (let gx = 1; gx <= 12; gx++) {
-      const free = !occupied.has(gx + ',' + gz);
-      const m = new THREE.Mesh(
-        new THREE.PlaneGeometry(0.88, 0.88),
-        new THREE.MeshBasicMaterial({
-          color: free ? 0x5fbf8f : 0xd95f5f,
-          transparent: true, opacity: free ? 0.35 : 0.22, depthWrite: false
-        })
-      );
-      m.rotation.x = -Math.PI / 2;
-      m.position.set(wx(gx), 0.07, wz(gz));
-      placementGrid.add(m);
+  const item = SHOP_ITEMS[state.placing];
+  const cellsList = [];   // [gx, gz, 표시높이]
+  if (item && item.terraceOnly) {
+    // ⛱️ 테라스 전용: 데크 칸(벽+3열, 5칸)에만 격자 표시
+    if (state.shopLevel >= 2) {
+      const tg = SHOP_X1[state.shopLevel] + 3;
+      for (let gz = 1; gz <= 5; gz++) cellsList.push([tg, gz, 0.14]);
     }
+  } else {
+    // 실내 가구: 매장 내부에만 격자 표시
+    const x1 = SHOP_X1[state.shopLevel];
+    for (let gz = 1; gz <= 5; gz++) {
+      for (let gx = 1; gx <= x1; gx++) cellsList.push([gx, gz, 0.07]);
+    }
+  }
+  for (const [gx, gz, py] of cellsList) {
+    const free = !occupied.has(gx + ',' + gz);
+    const m = new THREE.Mesh(
+      new THREE.PlaneGeometry(0.88, 0.88),
+      new THREE.MeshBasicMaterial({
+        color: free ? 0x5fbf8f : 0xd95f5f,
+        transparent: true, opacity: free ? 0.35 : 0.22, depthWrite: false
+      })
+    );
+    m.rotation.x = -Math.PI / 2;
+    m.position.set(wx(gx), py, wz(gz));
+    placementGrid.add(m);
   }
   scene.add(placementGrid);
 }
@@ -1328,6 +1727,7 @@ const touches = new Map();   // pointerId → 마지막 좌표
 let tapInfo = null;          // 탭 판정용 { id, sx, sy, moved }
 let pinchDist = 0;
 let pinchAng = null;         // 두 손가락 비틀기(회전) 판정용 각도
+let pinchMidY = null;        // 두 손가락 중점 Y (상하 틸트 판정용)
 let orbitDrag = null;        // PC 우클릭 드래그 회전 { id, lastX, moved }
 let lastOrbitDragMoved = 0;  // 우클릭 '드래그'와 '클릭(배치취소)' 구분용
 const TAP_SLOP = 9;
@@ -1361,7 +1761,7 @@ canvas.addEventListener('pointerdown', e => {
   // 🖱️ 마우스 우클릭 드래그 = 카메라 좌우 회전
   if (e.pointerType === 'mouse' && e.button === 2) {
     try { canvas.setPointerCapture(e.pointerId); } catch (_) {}
-    orbitDrag = { id: e.pointerId, lastX: e.clientX, moved: 0 };
+    orbitDrag = { id: e.pointerId, lastX: e.clientX, lastY: e.clientY, moved: 0 };
     return;
   }
   if (e.pointerType === 'mouse' && e.button !== 0) return;
@@ -1375,17 +1775,21 @@ canvas.addEventListener('pointerdown', e => {
       const [p1, p2] = [...touches.values()];
       pinchDist = Math.hypot(p1.x - p2.x, p1.y - p2.y);
       pinchAng = Math.atan2(p2.y - p1.y, p2.x - p1.x);   // 비틀기 기준 각도
+      pinchMidY = (p1.y + p2.y) / 2;                     // 틸트 기준 중점
     }
   }
 });
 
 canvas.addEventListener('pointermove', e => {
-  // 🖱️ 우클릭 드래그 회전 처리
+  // 🖱️ 우클릭 드래그: 좌우 = 회전, 상하 = 틸트 (제한 각도 안에서만)
   if (orbitDrag && orbitDrag.id === e.pointerId) {
     const odx = e.clientX - orbitDrag.lastX;
+    const ody = e.clientY - orbitDrag.lastY;
     orbitDrag.lastX = e.clientX;
-    orbitDrag.moved += Math.abs(odx);
+    orbitDrag.lastY = e.clientY;
+    orbitDrag.moved += Math.abs(odx) + Math.abs(ody);
     setOrbit(camCtl.orbit + odx * 0.006);
+    setTilt(camCtl.tilt + ody * 0.004);
     return;
   }
   const t = touches.get(e.pointerId);
@@ -1413,6 +1817,10 @@ canvas.addEventListener('pointermove', e => {
       setOrbit(camCtl.orbit + dAng);
     }
     pinchAng = ang;
+    // 두 손가락을 함께 위아래로 = 상하 틸트 (33°~60° 안에서만)
+    const midY = (p1.y + p2.y) / 2;
+    if (pinchMidY !== null) setTilt(camCtl.tilt + (midY - pinchMidY) * 0.004);
+    pinchMidY = midY;
   }
 });
 
@@ -1427,6 +1835,7 @@ function endPointer(e) {
   touches.delete(e.pointerId);
   pinchDist = 0;
   pinchAng = null;
+  pinchMidY = null;
   if (tapInfo && tapInfo.id === e.pointerId) {
     // 가벼운 탭(제자리 터치)일 때만 설치/줍기 — 드래그는 고스트 미리보기만 이동
     if (e.type === 'pointerup' && !tapInfo.moved) handleTap(e);
@@ -1466,14 +1875,15 @@ window.addEventListener('keydown', e => {
 
 /* ── 동전(골드) 시스템 ───────────────────────────────────── */
 const coins = [];
-function dropCoin(x, z, value) {
+function dropCoin(x, z, value, big = false) {
   const c = cyl(0.22, 0.22, 0.07, 0xffd166, 18);
   c.material.depthTest = false;   // 바닥/벽/가구에 절대 가려지지 않게
   c.renderOrder = 999;            // 항상 화면 맨 위에 렌더링 (자석 비행이 또렷하게 보임)
   c.castShadow = false;
+  if (big) c.scale.setScalar(1.5);   // 📸 인플루언서의 대형 골드 동전
   c.rotation.x = Math.PI / 2;
   c.position.set(x + (Math.random() - 0.5) * 0.3, 0.25, z + (Math.random() - 0.5) * 0.3);
-  const coin = { mesh: c, value, age: 0, baseY: 0.25 };
+  const coin = { mesh: c, value, age: 0, baseY: 0.25, baseScale: big ? 1.5 : 1 };
   c.userData.coin = coin;
   scene.add(c);
   coins.push(coin);
@@ -1546,12 +1956,168 @@ function updateCoins(dt, time) {
       if (dist <= Math.max(step, 0.7)) { magnetFinish(c, i); continue; }
       c.mesh.position.addScaledVector(dir.normalize(), step);
       c.mesh.rotation.z += dt * 12;                              // 날아가며 팽그르르
-      c.mesh.scale.setScalar(Math.max(0.35, Math.min(1, dist / 6)));  // 멀어질수록 작아짐
+      c.mesh.scale.setScalar(c.baseScale * Math.max(0.35, Math.min(1, dist / 6)));  // 멀어질수록 작아짐
     } else {
       c.mesh.rotation.z = time * 2.5;
       c.mesh.position.y = c.baseY + Math.sin(time * 3 + i) * 0.05;
     }
   }
+}
+
+/* ── 🐱 고양이 알바생: 매장/테라스를 아장아장 돌며 동전 자동 수거 ── */
+function buildCat() {
+  const g = new THREE.Group();
+  const body = box(0.3, 0.2, 0.42, 0xfff1dc); body.position.y = 0.18; g.add(body);
+  const patch = box(0.14, 0.05, 0.2, 0xf5b98f); patch.position.set(0.05, 0.3, -0.05); g.add(patch);
+  const head = box(0.26, 0.22, 0.22, 0xfff1dc); head.position.set(0, 0.36, 0.22); g.add(head);
+  for (const ex of [-0.08, 0.08]) {
+    const ear = new THREE.Mesh(new THREE.ConeGeometry(0.055, 0.11, 4), mat(0xf5b98f));
+    ear.position.set(ex, 0.51, 0.18); ear.castShadow = true; g.add(ear);
+    const eye = box(0.035, 0.04, 0.02, 0x3a3a3a);
+    eye.position.set(ex * 0.7, 0.38, 0.335); eye.castShadow = false; g.add(eye);
+  }
+  const nose = box(0.04, 0.03, 0.02, 0xff9eb5); nose.position.set(0, 0.32, 0.335); nose.castShadow = false; g.add(nose);
+  for (const [px, pz] of [[-0.1, 0.14], [0.1, 0.14], [-0.1, -0.14], [0.1, -0.14]]) {
+    const paw = box(0.08, 0.09, 0.08, 0xfff1dc); paw.position.set(px, 0.045, pz); g.add(paw);
+  }
+  const tail = box(0.055, 0.055, 0.3, 0xf5b98f);
+  tail.position.set(0, 0.3, -0.33); tail.rotation.x = 0.7; g.add(tail);
+  scene.add(g);
+  return { group: g, tail };
+}
+function spawnCat() {
+  if (catWorker) return;
+  catWorker = buildCat();
+  catWorker.group.position.set(wx(3), 0, wz(3));
+  catWorker.wander = null;
+  catWorker.wanderT = 0;
+}
+function catWanderSpot() {
+  if (state.shopLevel >= 2 && Math.random() < 0.3) {   // 가끔 테라스 순찰
+    return { x: terraceGateX() + (Math.random() - 0.5) * 1.6, z: -1.2 - Math.random() * 3.6 };
+  }
+  const xMax = wx(SHOP_X1[state.shopLevel]) - 0.4;
+  return { x: -5.1 + Math.random() * (xMax + 5.1), z: -4.6 + Math.random() * 3.4 };
+}
+function updateCat(dt, time) {
+  if (!catWorker) return;
+  const g = catWorker.group;
+  // 아직 자석이 안 붙은 가장 가까운 동전을 노림
+  let target = null, best = Infinity;
+  for (const c of coins) {
+    if (c.magnetV !== undefined) continue;
+    const d = (c.mesh.position.x - g.position.x) ** 2 + (c.mesh.position.z - g.position.z) ** 2;
+    if (d < best) { best = d; target = c; }
+  }
+  let tx2, tz2, speed;
+  if (target) {
+    tx2 = target.mesh.position.x; tz2 = target.mesh.position.z; speed = 2.3;   // 동전 발견! 총총총
+  } else {
+    catWorker.wanderT -= dt;
+    if (!catWorker.wander || catWorker.wanderT <= 0) {
+      catWorker.wander = catWanderSpot();
+      catWorker.wanderT = 3 + Math.random() * 3;
+    }
+    tx2 = catWorker.wander.x; tz2 = catWorker.wander.z; speed = 0.85;          // 아장아장 순찰
+  }
+  const dx = tx2 - g.position.x, dz = tz2 - g.position.z;
+  const dist = Math.hypot(dx, dz);
+  if (dist > 0.06) {
+    const step = Math.min(speed * dt, dist);
+    g.position.x += dx / dist * step;
+    g.position.z += dz / dist * step;
+    let diff = Math.atan2(dx, dz) - g.rotation.y;
+    while (diff > Math.PI) diff -= Math.PI * 2;
+    while (diff < -Math.PI) diff += Math.PI * 2;
+    g.rotation.y += diff * Math.min(1, dt * 8);
+    g.position.y = Math.abs(Math.sin(time * 9)) * 0.035;
+  } else {
+    g.position.y *= 0.9;
+  }
+  catWorker.tail.rotation.y = Math.sin(time * 5) * 0.55;   // 꼬리 살랑살랑
+  // 동전 수거!
+  if (target && dist < 0.45) {
+    const idx = coins.indexOf(target);
+    if (idx >= 0) {
+      coins.splice(idx, 1);
+      state.gold += target.value;
+      updateUI(true);
+      scene.remove(target.mesh);
+      target.mesh.geometry.dispose();
+      target.mesh.material.dispose();
+      if (!g.userData.bubbleOn) showBubble(g, '😺 +' + target.value + 'G', 0.9, 1.2);
+    }
+  }
+}
+function hireCat() {
+  if (state.catHired) return;
+  if (state.gold < 1500) { toast('💸 골드가 부족해요! 고양이 알바 고용비 1500G'); return; }
+  state.gold -= 1500;
+  state.catHired = true;
+  spawnCat();
+  toast('🐱 야옹! 고양이 알바생 출근 — 동전은 이제 맡겨주세요!');
+  updateUI(true);
+}
+
+/* ── 🎉 축하 폭죽 파티클 (인플루언서 정산 연출) ── */
+const confetti = [];
+function spawnConfetti(x, z) {
+  const colors = [0xffd166, 0xff8fab, 0xa8e6ff, 0x9fd98f, 0xceb8f0];
+  for (let i = 0; i < 26; i++) {
+    const p = new THREE.Mesh(
+      new THREE.BoxGeometry(0.07, 0.02, 0.07),
+      new THREE.MeshBasicMaterial({ color: colors[i % 5], transparent: true })
+    );
+    p.position.set(x, 0.9, z);
+    const a = Math.random() * Math.PI * 2;
+    confetti.push({
+      mesh: p, t: 0,
+      vx: Math.cos(a) * (0.8 + Math.random()),
+      vy: 2.4 + Math.random() * 1.6,
+      vz: Math.sin(a) * (0.8 + Math.random()),
+      spin: 4 + Math.random() * 6,
+    });
+    scene.add(p);
+  }
+}
+function updateConfetti(dt) {
+  for (let i = confetti.length - 1; i >= 0; i--) {
+    const p = confetti[i];
+    p.t += dt;
+    p.vy -= 6 * dt;
+    p.mesh.position.x += p.vx * dt;
+    p.mesh.position.y += p.vy * dt;
+    p.mesh.position.z += p.vz * dt;
+    p.mesh.rotation.x += p.spin * dt;
+    p.mesh.rotation.z += p.spin * 0.7 * dt;
+    p.mesh.material.opacity = Math.max(0, 1 - p.t / 1.4);
+    if (p.t > 1.4 || p.mesh.position.y < 0) {
+      scene.remove(p.mesh);
+      p.mesh.geometry.dispose();
+      p.mesh.material.dispose();
+      confetti.splice(i, 1);
+    }
+  }
+}
+
+/* ── 🔥 황금 요리 피버타임 (평판 5.0 도달 시 20초 발동) ── */
+let feverT = 0;
+function startFever() {
+  feverT = 20;
+  document.getElementById('feverFx').style.display = 'block';
+  potSauce.material.color.setHex(0xffd166);            // 🥇 황금 떡볶이!
+  potSauce.material.emissive.setHex(0xcc8800);
+  spawnConfetti(wx(2), wz(2));
+  toast('🔥 피버타임! 20초 동안 황금 떡볶이 — 식사 속도·보상 2배!');
+}
+function endFever() {
+  feverT = 0;
+  document.getElementById('feverFx').style.display = 'none';
+  potSauce.material.emissive.setHex(0x000000);
+  updateKitchenVisual();                               // 솥을 원래 메뉴 색으로
+  state.reputation = 3.5;                              // 평판을 다시 쌓아 재발동!
+  updateUI();
+  toast('피버 종료! 평판 ⭐을 다시 쌓으면 또 발동돼요');
 }
 
 /* ── 손님 AI 순환 ────────────────────────────────────────── */
@@ -1564,6 +2130,7 @@ function spawnInterval() {
   const seats = tables.reduce((n, t) => n + t.seats.length, 0);
   const boost = Math.min(0.5, Math.max(0.25, 0.25 + (seats - 2) * 0.02));
   let interval = (5 + Math.random() * 3) / (1 + boost);   // 기본 5~8초를 보너스만큼 단축
+  interval /= 1 + Math.max(0, state.reputation - 3) * 0.15;   // ⭐ 평판 가속 (5성이면 +30%)
   // 🚶 대박집 웨이팅 유지: 문 앞 줄이 3명 미만으로 한산해지면
   // 다음 손님 무리를 더 빨리 보내서 항상 2~3명 줄이 유지되게 함 (초반 제외)
   if (waitingQueue.length < 3 && seats > 2) interval *= 0.55;
@@ -1629,17 +2196,28 @@ function spawnCustomer() {
 
   const g = buildCharacter();
   g.position.set(EDGE_X * -dir - dir * Math.random() * 1.8, 0, SIDEWALK_Z);   // 일행끼리 겹치지 않게 간격
+
+  // 📸 아주 낮은 확률(8%)로 먹방 인플루언서 등장! (머리 위 카메라 + 반짝이)
+  const influencer = Math.random() < 0.08;
+  if (influencer) {
+    const cam = box(0.18, 0.12, 0.14, 0x3d3d46);
+    cam.position.set(0, 1.27, 0.02); g.add(cam);
+    const lens = cyl(0.045, 0.045, 0.06, 0x8fd3ff, 10);
+    lens.rotation.x = Math.PI / 2;
+    lens.position.set(0, 1.27, 0.12); g.add(lens);
+    const spark = new THREE.Mesh(
+      new THREE.SphereGeometry(0.05, 6, 6),
+      new THREE.MeshLambertMaterial({ color: 0xfff2b0, emissive: 0xffd764, emissiveIntensity: 1 })
+    );
+    spark.position.set(0.15, 1.42, 0); g.add(spark);
+  }
+
   customers.push({
-    group: g, seat, menu,
+    group: g, seat, menu, influencer,
     speed: 1.7,
     state: 'arriving',
     timer: 0,
-    waypoints: [
-      { x: DOOR_X, z: SIDEWALK_Z },
-      { x: DOOR_X, z: wz(6) },          // 문 통과
-      { x: DOOR_X, z: wz(5) },
-      { x: seat.x, z: seat.z },
-    ],
+    waypoints: seatPath(seat),   // 실내석은 문으로, 테라스석은 옆길로
     exitDir: Math.random() < 0.5 ? 1 : -1,
   });
 }
@@ -1669,20 +2247,26 @@ function updateCustomers(dt) {
       case 'arriving': {
         if (walkStep(c, dt)) {
           c.state = 'eating';
-          c.timer = 5 + Math.random();      // 5~6초 동안 식사 (여유로운 회전율)
-          // 의자에 엉덩이 붙이고 정확히 앉기 + 테이블 방향 바라보기
-          c.group.position.set(c.seat.x, 0.2, c.seat.z);
+          c.timer = c.influencer ? 7 + Math.random() : 5 + Math.random();   // 인플루언서는 종류별로 오래 먹방 (여유로운 회전율)
+          // 의자에 엉덩이 붙이고 정확히 앉기 + 테이블 방향 바라보기 (테라스는 데크 높이 반영)
+          c.group.position.set(c.seat.x, c.seat.terrace ? 0.29 : 0.2, c.seat.z);
           c.group.rotation.y = c.seat.ry;
           c.targetRot = c.seat.ry;
           setSitPose(c.group, true);
-          // 주문한 메뉴 말풍선 딱 1개가 식사 시간 내내 유지됨 (중복 생성 없음)
-          showBubble(c.group, c.menu.tag, 1.55, c.timer - 0.1);
+          // 앉자마자 원하는 메뉴를 외침! (인플루언서는 대량 주문)
+          showBubble(c.group,
+            c.influencer ? '📸 메뉴 종류별로 다 주세요!' : c.menu.tag + ' 주세요!',
+            1.55, c.influencer ? 2.4 : 1.6);
         }
         break;
       }
       case 'eating': {
-        c.timer -= dt;
-        c.group.position.y = 0.2;           // 의자 높이 유지 (앉은 상태)
+        c.timer -= dt * (feverT > 0 ? 2 : 1);   // 🔥 피버타임엔 2배 속도로 냠냠
+        c.group.position.y = c.seat.terrace ? 0.29 : 0.2;   // 의자 높이 유지 (테라스는 데크 위)
+        // 주문 외침이 끝나면 식사 말풍선으로 전환 (항상 1개만 유지)
+        if (!c.group.userData.bubbleOn && c.timer > 1.5) {
+          showBubble(c.group, (c.influencer ? '📸 먹방 ' : '') + c.menu.tag, 1.55, c.timer - 0.1);
+        }
         // 냠냠 고개 까딱까딱
         const head = c.group.userData.anim.head;
         head.rotation.x = Math.sin(c.timer * 12) * 0.12;
@@ -1690,17 +2274,20 @@ function updateCustomers(dt) {
           head.rotation.x = 0;
           setSitPose(c.group, false);       // 자리에서 일어나기
           c.group.position.y = 0;
-          const income = c.menu.income;   // 자기가 주문한 메뉴의 가격만큼 지불
-          dropCoin(c.seat.x + Math.sin(c.seat.ry) * 0.3, c.seat.z + Math.cos(c.seat.ry) * 0.3, income);
+          // 자기가 주문한 메뉴 가격만큼 지불 (📸 인플루언서 5배 / 🔥 피버 2배)
+          const income = (c.influencer ? c.menu.income * 5 : c.menu.income) * (feverT > 0 ? 2 : 1);
+          dropCoin(c.seat.x + Math.sin(c.seat.ry) * 0.3, c.seat.z + Math.cos(c.seat.ry) * 0.3, income, c.influencer);
+          if (c.influencer) {
+            spawnConfetti(c.seat.x, c.seat.z);   // 🎉 축하 폭죽!
+            showBubble(c.group, '🎉 리뷰 대박 예감!', 1.55, 1.8);
+          }
           state.served++;
+          // ⭐ 만족한 손님이 평판을 올려줌 (인플루언서는 3배!) — 5.0 도달 시 피버타임
+          state.reputation = Math.min(5, state.reputation + (c.influencer ? 0.15 : 0.05));
+          if (state.reputation >= 5 && feverT <= 0) startFever();
           updateUI();
           c.seat.taken = false;             // 의자 반납 → 대기열이 페이싱에 맞춰 입장
-          c.waypoints = [
-            { x: DOOR_X, z: wz(5) },
-            { x: DOOR_X, z: wz(6) },
-            { x: DOOR_X, z: SIDEWALK_Z },
-            { x: EDGE_X * c.exitDir, z: SIDEWALK_Z },
-          ];
+          c.waypoints = leavePath(c.seat, c.exitDir);
           c.state = 'leaving';
         }
         break;
@@ -1738,6 +2325,36 @@ function spawnWalker() {
 function updateWalkers(dt) {
   for (let i = walkers.length - 1; i >= 0; i--) {
     const w = walkers[i];
+    // 🏪 가게 앞을 지나던 행인이 빈자리를 보고 쑥 들어옴! (평판 높을수록 확률 상승)
+    if (state.opened && !w.checked &&
+        Math.abs(w.group.position.x) < 2.5 &&
+        Math.abs(w.group.position.z - SIDEWALK_Z) < 0.4) {
+      w.checked = true;   // 행인당 1번만 판정
+      if (waitingQueue.length === 0) {
+        let seat = null;
+        for (const t of tables) {
+          const s = t.seats.find(s => !s.taken);
+          if (s) { seat = s; break; }
+        }
+        const chance = 0.45 + Math.max(0, state.reputation - 3) * 0.15;   // 3성 45% → 5성 75%
+        if (seat && Math.random() < chance) {
+          seat.taken = true;
+          showBubble(w.group, seat.terrace
+            ? '⛱️ 테라스 자리 있네?'
+            : pick(['😋 앗, 맛있는 냄새!', '🍢 여기 맛집이래!', '✨ 자리 있다, 들어가자!']));
+          customers.push({
+            group: w.group, seat,
+            menu: MENU_LEVELS[Math.floor(Math.random() * (state.menuLevel + 1))],
+            influencer: false,
+            speed: 1.7, state: 'arriving', timer: 0,
+            waypoints: seatPath(seat),
+            exitDir: Math.random() < 0.5 ? 1 : -1,
+          });
+          walkers.splice(i, 1);   // 행인 → 손님으로 전환 완료
+          continue;
+        }
+      }
+    }
     w.emojiTimer -= dt;
     if (w.emojiTimer <= 0) {
       w.emojiTimer = 2.5 + Math.random() * 4;
@@ -1754,7 +2371,12 @@ function updateWalkers(dt) {
 const goldChip = document.getElementById('goldChip');
 const menuChip = document.getElementById('menuChip');
 const servedChip = document.getElementById('servedChip');
+const repChip = document.getElementById('repChip');
 const researchBtn = document.getElementById('researchBtn');
+const expandBtn = document.getElementById('expandBtn');
+expandBtn.addEventListener('click', () => { cancelPlacing(); closeShop(); closeMenuBook(); upgradeShop(); });
+const catBtn = document.getElementById('catBtn');
+catBtn.addEventListener('click', () => hireCat());
 const shopPanel = document.getElementById('shopPanel');
 
 function updateUI(pulse = false) {
@@ -1762,14 +2384,18 @@ function updateUI(pulse = false) {
   const latest = MENU_LEVELS[state.menuLevel];
   menuChip.textContent = '📖 메뉴 ' + (state.menuLevel + 1) + '/' + MENU_LEVELS.length + '종 · 최신 ' + latest.tag;
   servedChip.textContent = '😋 손님 ' + state.served + '명';
-  const next = MENU_LEVELS[state.menuLevel + 1];
-  if (next) {
-    researchBtn.textContent = '🔬 신메뉴 연구: ' + next.name + ' (' + next.cost + 'G)';
-    researchBtn.disabled = false;
+  const stars = Math.round(state.reputation);
+  repChip.textContent = '★'.repeat(stars) + '☆'.repeat(5 - stars) + ' ' + state.reputation.toFixed(1);
+  researchBtn.textContent = '📖 메뉴 개발 (' + (state.menuLevel + 1) + '/' + MENU_LEVELS.length + ')';
+  researchBtn.disabled = false;
+  if (state.shopLevel < 3) {
+    expandBtn.textContent = '🏗️ 확장 Lv' + (state.shopLevel + 1) + ' (' + SHOP_LEVEL_COST[state.shopLevel] + 'G)';
+    expandBtn.disabled = false;
   } else {
-    researchBtn.textContent = '🔬 모든 메뉴 개발 완료!';
-    researchBtn.disabled = true;
+    expandBtn.textContent = '🏆 확장 완료';
+    expandBtn.disabled = true;
   }
+  catBtn.style.display = state.catHired ? 'none' : 'block';   // 고용 후엔 버튼 숨김
   if (pulse) {
     goldChip.classList.remove('pulse');
     void goldChip.offsetWidth;
@@ -1778,16 +2404,67 @@ function updateUI(pulse = false) {
   saveGame();   // 💾 골드·연구·가구 상태가 바뀔 때마다 자동 저장
 }
 
-researchBtn.addEventListener('click', () => {
-  const next = MENU_LEVELS[state.menuLevel + 1];
-  if (!next) return;
-  if (state.gold < next.cost) { toast('💸 골드가 부족해요! (' + next.cost + 'G 필요)'); return; }
-  state.gold -= next.cost;
-  state.menuLevel++;
-  toast('🎉 신메뉴 「' + next.name + '」 해금! 메뉴판에 추가 (' + next.income + 'G) — 손님들이 골라 먹어요!');
-  showBubble(cook, '👍');
+/* ── 📖 메뉴 개발 연구소 팝업 ─────────────────────── */
+const menuPanel = document.getElementById('menuPanel');
+const menuOverlay = document.getElementById('menuOverlay');
+
+function renderMenuBook() {
+  const wrap = document.getElementById('menuList');
+  wrap.innerHTML = '';
+  MENU_LEVELS.forEach((m, i) => {
+    const unlocked = i <= state.menuLevel;
+    const isNext = i === state.menuLevel + 1;
+    const row = document.createElement('div');
+    row.className = 'shopItem' + (!unlocked && !isNext ? ' locked' : '');
+    const info = document.createElement('div');
+    info.className = 'info';
+    info.innerHTML = (unlocked || isNext ? m.tag.split(' ')[0] + ' ' + m.name : '🔒 ???') +
+      '<small>' + (unlocked
+        ? '판매 중 · 손님이 ' + m.income + 'G씩 내요'
+        : (isNext ? '개발 가능! 판매가 ' + m.income + 'G' : '이전 메뉴를 먼저 개발하세요')) + '</small>';
+    row.appendChild(info);
+    if (unlocked) {
+      const done = document.createElement('span');
+      done.textContent = '✅';
+      row.appendChild(done);
+    } else if (isNext) {
+      const btn = document.createElement('button');
+      btn.textContent = m.cost + 'G 개발';
+      btn.addEventListener('click', () => developMenu(i));
+      row.appendChild(btn);
+    } else {
+      const lock = document.createElement('span');
+      lock.textContent = '🔒';
+      row.appendChild(lock);
+    }
+    wrap.appendChild(row);
+  });
+}
+function developMenu(i) {
+  const m = MENU_LEVELS[i];
+  if (state.gold < m.cost) { toast('💸 골드가 부족해요! (' + m.cost + 'G 필요)'); return; }
+  state.gold -= m.cost;
+  state.menuLevel = i;               // 해금! (세이브는 updateUI가 자동 처리)
+  updateKitchenVisual();             // 솥 소스/고명 즉시 변신
+  toast('🎉 신메뉴 「' + m.name + '」 개발 완료! 소문 듣고 손님들이 몰려와요!');
+  showBubble(cook, m.tag);
+  if (state.opened) { spawnCustomer(); spawnCustomer(); }   // 신메뉴 소문 효과: 손님 유입
   updateUI(true);
-});
+  renderMenuBook();
+}
+function openMenuBook() {
+  cancelPlacing(); closeShop();
+  renderMenuBook();
+  menuPanel.style.display = 'block';
+  menuOverlay.style.display = 'block';
+}
+function closeMenuBook() {
+  menuPanel.style.display = 'none';
+  menuOverlay.style.display = 'none';
+}
+researchBtn.addEventListener('click', openMenuBook);
+menuOverlay.addEventListener('click', closeMenuBook);
+document.getElementById('menuClose').addEventListener('click', closeMenuBook);
 
 const shopOverlay = document.getElementById('shopOverlay');
 function openShop() {
@@ -1829,6 +2506,8 @@ document.getElementById('openShopBtn').addEventListener('click', () => {
   welcomePanel.style.display = 'none';
   welcomeOverlay.style.display = 'none';
   toast('🎊 「' + name + '」 그랜드 오픈! 손님들이 몰려와요!');
+  // 💰 다정한 운영자금 안내 멘트 (그랜드 오픈 토스트 다음에 이어서)
+  setTimeout(() => toast('💰 초기 운영자금으로 3000G를 드렸어요! 멋진 떡볶이집으로 키워보세요!'), 2500);
   saveGame();
 });
 
@@ -1914,6 +2593,20 @@ function tick() {
   updateCoins(dt, time);
   updatePoppingCoins(dt);
   updatePetals(dt, time);   // 🌸 벚꽃잎 흩날림
+  updateCat(dt, time);      // 🐱 고양이 알바 순찰/수거
+  updateConfetti(dt);       // 🎉 폭죽 파티클
+
+  // 🔥 피버타임 진행 (황금 솥이 반짝반짝)
+  if (feverT > 0) {
+    feverT -= dt;
+    potSauce.material.emissiveIntensity = 0.6 + Math.sin(time * 8) * 0.4;
+    if (feverT <= 0) endFever();
+  }
+
+  // ✨ Lv3 알전구 반짝반짝
+  for (const b of stringBulbs) {
+    b.material.emissiveIntensity = 0.65 + Math.sin(time * 3 + b.userData.ph) * 0.4;
+  }
 
   // 배치 고스트가 목표 각도로 부드럽게 회전
   if (ghost) {
