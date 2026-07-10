@@ -70,12 +70,12 @@
   .bigbtn:disabled { background: #c9c2bc; cursor: not-allowed; }
 
   /* ── 상점 패널 ───────────────────────── */
-  #shopOverlay, #menuOverlay, #labOverlay {
+  #shopOverlay, #menuOverlay, #labOverlay, #newsOverlay {
     position: fixed; inset: 0; background: rgba(70,55,45,.35);
     z-index: 29; display: none;
   }
   #menuPanel .locked, #labPanel .locked { opacity: .5; }
-  #shopPanel, #menuPanel, #labPanel {
+  #shopPanel, #menuPanel, #labPanel, #newsPanel {
     position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
     background: linear-gradient(160deg, #fff8ec, #ffeddb);
     border: 3px solid #ffd9b8; border-radius: 24px;
@@ -83,8 +83,8 @@
     box-shadow: 0 14px 40px rgba(90,60,40,.35);
     width: min(340px, 90vw); max-height: 70vh; overflow-y: auto;
   }
-  #shopPanel h3, #menuPanel h3, #labPanel h3 { color: #5a4a42; font-size: 17px; margin-bottom: 12px; text-align: center; }
-  #shopClose, #menuClose, #labClose {
+  #shopPanel h3, #menuPanel h3, #labPanel h3, #newsPanel h3 { color: #5a4a42; font-size: 17px; margin-bottom: 12px; text-align: center; }
+  #shopClose, #menuClose, #labClose, #newsClose {
     position: absolute; top: 12px; right: 14px;
     border: none; background: #ffd9b8; color: #7a5c3a;
     width: 32px; height: 32px; border-radius: 50%;
@@ -126,6 +126,16 @@
     transition: transform .08s;
   }
   #rotateBtn:active { transform: translateY(3px) rotate(90deg); box-shadow: none; }
+  /* 🗑️ 들림 상태 전용 철거 버튼 (회전 버튼 바로 위) */
+  #discardBtn {
+    position: fixed; right: 16px; bottom: calc(158px + env(safe-area-inset-bottom));
+    border: none; background: #e05a5a; color: #fff;
+    border-radius: 999px; padding: 15px 19px; font-size: 15px; font-weight: 800;
+    box-shadow: 0 4px 0 rgba(0,0,0,.13); cursor: pointer; z-index: 10;
+    display: none; touch-action: manipulation;
+    transition: transform .08s;
+  }
+  #discardBtn:active { transform: translateY(3px); box-shadow: none; }
 
   /* ── 🎉 창업 웰컴 팝업 ───────────────────── */
   #welcomeOverlay {
@@ -187,6 +197,25 @@
     touch-action: manipulation;
   }
   #labBtn:active { transform: scale(1.2); }
+  #newsBtn {
+    position: fixed; top: calc(150px + env(safe-area-inset-top)); right: 12px;
+    z-index: 10; border: none; cursor: pointer;
+    background: rgba(255,255,255,.9);
+    width: 38px; height: 38px; border-radius: 50%;
+    font-size: 17px; box-shadow: 0 3px 10px rgba(90,60,40,.18);
+    touch-action: manipulation;
+  }
+  #newsBtn:active { transform: scale(1.2); }
+  /* 📰 신문 지면 스타일 */
+  #newsBody {
+    background: #fbf7ee; border: 2px solid #d8cdb8; border-radius: 8px;
+    padding: 14px 16px; font-family: 'Batang', 'Noto Serif KR', serif; color: #443a30;
+  }
+  #newsBody .nDate { font-size: 11px; color: #9a8c78; text-align: right; border-bottom: 3px double #c9bda5; padding-bottom: 5px; }
+  #newsBody .nHead { font-size: 21px; font-weight: 900; margin: 12px 0 8px; line-height: 1.3; }
+  #newsBody .nDesc { font-size: 13px; line-height: 1.6; }
+  #newsBody .nTag { display: inline-block; margin-top: 12px; background: #ffd166; color: #7a5c00;
+    border-radius: 999px; padding: 4px 12px; font-size: 12px; font-weight: 800; font-family: sans-serif; }
   /* ── 🪑 배치 가구 이동/철거 미니 팝업 ─────────── */
   #furniPop {
     position: fixed; z-index: 22; display: none; gap: 6px;
@@ -239,9 +268,22 @@
   #toast {
     position: fixed; bottom: 140px; left: 50%; transform: translateX(-50%);
     background: rgba(66,58,52,.9); color: #fff; border-radius: 999px;
-    padding: 9px 20px; font-size: 14px; font-weight: 700; z-index: 20;
+    padding: 9px 20px; font-size: 14px; font-weight: 700;
+    z-index: 9999;   /* 🛠️ 상점/패널(z 30)에 가려지던 버그 수정 — 항상 최상위 */
     opacity: 0; transition: opacity .25s; pointer-events: none;
   }
+  /* 🔥 피버타임 전용 폭풍 호객 연타 버튼 */
+  #rushBtn {
+    position: fixed; bottom: calc(96px + env(safe-area-inset-bottom)); left: 50%;
+    transform: translateX(-50%);
+    border: none; cursor: pointer; z-index: 15; display: none;
+    background: linear-gradient(160deg, #ff7043, #e5383b); color: #fff;
+    border-radius: 999px; padding: 14px 26px; font-size: 16px; font-weight: 900;
+    box-shadow: 0 4px 0 rgba(0,0,0,.2); touch-action: manipulation;
+    animation: rushBlink .5s infinite alternate;
+  }
+  #rushBtn:active { transform: translateX(-50%) scale(0.92); }
+  @keyframes rushBlink { from { filter: brightness(1); } to { filter: brightness(1.45); box-shadow: 0 4px 18px rgba(255,110,60,.8); } }
 
   /* ── 도움말 ───────────────────────── */
   #help {
@@ -261,7 +303,7 @@
       padding: 10px 6px; font-size: 14px; line-height: 1.3;
       border-radius: 16px; white-space: normal;
     }
-    #shopPanel, #menuPanel, #labPanel { max-height: 62vh; }
+    #shopPanel, #menuPanel, #labPanel, #newsPanel { max-height: 62vh; }
     #toast {
       bottom: calc(160px + env(safe-area-inset-bottom));
       max-width: 90vw; text-align: center; font-size: 13px;
@@ -278,6 +320,7 @@
   <div class="chip" id="menuChip">🍲 기본 떡볶이</div>
   <div class="chip" id="servedChip">😋 손님 0명</div>
   <div class="chip" id="repChip">★★★☆☆ 3.0</div>
+  <div class="chip" id="newsChip" title="오늘의 트렌드">📰 -</div>
 </div>
 
 <div id="feverFx"></div>
@@ -306,6 +349,7 @@
 
 <div id="placeHint">🧱 초록 칸을 터치해서 배치! <button id="cancelPlaceBtn">✕ 취소</button></div>
 <button id="rotateBtn">🔄 회전</button>
+<button id="discardBtn">🗑️ 철거</button>
 
 <div id="welcomeOverlay"></div>
 <div id="welcomePanel">
@@ -319,6 +363,14 @@
 <button id="resetBtn" title="처음부터 다시 시작">🔄</button>
 <button id="catBtn" title="고양이 알바 고용 (1500G)">🐱</button>
 <button id="labBtn" title="가게 연구 센터">🧪</button>
+<button id="newsBtn" title="오늘의 뉴스">📰</button>
+<button id="rushBtn">🔥 폭풍 호객 (클릭!!)</button>
+<div id="newsOverlay"></div>
+<div id="newsPanel">
+  <button id="newsClose">✕</button>
+  <h3>📰 오늘의 마케팅 트렌드</h3>
+  <div id="newsBody"></div>
+</div>
 <div id="labOverlay"></div>
 <div id="labPanel">
   <button id="labClose">✕</button>
@@ -388,6 +440,10 @@ const state = {
   labKitchen: 0,     // 🧪 주방 속도 강화 레벨 (0~5): 주방장 이동속도 +15%/Lv
   labCat: 0,         // 🧪 고양이 자석 강화 레벨 (0~5): 동전 흡입 반경 ×1.5/Lv
   helperHired: false, // 👩‍🍳 주방 보조 알바생 (사이드/음료 서빙 전담)
+  catCostumes: [],    // 🐱 보유한 코스튬 id 목록
+  catWearing: null,   // 🐱 현재 장착 중인 코스튬 id (null = 기본)
+  newsDay: '',        // 📰 마지막 뉴스 발행일 (YYYY-M-D)
+  newsId: '',         // 📰 오늘 적용 중인 트렌드 id
 };
 
 // 🌶️ 맵기 단계 & 🥚 추가 토핑 커스텀 주문 (토핑은 정산 시 보너스 골드)
@@ -397,6 +453,19 @@ const TOPPINGS = [
   { name: '만두', emoji: '🥟', bonus: 10, kind: 'dumpling' },
 ];
 const HELPER_COST = 2500;   // 👩‍🍳 주방 보조 고용 비용
+
+// 🐱 고양이 알바 코스튬 (구매 후 장착 — 1벌씩만 착용, 고유 버프)
+const CAT_COSTUMES = [
+  { id: 'chef',  emoji: '👨‍🍳', name: '주방장 모자 고양이', cost: 1000, desc: '이동 속도 +25%' },
+  { id: 'bee',   emoji: '🐝', name: '황금 꿀벌 고양이',   cost: 2000, desc: '동전 자석 반경 ×1.8 추가' },
+  { id: 'astro', emoji: '🚀', name: '우주비행사 고양이',  cost: 3500, desc: 'VIP 피버 지속 +4초' },
+];
+// 📰 일일 마케팅 트렌드 뉴스 (하루 1개 랜덤, 당일 장사에 실시간 적용)
+const NEWS_LIST = [
+  { id: 'jjajang',  emoji: '🖤', title: '짜장 대유행!',   desc: '오늘 짜장 떡볶이(세트 포함) 정산 골드 1.5배!' },
+  { id: 'vacation', emoji: '🎒', title: '학생 방학 시작!', desc: '손님이 2배 빨리 몰려오고, 식사도 25% 빨리 끝나요!' },
+  { id: 'terrace',  emoji: '⛱️', title: '골목 테라스 축제!', desc: '테라스 좌석 손님 정산 골드 1.4배!' },
+];
 
 // 🧪 연구 센터 업그레이드 정의 (레벨별 비용 상승, 최대 5레벨)
 const LAB_UPGRADES = [
@@ -434,6 +503,10 @@ function saveGame() {
       labKitchen: state.labKitchen,
       labCat: state.labCat,
       helperHired: state.helperHired,
+      catCostumes: state.catCostumes,
+      catWearing: state.catWearing,
+      newsDay: state.newsDay,
+      newsId: state.newsId,
       fixturesPos: fixtures.pot   // 🧰 주방 기물 배치 (부팅 초기엔 아직 없을 수 있음)
         ? { pot: fixtures.pot.rec, fridge: fixtures.fridge.rec, stand: fixtures.stand.rec }
         : undefined,
@@ -624,6 +697,7 @@ let catWorker = null;            // 🐱 고양이 알바생 (세이브 로드 �
 const workers = [];              // 🧑‍🍳 서빙 인력 목록 (주방장 + 주방 보조)
 let helperWorker = null;         // 👩‍🍳 주방 보조 알바생 워커
 let vipFeverT = 0;               // 📱 VIP 인플루언서 대박 피버 남은 시간
+let rushBuffT = 0;               // 🔥 폭풍 호객 연타 버프 남은 시간 (일꾼 1.4배 가속)
 
 function addTile(gx, gz, color, interior = false) {
   const t = box(0.98, 0.12, 0.98, color);
@@ -1766,6 +1840,10 @@ function leavePath(seat, exitDir) {
     state.labKitchen = Math.min(Math.max(saved.labKitchen || 0, 0), 5);
     state.labCat = Math.min(Math.max(saved.labCat || 0, 0), 5);
     state.helperHired = !!saved.helperHired;   // 👩‍🍳 스폰은 tick에서 지연 처리
+    state.catCostumes = Array.isArray(saved.catCostumes) ? saved.catCostumes : [];
+    state.catWearing = saved.catWearing || null;
+    state.newsDay = saved.newsDay || '';
+    state.newsId = saved.newsId || '';
     // 🧰 주방 기물 위치 복원 — 가구보다 먼저 해야 점유 충돌 검사가 정확함
     if (saved.fixturesPos) {
       for (const id of ['pot', 'fridge', 'stand']) {
@@ -1855,6 +1933,7 @@ function cancelPlacing() {
   state.hoverTile = null;
   document.getElementById('placeHint').style.display = 'none';
   document.getElementById('rotateBtn').style.display = 'none';
+  document.getElementById('discardBtn').style.display = 'none';   // 🗑️ 들림 해제 시 함께 숨김
   if (moveInfo) {   // 🪑 이동이 완료되지 않고 취소됨 → 원래 자리로 복원
     const m = moveInfo; moveInfo = null;
     if (m.fixture) {
@@ -2011,30 +2090,16 @@ function handleTap(e) {
   raycaster.setFromCamera(pointer, camera);
 
   // 🪑 편집 모드: 홀 가구 + 🧰 주방 기물만 레이캐스트 (동전·손님 클릭과 절대 겹치지 않음)
+  // 🖐️ 팝업 없이 클릭 즉시 들어올려 이동 모드로 전환!
   if (editMode) {
     const targets = tables.map(t => t.group).concat(Object.values(fixtures).map(f => f.group));
     const fhits = raycaster.intersectObjects(targets, true);
     if (fhits.length) {
       let obj = fhits[0].object;
       while (obj && !obj.userData.isFurniRoot) obj = obj.parent;
-      if (obj && obj.userData.fixtureId) {           // 🧰 주방 기물: 이동/회전만 (철거 버튼 숨김)
-        selectedFixture = obj.userData.fixtureId;
-        selectedTable = null;
-        document.getElementById('furniRemove').style.display = 'none';
-        furniPop.style.left = e.clientX + 'px';
-        furniPop.style.top = e.clientY + 'px';
-        furniPop.style.display = 'flex';
-        return;
-      }
+      if (obj && obj.userData.fixtureId) { beginMoveFixture(obj.userData.fixtureId); return; }
       const table = tables.find(t => t.group === obj);
-      if (table) {
-        selectedTable = table;   // 손님이 앉아 있어도 선택은 가능 (조작 시에만 가드)
-        selectedFixture = null;
-        document.getElementById('furniRemove').style.display = '';
-        furniPop.style.left = e.clientX + 'px';
-        furniPop.style.top = e.clientY + 'px';
-        furniPop.style.display = 'flex';
-      }
+      if (table) beginMoveTable(table);
     }
     return;
   }
@@ -2175,8 +2240,44 @@ function evictSeated(table, angry) {
   }
   updateUI();
 }
-// 🔄 제자리 90도 회전: 새 방향 footprint가 다른 가구/벽과 겹치지 않을 때만
-// 🧰 주방 기물 제자리 90도 회전 (픽업 지점도 fixtureSpot이 자동 추종)
+/* ── 🖐️ 클릭 즉시 이동 UX: 편집 모드에서 가구를 클릭하면 팝업 없이
+   곧바로 들어올려(고스트) 마우스를 따라다니고, 들림 중엔 🔄 회전 / 🗑️ 철거 버튼 상시 노출 ── */
+function beginMoveTable(t) {
+  if (!tables.includes(t)) return;
+  evictSeated(t, false);             // 앉아있던 손님은 자리 정리
+  const rec = { ...t.rec };          // 원래 자리 백업 (취소 시 복원)
+  removeFurniture(t);
+  startPlacing(rec.key, true);       // 🆓 무료 이동 모드 (고스트가 마우스 추적)
+  state.placeRot = rec.rot;
+  moveInfo = rec;
+  document.getElementById('discardBtn').style.display = 'block';   // 🗑️ 테이블류만 철거 가능
+  toast('🖐️ ' + SHOP_ITEMS[rec.key].name + ' 들어올림! 초록 칸 클릭=배치 · 🔄회전 · 🗑️철거');
+}
+function beginMoveFixture(fid) {
+  const f = fixtures[fid], rec = { ...f.rec };
+  for (const [dx, dz] of FIXTURE_DEFS[fid].cells) {   // 점유 해제 + 기물 잠시 숨김
+    const [rx, rz] = rotCell(dx, dz, rec.rot);
+    occupied.delete((rec.gx + rx) + ',' + (rec.gz + rz));
+  }
+  f.group.visible = false;
+  startPlacing('fx_' + fid, true);
+  state.placeRot = rec.rot;
+  moveInfo = { fixture: fid, key: 'fx_' + fid, gx: rec.gx, gz: rec.gz, rot: rec.rot };
+  toast('🖐️ ' + FIXTURE_DEFS[fid].name + ' 들어올림! 초록 칸 클릭=배치 · 🔄회전 (철거 불가)');
+}
+// 🗑️ 들림 상태에서 철거: 복원하지 않고 소멸 + 전액 회수 (주방 기물은 버튼 자체가 안 뜸)
+document.getElementById('discardBtn').addEventListener('click', () => {
+  if (!moveInfo || moveInfo.fixture) return;
+  const m = moveInfo; moveInfo = null;   // 취소 루틴의 원위치 복원 차단 → 그대로 철거
+  const item = SHOP_ITEMS[m.key];
+  state.gold += item.price;
+  toast('🗑️ ' + item.name + ' 철거 완료! +' + item.price + 'G 회수');
+  updateUI(true);
+  cancelPlacing();
+  exitEditMode();
+});
+
+// (구) 미니 팝업 회전 로직 — 들림 상태의 🔄 버튼(rotatePlacing)이 대체
 function rotateFixture(id) {
   const f = fixtures[id], def = FIXTURE_DEFS[id];
   const newRot = (f.rec.rot + 1) % 4;
@@ -2416,13 +2517,49 @@ function buildCat() {
     eye.position.set(ex * 0.7, 0.38, 0.335); eye.castShadow = false; g.add(eye);
   }
   const nose = box(0.04, 0.03, 0.02, 0xff9eb5); nose.position.set(0, 0.32, 0.335); nose.castShadow = false; g.add(nose);
+  const fur = [body, head];   // 🎽 코스튬 갈아입힐 때 색이 바뀌는 털 부위
   for (const [px, pz] of [[-0.1, 0.14], [0.1, 0.14], [-0.1, -0.14], [0.1, -0.14]]) {
     const paw = box(0.08, 0.09, 0.08, 0xfff1dc); paw.position.set(px, 0.045, pz); g.add(paw);
+    fur.push(paw);
   }
   const tail = box(0.055, 0.055, 0.3, 0xf5b98f);
   tail.position.set(0, 0.3, -0.33); tail.rotation.x = 0.7; g.add(tail);
   scene.add(g);
-  return { group: g, tail };
+  return { group: g, tail, fur };
+}
+
+// 🎽 현재 장착 코스튬에 맞춰 고양이 털색 + 머리 위 액세서리 갈아입히기
+function applyCatCostume() {
+  if (!catWorker) return;
+  const g = catWorker.group;
+  if (catWorker.costumeG) {
+    g.remove(catWorker.costumeG);
+    catWorker.costumeG.traverse(o => { if (o.isMesh) { o.geometry.dispose(); o.material.dispose(); } });
+    catWorker.costumeG = null;
+  }
+  const wear = state.catWearing;
+  const furColor = wear === 'bee' ? 0xffd166 : wear === 'astro' ? 0xf5f7fa : 0xfff1dc;
+  catWorker.fur.forEach(m => m.material.color.setHex(furColor));
+  const cg = new THREE.Group();
+  if (wear === 'chef') {          // 👨‍🍳 하얀 주방장 모자
+    const hat = cyl(0.08, 0.1, 0.13, 0xffffff, 10); hat.position.set(0, 0.56, 0.22); cg.add(hat);
+    const brim = cyl(0.115, 0.115, 0.035, 0xffffff, 10); brim.position.set(0, 0.485, 0.22); cg.add(brim);
+  } else if (wear === 'bee') {    // 🐝 검은 줄무늬 + 하얀 날개
+    for (const bz of [0.05, -0.08]) {
+      const stripe = box(0.32, 0.22, 0.06, 0x3a3a3a); stripe.position.set(0, 0.18, bz); cg.add(stripe);
+    }
+    for (const wxo of [-0.14, 0.14]) {
+      const wing = box(0.16, 0.02, 0.12, 0xffffff);
+      wing.position.set(wxo, 0.32, -0.04); wing.rotation.z = wxo > 0 ? -0.5 : 0.5; cg.add(wing);
+    }
+  } else if (wear === 'astro') {  // 🚀 반투명 헬멧 + 산소 백팩
+    const helmet = new THREE.Mesh(new THREE.SphereGeometry(0.2, 10, 10),
+      new THREE.MeshLambertMaterial({ color: 0xbfe3ff, transparent: true, opacity: 0.4 }));
+    helmet.position.set(0, 0.38, 0.22); cg.add(helmet);
+    const pack = box(0.2, 0.18, 0.09, 0xd9dee6); pack.position.set(0, 0.24, -0.24); cg.add(pack);
+  }
+  g.add(cg);
+  catWorker.costumeG = cg;
 }
 function spawnCat() {
   if (catWorker) return;
@@ -2430,6 +2567,7 @@ function spawnCat() {
   catWorker.group.position.set(wx(3), 0, wz(3));
   catWorker.wander = null;
   catWorker.wanderT = 0;
+  applyCatCostume();   // 🎽 세이브된 코스튬 즉시 착용
 }
 function catWanderSpot() {
   if (state.shopLevel >= 2 && Math.random() < 0.3) {   // 가끔 테라스 순찰
@@ -2450,14 +2588,16 @@ function updateCat(dt, time) {
   }
   let tx2, tz2, speed;
   if (target) {
-    tx2 = target.mesh.position.x; tz2 = target.mesh.position.z; speed = 2.3;   // 동전 발견! 총총총
+    tx2 = target.mesh.position.x; tz2 = target.mesh.position.z;
+    speed = 2.3 * (state.catWearing === 'chef' ? 1.25 : 1);   // 동전 발견! 총총총 (👨‍🍳 +25%)
   } else {
     catWorker.wanderT -= dt;
     if (!catWorker.wander || catWorker.wanderT <= 0) {
       catWorker.wander = catWanderSpot();
       catWorker.wanderT = 3 + Math.random() * 3;
     }
-    tx2 = catWorker.wander.x; tz2 = catWorker.wander.z; speed = 0.85;          // 아장아장 순찰
+    tx2 = catWorker.wander.x; tz2 = catWorker.wander.z;
+    speed = 0.85 * (state.catWearing === 'chef' ? 1.25 : 1);                   // 아장아장 순찰
   }
   const dx = tx2 - g.position.x, dz = tz2 - g.position.z;
   const dist = Math.hypot(dx, dz);
@@ -2475,7 +2615,7 @@ function updateCat(dt, time) {
   }
   catWorker.tail.rotation.y = Math.sin(time * 5) * 0.55;   // 꼬리 살랑살랑
   // 동전 수거! 🧲 자석 연구 레벨당 흡입 반경 ×1.5 (0.45 → 최대 약 3.4)
-  if (target && dist < 0.45 * Math.pow(1.5, state.labCat)) {
+  if (target && dist < 0.45 * Math.pow(1.5, state.labCat) * (state.catWearing === 'bee' ? 1.8 : 1)) {
     const idx = coins.indexOf(target);
     if (idx >= 0) {
       coins.splice(idx, 1);
@@ -2541,8 +2681,20 @@ function updateConfetti(dt) {
 
 /* ── 🔥 황금 요리 피버타임 (평판 5.0 도달 시 20초 발동) ── */
 let feverT = 0;
+// 🔥 폭풍 호객 버튼: 피버(⭐/📱) 중에만 노출 — 연타할 때마다 +2G & 일꾼 3초 가속
+function updateRushBtn() {
+  document.getElementById('rushBtn').style.display = (feverT > 0 || vipFeverT > 0) ? 'block' : 'none';
+}
+document.getElementById('rushBtn').addEventListener('click', () => {
+  if (feverT <= 0 && vipFeverT <= 0) return;
+  rushBuffT = 3;               // 🏃 주방장+보조 이동 1.4배 (3초, 연타로 갱신)
+  state.gold += 2;             // 💰 클릭당 즉시 보너스
+  updateUI(true);
+});
+
 function startFever() {
   feverT = 20;
+  updateRushBtn();
   document.getElementById('feverFx').style.display = 'block';
   potSauce.material.color.setHex(0xffd166);            // 🥇 황금 떡볶이!
   potSauce.material.emissive.setHex(0xcc8800);
@@ -2551,19 +2703,22 @@ function startFever() {
 }
 // 📱 VIP 인플루언서 업로드 성공 → 대박 피버 (손님 유입 3배 · 정산 골드 2배)
 function startVipFever() {
-  vipFeverT = 15;
+  vipFeverT = 15 + (state.catWearing === 'astro' ? 4 : 0);   // 🚀 우주비행사 고양이: +4초
+  updateRushBtn();
   document.getElementById('feverFx').style.display = 'block';
   { const pw = potWorldPos(); spawnConfetti(pw.x, pw.z); }   // 🍲 솥 위치 추종
-  toast('📱 대박 피버 타임! 15초간 손님 유입 3배 · 정산 골드 2배!');
+  toast('📱 대박 피버 타임! ' + Math.round(vipFeverT) + '초간 손님 유입 3배 · 정산 골드 2배!');
   spawnTimer = 0.1;   // 소문 듣고 바로 몰려오기 시작
 }
 function endVipFever() {
   vipFeverT = 0;
+  updateRushBtn();
   if (feverT <= 0) document.getElementById('feverFx').style.display = 'none';   // ⭐ 평판 피버 중이면 유지
   toast('📱 대박 피버 종료! 또 다른 VIP를 노려보세요');
 }
 function endFever() {
   feverT = 0;
+  updateRushBtn();
   document.getElementById('feverFx').style.display = 'none';
   potSauce.material.emissive.setHex(0x000000);
   updateKitchenVisual();                               // 솥을 원래 메뉴 색으로
@@ -2584,6 +2739,7 @@ function spawnInterval() {
   let interval = (5 + Math.random() * 3) / (1 + boost);   // 기본 5~8초를 보너스만큼 단축
   interval /= 1 + Math.max(0, state.reputation - 3) * 0.15;   // ⭐ 평판 가속 (5성이면 +30%)
   if (vipFeverT > 0) interval /= 3;   // 📱 VIP 대박 피버: 손님 유입 3배
+  if (state.newsId === 'vacation') interval /= 2;   // 📰 학생 방학: 스폰 2배 가속
   // 🚶 대박집 웨이팅 유지: 문 앞 줄이 3명 미만으로 한산해지면
   // 다음 손님 무리를 더 빨리 보내서 항상 2~3명 줄이 유지되게 함 (초반 제외)
   if (waitingQueue.length < 3 && seats > 2) interval *= 0.55;
@@ -2605,10 +2761,33 @@ function rollSide() {
   if (state.sideLevel < 0 || Math.random() > 0.45) return null;
   return SIDE_MENUS[Math.floor(Math.random() * (state.sideLevel + 1))];
 }
-// 🌶️ 커스텀 주문: 맵기 단계(35%) / 추가 토핑(35%)이 랜덤하게 붙음
+// 🌶️ 커스텀 주문: 맵기 단계(35%) / 추가 토핑(35%) / 고유 특성(15%: 🐷대식가·🐢미식가)
 function decorateOrder(c) {
   c.spice = Math.random() < 0.35 ? SPICES[Math.floor(Math.random() * SPICES.length)] : null;
   c.topping = Math.random() < 0.35 ? TOPPINGS[Math.floor(Math.random() * TOPPINGS.length)] : null;
+  c.trait = Math.random() < 0.15 ? (Math.random() < 0.5 ? 'glutton' : 'gourmet') : null;
+}
+
+// 📱 VIP 촬영 대기 게이지 바 (캔버스 스프라이트 — 카메라를 항상 정면으로 봄)
+function makeVipGauge(c) {
+  const cnv = document.createElement('canvas');
+  cnv.width = 96; cnv.height = 14;
+  const tex = new THREE.CanvasTexture(cnv);
+  const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false }));
+  sp.renderOrder = 999;
+  sp.scale.set(0.85, 0.13, 1);
+  sp.position.y = 1.78;
+  c.group.add(sp);
+  c.vipGauge = { sp, ctx: cnv.getContext('2d'), tex };
+}
+function drawVipGauge(c, ratio) {
+  const { ctx, tex } = c.vipGauge;
+  ctx.clearRect(0, 0, 96, 14);
+  ctx.fillStyle = 'rgba(58,58,58,.85)';
+  ctx.fillRect(0, 0, 96, 14);
+  ctx.fillStyle = ratio > 0.5 ? '#7ef0a8' : ratio > 0.25 ? '#ffd166' : '#ff6b6b';
+  ctx.fillRect(2, 2, 92 * ratio, 10);
+  tex.needsUpdate = true;
 }
 
 function spawnCustomer() {
@@ -2696,8 +2875,9 @@ function spawnCustomer() {
     waypoints: seatPath(seat),   // 실내석은 문으로, 테라스석은 옆길로
     exitDir: Math.random() < 0.5 ? 1 : -1,
   };
-  decorateOrder(c);   // 🌶️ 맵기/토핑 커스텀
+  decorateOrder(c);   // 🌶️ 맵기/토핑/특성 커스텀
   if (vip && !c.topping) c.topping = TOPPINGS[Math.floor(Math.random() * TOPPINGS.length)];   // VIP는 까다롭게 토핑 필수
+  if (vip || influencer) c.trait = null;   // 특수 손님은 고유 특성과 중복 금지
   customers.push(c);
 }
 
@@ -2728,7 +2908,13 @@ function updateCustomers(dt) {
           c.state = 'eating';
           // 🍽️ 정석 밸런스 모드: 일반·VIP 9~11초 (2배 매장의 주방 2인 서빙 템포와 맞물리는 회전율)
           // 📸 먹방 인플루언서만 19~21초 유지 — 타이머는 떡볶이가 서빙된 후부터 흐름
-          c.timer = c.influencer ? 19 + Math.random() * 2 : 9 + Math.random() * 2;
+          c.timer = (c.influencer ? 19 + Math.random() * 2 : 9 + Math.random() * 2)
+            * (state.newsId === 'vacation' ? 0.75 : 1)    // 📰 학생 방학: 식사 25% 단축
+            * (c.trait === 'gourmet' ? 1.5 : 1);          // 🐢 미식가: 1.5배 천천히 음미
+          if (c.vip) {   // 📱 VIP 촬영 대기 게이지: 남은 시간을 시각적으로 예고
+            makeVipGauge(c);
+            c.vipTotal = c.timer + (c.side ? 4 : 0);
+          }
           // 의자에 엉덩이 붙이고 정확히 앉기 + 테이블 방향 바라보기 (테라스는 데크 높이 반영)
           c.group.position.set(c.seat.x, c.seat.terrace ? 0.29 : 0.2, c.seat.z);
           c.group.rotation.y = c.seat.ry;
@@ -2739,14 +2925,17 @@ function updateCustomers(dt) {
           if (!c.ordered) {
             c.ordered = true;
             // 🌶️ 커스텀 주문 문구: [맵기] 메뉴+사이드+토핑 조합
+            const traitMark = c.trait === 'glutton' ? '🐷 ' : c.trait === 'gourmet' ? '🐢 ' : '';
             const orderTxt = c.influencer ? '📸 메뉴 종류별로 다 주세요!'
-              : (c.vip ? '🕶️ ' : '') + (c.spice ? '[' + c.spice + '] ' : '') + c.menu.tag +
+              : (c.vip ? '🕶️ ' : traitMark) + (c.spice ? '[' + c.spice + '] ' : '') + c.menu.tag +
+                (c.trait === 'glutton' ? ' 2그릇' : '') +
                 (c.side ? '+' + c.side.tag : '') +
                 (c.topping ? '+' + c.topping.emoji + c.topping.name : '') +
                 (c.side ? ' 세트요!' : ' 주세요!');
             showBubble(c.group, orderTxt, 1.55, c.influencer || c.vip ? 2.4 : 1.6);
-            // 🧑‍🍳 주방장 서빙 접수: 메인 떡볶이는 항상, 세트면 사이드까지 차례대로 배달
+            // 🧑‍🍳 주방장 서빙 접수: 메인 떡볶이는 항상 (🐷 대식가는 2그릇!), 세트면 사이드까지
             cookTasks.push({ c, kind: 'main' });
+            if (c.trait === 'glutton') cookTasks.push({ c, kind: 'main' });
             if (c.side) cookTasks.push({ c, kind: 'side' });
           }
         }
@@ -2759,6 +2948,20 @@ function updateCustomers(dt) {
         // 식사 중엔 말풍선 없이 고개 까딱까딱 애니메이션만 (화면 깔끔하게)
         const head = c.group.userData.anim.head;
         head.rotation.x = c.mainServed ? Math.sin(c.timer * 12) * 0.12 : 0;
+        // 📱 VIP 촬영 대기 연출: 게이지 바 갱신 + 대기 문구 (서빙 완수 시 촬영 시작!)
+        if (c.vip && c.vipGauge) {
+          const done = c.mainServed && (!c.side || c.sideServed);
+          if (done) {
+            c.group.remove(c.vipGauge.sp);
+            c.vipGauge = null;
+            showBubble(c.group, '📱 좋아요, 촬영 시작!', 1.55, 1.8);
+          } else {
+            // 앉은 순간부터 실시간으로 줄어드는 대기 게이지 (초록→노랑→빨강 예고)
+            c.vipRemain = Math.max(0, (c.vipRemain === undefined ? c.vipTotal : c.vipRemain) - dt);
+            drawVipGauge(c, Math.max(0, Math.min(1, c.vipRemain / c.vipTotal)));
+            if (!c.group.userData.bubbleOn) showBubble(c.group, '📱 촬영 대기 중...', 1.55, 1.3);
+          }
+        }
         // 🍱 세트 손님은 사이드가 도착할 때까지 자리에서 잠시 기다림 (🕶️ VIP는 4초로 깐깐!)
         if (c.timer <= 0 && c.side && !c.sideServed && (c.sideWait = (c.sideWait || 0) + dt) < (c.vip ? 4 : 8)) break;
         if (c.timer <= 0) {
@@ -2770,8 +2973,16 @@ function updateCustomers(dt) {
           const sideGold = c.side && c.sideServed
             ? c.side.income + Math.round((c.menu.income + c.side.income) * 0.2) : 0;
           const toppingGold = c.topping ? c.topping.bonus : 0;
-          const income = ((c.influencer ? c.menu.income * 5 : c.menu.income) + sideGold + toppingGold)
+          let income = ((c.influencer ? c.menu.income * 5 : c.menu.income) + sideGold + toppingGold)
             * (feverT > 0 || vipFeverT > 0 ? 2 : 1);
+          // 📰 오늘의 트렌드 보정: 짜장 대유행(해당 메뉴 1.5배) / 테라스 축제(테라스석 1.4배)
+          if (state.newsId === 'jjajang' && c.menu.name.includes('짜장')) income = Math.round(income * 1.5);
+          if (state.newsId === 'terrace' && c.seat.terrace) income = Math.round(income * 1.4);
+          if (c.trait === 'glutton') income *= 2;   // 🐷 대식가: 2그릇 값을 통 크게 지불
+          if (c.trait === 'gourmet') {              // 🐢 미식가: 두둑한 팁을 바닥에 흘리고 감
+            dropCoin(c.seat.x - Math.sin(c.seat.ry) * 0.4, c.seat.z - Math.cos(c.seat.ry) * 0.4, 20);
+            showBubble(c.group, '🐢 맛있었어요~ 팁이에요!', 1.55, 1.6);
+          }
           // 🕶️ VIP 판정: 주문한 세트를 시간 내에 전부 서빙받았다면 → 📱 대박 피버 타임!
           if (c.vip) {
             if (!c.side || c.sideServed) {
@@ -2905,7 +3116,9 @@ function placeTableDish(c, kind) {
     const cup = cyl(0.065, 0.05, 0.15, c.side.item, 10); cup.position.y = 0.075; g.add(cup);
   }
   // 손님이 바라보는 테이블 가장자리에, 메인은 왼쪽/사이드는 오른쪽으로 나란히
-  const off = kind === 'main' ? -0.1 : 0.13, perp = s.ry + Math.PI / 2;
+  let off = kind === 'main' ? -0.1 : 0.13;
+  if (kind === 'main' && c.dishes && c.dishes.length) off -= 0.19;   // 🐷 대식가 두 번째 그릇은 옆에 나란히
+  const perp = s.ry + Math.PI / 2;
   g.position.set(
     s.x + Math.sin(s.ry) * 0.5 + Math.sin(perp) * off,
     (s.terrace ? 0.09 : 0) + 0.6,
@@ -3008,6 +3221,7 @@ function startNextDelivery(w) {
 
 // 🙌 워커 한 명의 양손 멀티 서빙 루프 (kinds = 이 워커가 담당하는 태스크 종류)
 function updateWorkerServing(w, dt, kinds) {
+  if (rushBuffT > 0) dt *= 1.4;   // 🔥 폭풍 호객 연타 버프: 걸음·픽업 전부 1.4배 가속
   if (!w.job) {
     const picked = [];
     for (let i = 0; i < cookTasks.length && picked.length < 2;) {
@@ -3340,6 +3554,44 @@ function closeLab() {
 document.getElementById('labBtn').addEventListener('click', openLab);
 document.getElementById('labClose').addEventListener('click', closeLab);
 labOverlay.addEventListener('click', closeLab);
+
+/* ── 📰 일일 마케팅 트렌드 뉴스 ─────────────────────────────── */
+const newsPanel = document.getElementById('newsPanel');
+const newsOverlay = document.getElementById('newsOverlay');
+function todayKey() { const d = new Date(); return d.getFullYear() + '-' + (d.getMonth() + 1) + '-' + d.getDate(); }
+function currentNews() { return NEWS_LIST.find(n => n.id === state.newsId) || null; }
+function updateNewsChip() {
+  const n = currentNews();
+  document.getElementById('newsChip').textContent = n ? n.emoji + ' ' + n.title : '📰 -';
+}
+// 날짜가 바뀌면 새 트렌드 발행 (같은 날 재접속은 유지) — force = 발행 강제
+function rollDailyNews(force = false) {
+  const openPopup = force || state.newsDay !== todayKey();
+  if (openPopup) {
+    state.newsDay = todayKey();
+    state.newsId = NEWS_LIST[Math.floor(Math.random() * NEWS_LIST.length)].id;
+    saveGame();
+  }
+  updateNewsChip();
+  if (openPopup && state.opened) openNews();   // 창업 전(웰컴 팝업)엔 자동 오픈 생략
+}
+function openNews() {
+  cancelPlacing(); closeShop(); closeMenuBook(); closeLab();
+  if (editMode) exitEditMode();
+  const n = currentNews();
+  document.getElementById('newsBody').innerHTML = n
+    ? '<div class="nDate">🗞️ 떡볶이 골목신문 · ' + state.newsDay + '</div>' +
+      '<div class="nHead">' + n.emoji + ' ' + n.title + '</div>' +
+      '<div class="nDesc">' + n.desc + '</div>' +
+      '<span class="nTag">✨ 오늘 하루 자동 적용 중!</span>'
+    : '<div class="nDesc">오늘의 뉴스가 아직 없어요.</div>';
+  newsPanel.style.display = 'block';
+  newsOverlay.style.display = 'block';
+}
+function closeNews() { newsPanel.style.display = 'none'; newsOverlay.style.display = 'none'; }
+document.getElementById('newsBtn').addEventListener('click', openNews);
+document.getElementById('newsClose').addEventListener('click', closeNews);
+newsOverlay.addEventListener('click', closeNews);
 document.getElementById('menuClose').addEventListener('click', closeMenuBook);
 
 const shopOverlay = document.getElementById('shopOverlay');
@@ -3445,6 +3697,45 @@ document.getElementById('resetYes').addEventListener('click', () => {
   refreshHelperBtn();
   hRow.appendChild(hBtn);
   wrap.appendChild(hRow);
+
+  // 🐱 고양이 코스튬 섹션 (구매 → 장착 토글, 1벌만 착용)
+  const cHead = document.createElement('div');
+  cHead.style.cssText = 'margin:12px 0 2px;font-weight:800;color:#b58a5a;font-size:13px;';
+  cHead.textContent = '🐱 고양이 코스튬 — 장착 시 고유 버프!';
+  wrap.appendChild(cHead);
+  const cWrap = document.createElement('div');
+  wrap.appendChild(cWrap);
+  function renderCostumes() {
+    cWrap.innerHTML = '';
+    CAT_COSTUMES.forEach(cos => {
+      const row = document.createElement('div');
+      row.className = 'shopItem';
+      row.innerHTML = '<div class="info">' + cos.emoji + ' ' + cos.name +
+        '<small>' + cos.desc + '</small></div>';
+      const btn = document.createElement('button');
+      const owned = state.catCostumes.includes(cos.id);
+      btn.textContent = state.catWearing === cos.id ? '✅ 장착 중' : (owned ? '장착' : cos.cost + 'G 구매');
+      btn.addEventListener('click', () => {
+        if (state.catWearing === cos.id) {          // 다시 누르면 벗기
+          state.catWearing = null;
+        } else if (owned) {
+          state.catWearing = cos.id;
+        } else {
+          if (state.gold < cos.cost) { toast('💸 골드가 부족해요! (' + cos.cost + 'G 필요)'); return; }
+          state.gold -= cos.cost;
+          state.catCostumes.push(cos.id);
+          state.catWearing = cos.id;
+          toast('🎉 ' + cos.name + ' 구매 & 장착! ' + cos.desc);
+        }
+        applyCatCostume();   // 🎽 3D 비주얼 즉시 반영
+        updateUI(true);
+        renderCostumes();
+      });
+      row.appendChild(btn);
+      cWrap.appendChild(row);
+    });
+  }
+  renderCostumes();
 })();
 
 let toastTimer = null;
@@ -3503,6 +3794,7 @@ function tick() {
     vipFeverT -= dt;
     if (vipFeverT <= 0) endVipFever();
   }
+  if (rushBuffT > 0) rushBuffT -= dt;   // 🔥 폭풍 호객 가속 버프 소진
   // 🔥 피버타임 진행 (황금 솥이 반짝반짝)
   if (feverT > 0) {
     feverT -= dt;
@@ -3539,6 +3831,7 @@ function tick() {
 
   renderer.render(scene, camera);
 }
+rollDailyNews();   // 📰 오늘의 트렌드 발행 (같은 날 재접속은 유지, 새 날이면 신문 팝업)
 tick();
 </script>
 </body>
