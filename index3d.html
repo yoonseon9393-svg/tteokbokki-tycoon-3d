@@ -1329,12 +1329,13 @@ function makeHandSet(ch) {   // 🍱 4슬롯: 오른손·왼손 + 그 위 트레
 const cookHands = makeHandSet(cook);
 // 픽업 완료 시 손 위 오브젝트 종류/색 세팅 — 🍲 그릇 소스 색 = 손님이 주문한 메뉴의 고유 소스 색
 function showHandItem(h, t) {
-  const isMain = t.kind === 'main';
+  const food = t.kind === 'delivery' ? t.food : null;   // 🛵 배달은 food 기준
+  const isMain = food ? food.type === 'main' : t.kind === 'main';
   h.g.visible = true;
   h.bowlBody.visible = h.bowlSauce.visible = isMain;
   h.cup.visible = !isMain;
-  if (isMain) h.bowlSauce.material.color.setHex(t.c.menu.sauce);
-  else h.cup.material.color.setHex(t.c.side.item);
+  if (isMain) h.bowlSauce.material.color.setHex(food ? food.menu.sauce : t.c.menu.sauce);
+  else h.cup.material.color.setHex(food ? food.side.item : t.c.side.item);
 }
 
 /* ── 걷기/애니메이션 공통 ────────────────────────────────── */
@@ -1639,7 +1640,7 @@ const SHOP_ITEMS = {
   },
   delivery: {
     name: '오토바이 배달 주문 센터', emoji: '🛵', price: 3000,
-    desc: '영업 중 18초마다 배달 주문이 들어와 50G 동전이 쌓여요!',
+    desc: '18초마다 배달 주문 접수 — 주방팀이 포장하면 오토바이가 출발! 건당 +80G',
     build: buildDeliverySet, cells: [[0, 0], [1, 0]], seats: [],
     cat: 'ent', needsBiz: true,   // 🔒 Day 3 완료 + 누적 등급 A 이상 선행 조건
   },
@@ -3313,11 +3314,23 @@ function spawnHelper() {
   helperWorker.hands = makeHandSet(h);   // 🍱 보조도 4슬롯 캐리
 }
 
-// 태스크 → 담당 주방 기물 id (메인=솥 / 사이드=냉장고 or 단상)
+// 태스크 → 담당 주방 기물 id (메인=솥 / 사이드=냉장고 or 단상 / 🛵 배달은 음식 종류 따라)
 function taskFixtureId(task) {
+  if (task.kind === 'delivery')
+    return task.food.type === 'main' ? 'pot' : (task.food.side.station === 'fridge' ? 'fridge' : 'stand');
   if (task.kind === 'main') return 'pot';
   return task.c.side.station === 'fridge' ? 'fridge' : 'stand';
 }
+// 태스크의 말풍선 태그 / 배달 목적지(포장대 or 손님 좌석)
+function taskTag(t) {
+  if (t.kind === 'delivery') return t.food.type === 'main' ? t.food.menu.tag : t.food.side.tag;
+  return t.kind === 'main' ? t.c.menu.tag : t.c.side.tag;
+}
+function deliveryPackSpot() {   // 🥡 배달 센터 포장대 앞 좌표 (기물이 이사해도 추적)
+  const d = tables.find(t2 => t2.key === 'delivery');
+  return d ? { x: d.group.position.x + 0.5, z: d.group.position.z + 0.9, terrace: false } : null;
+}
+function taskSeat(t) { return t.kind === 'delivery' ? deliveryPackSpot() : t.c.seat; }
 // 🧭 픽업 위치: 기물이 어디로 이사했든 현재 위치/회전 기반으로 동적 계산
 function pickupSpot(task) {
   return fixtureSpot(taskFixtureId(task));
@@ -3476,14 +3489,17 @@ function afterPickupStep(w) {
   const j = w.job;
   if (j.idx < j.tasks.length) { j.phase = 'go'; j.waypoints = routeToPickup(w, pickupSpot(j.tasks[j.idx])); }
   else if (j.tasks.length) {
-    j.order = j.tasks.slice().sort((a, b) => (a.c.seat.terrace ? 1 : 0) - (b.c.seat.terrace ? 1 : 0));   // 실내석 먼저
+    // 실내석·포장대 먼저, 테라스석 나중 (🛵 배달 목적지는 taskSeat이 포장대로 변환)
+    const tKey = t => { const s2 = taskSeat(t); return s2 && s2.terrace ? 1 : 0; };
+    j.order = j.tasks.slice().sort((a, b) => tKey(a) - tKey(b));
     j.di = 0;
     startNextDelivery(w);
   } else workerGoHome(w);
 }
 function startNextDelivery(w) {
   const j = w.job;
-  if (j.di < j.order.length) { j.phase = 'deliver'; j.waypoints = deliverRoute(w, j.order[j.di].c.seat); }
+  while (j.di < j.order.length && !taskSeat(j.order[j.di])) j.di++;   // 포장대가 철거된 배달 태스크는 스킵
+  if (j.di < j.order.length) { j.phase = 'deliver'; j.waypoints = deliverRoute(w, taskSeat(j.order[j.di])); }
   else workerGoHome(w);
 }
 
@@ -3496,7 +3512,7 @@ function updateWorkerServing(w, dt, kinds) {
       const t = cookTasks[i];
       if (!kinds.includes(t.kind)) { i++; continue; }   // 담당 아닌 태스크는 남겨둠
       cookTasks.splice(i, 1);
-      if (!customers.includes(t.c) || t.c.state !== 'eating') continue;
+      if (t.kind !== 'delivery' && (!customers.includes(t.c) || t.c.state !== 'eating')) continue;   // 🛵 배달 주문은 항상 유효
       picked.push(t);
     }
     if (!picked.length) return;
@@ -3510,14 +3526,14 @@ function updateWorkerServing(w, dt, kinds) {
   switch (j.phase) {
     case 'go': {      // idx번째 태스크의 픽업 지점으로 이동
       const t = j.tasks[j.idx];
-      if (!customers.includes(t.c) || t.c.state === 'leaving') { j.tasks.splice(j.idx, 1); afterPickupStep(w); break; }
+      if (t.kind !== 'delivery' && (!customers.includes(t.c) || t.c.state === 'leaving')) { j.tasks.splice(j.idx, 1); afterPickupStep(w); break; }
       if (walkStep(j, dt)) {
         j.phase = 'pick'; j.timer = 0.7;
         ch.position.y = 0;   // 걸음 통통 잔높이 제거 — 주방 바닥에 딱 붙어 서기
         // 기물이 어디에 있든 그 기물 쪽을 바라보며 담기
         const fg = fixtures[taskFixtureId(t)].group.position;
         ch.rotation.y = Math.atan2(fg.x - ch.position.x, fg.z - ch.position.z);
-        showBubble(ch, t.kind === 'main' ? t.c.menu.tag : t.c.side.tag, 1.5, 0.8);
+        showBubble(ch, taskTag(t), 1.5, 0.8);
       }
       break;
     }
@@ -3526,25 +3542,30 @@ function updateWorkerServing(w, dt, kinds) {
       animateWalk(ch, dt, false);
       if (j.timer <= 0) {
         const t = j.tasks[j.idx];
-        if (!customers.includes(t.c) || t.c.state === 'leaving') j.tasks.splice(j.idx, 1);
+        if (t.kind !== 'delivery' && (!customers.includes(t.c) || t.c.state === 'leaving')) j.tasks.splice(j.idx, 1);
         else { t.hand = j.idx; showHandItem(w.hands[j.idx], t); j.idx++; }
         afterPickupStep(w);
       }
       break;
     }
-    case 'deliver': { // di번째 목적지 테이블 순회 배달
+    case 'deliver': { // di번째 목적지(테이블/🥡포장대) 순회 배달
       const t = j.order[j.di];
-      if (!customers.includes(t.c) || t.c.state === 'leaving') {
+      if (t.kind !== 'delivery' && (!customers.includes(t.c) || t.c.state === 'leaving')) {
         w.hands[t.hand].g.visible = false; j.di++; startNextDelivery(w); break;
       }
       if (walkStep(j, dt)) {
-        placeTableDish(t.c, t.kind);              // 🍽️ 테이블 세팅 (그릇 소스 색 = 주문 메뉴 색)
         w.hands[t.hand].g.visible = false;        // 내려놓은 손 비우기
-        if (t.kind === 'main') t.c.mainServed = true;   // 🍲 이제부터 식사 타이머 시작
-        else t.c.sideServed = true;                     // 💰 정산 때 세트 보너스 지급
-        showBubble(ch, (t.kind === 'main' ? t.c.menu.tag : t.c.side.tag) + ' 나왔어요~!', 1.5, 1.4);
+        if (t.kind === 'delivery') {
+          deliverPackage(t);                      // 🥡 포장대에 차곡차곡 → 다 채우면 오토바이 출발!
+          showBubble(ch, '📦 포장 완료!', 1.5, 1.2);
+        } else {
+          placeTableDish(t.c, t.kind);            // 🍽️ 테이블 세팅 (그릇 소스 색 = 주문 메뉴 색)
+          if (t.kind === 'main') t.c.mainServed = true;   // 🍲 이제부터 식사 타이머 시작
+          else t.c.sideServed = true;                     // 💰 정산 때 세트 보너스 지급
+          showBubble(ch, taskTag(t) + ' 나왔어요~!', 1.5, 1.4);
+        }
         j.di++;
-        startNextDelivery(w);   // 남은 손의 음식을 다음 테이블로
+        startNextDelivery(w);   // 남은 손의 음식을 다음 목적지로
       }
       break;
     }
@@ -3558,10 +3579,10 @@ function updateWorkerServing(w, dt, kinds) {
   }
 }
 
-// 👩‍🍳 AI 전면 개방: 주방장·보조 모두 메인/사이드 가리지 않고 큐에서 선착순 픽업
+// 👩‍🍳 AI 전면 개방: 주방장·보조 모두 메인/사이드/🛵배달 가리지 않고 큐에서 선착순 픽업
 function updateCookServing(dt) {
-  updateWorkerServing(cookWorker, dt, ['main', 'side']);
-  if (state.helperHired && helperWorker) updateWorkerServing(helperWorker, dt, ['main', 'side']);
+  updateWorkerServing(cookWorker, dt, ['main', 'side', 'delivery']);
+  if (state.helperHired && helperWorker) updateWorkerServing(helperWorker, dt, ['main', 'side', 'delivery']);
 }
 
 /* ── 길거리 주민(행인) ───────────────────────────────────── */
@@ -4177,6 +4198,70 @@ if (!state.opened) showWelcome();   // 첫 창업이면 웰컴 팝업부터!
 
 /* ── 메인 루프 ───────────────────────────────────────────── */
 const clock = new THREE.Clock();
+/* ── 🛵 오토바이 배달 주문 센터 실전 루프 ─────────────────────
+   주문 스폰(18초) → 주방팀이 kind:'delivery' 태스크로 픽업 → 포장대에 적재
+   → 수량 충족 시 오토바이가 도로로 부릉 + 대형 정산 +80G */
+let deliveryOrder = null;   // 진행 중 주문 { need, done, packs[] } — 동시 1건
+const scooters = [];        // 출발한 오토바이 애니메이션 목록
+
+function spawnDeliveryOrder(dv) {
+  const items = [{ type: 'main', menu: MENU_LEVELS[Math.floor(Math.random() * (state.menuLevel + 1))] }];
+  if (state.sideLevel >= 0 && Math.random() < 0.6)
+    items.push({ type: 'side', side: SIDE_MENUS[Math.floor(Math.random() * (state.sideLevel + 1))] });
+  deliveryOrder = { need: items.length, done: 0, packs: [] };
+  for (const food of items) cookTasks.push({ kind: 'delivery', dv: deliveryOrder, food });
+  showBubble(dv.group, '🛵 배달 주문 발생!', 1.8, 2.2);
+  toast('🛵 배달 주문 접수! (' + items.length + '개 품목) 주방팀이 포장을 시작해요');
+}
+// 🥡 포장대에 배달 박스 적재 → 다 채우면 출발
+function deliverPackage(t) {
+  const o = t.dv;
+  const dv = tables.find(t2 => t2.key === 'delivery');
+  if (dv) {
+    const pack = box(0.24, 0.2, 0.24, 0xf3e2c2);
+    const tape = box(0.26, 0.05, 0.06, 0xd98e7a);
+    tape.position.y = 0.06; tape.castShadow = false; pack.add(tape);
+    pack.position.set(dv.group.position.x - 0.18 + o.done * 0.32, 0.95, dv.group.position.z - 0.05);
+    scene.add(pack);
+    o.packs.push(pack);
+  }
+  o.done++;
+  if (o.done >= o.need) dispatchScooter(dv, o);
+}
+// 🏍️ 부릉! 문으로 나가 왼쪽 도로 밖으로 사라지며 대형 정산
+function dispatchScooter(dv, o) {
+  o.packs.forEach(p => { scene.remove(p); p.geometry.dispose(); p.material.dispose(); });
+  deliveryOrder = null;
+  const s = new THREE.Group();
+  const body = box(0.55, 0.2, 0.26, 0xe5383b); body.position.y = 0.34; s.add(body);
+  const seat = box(0.26, 0.09, 0.2, 0x2c2c33); seat.position.set(-0.06, 0.49, 0); s.add(seat);
+  for (const wxo of [-0.22, 0.24]) {
+    const wheel = cyl(0.11, 0.11, 0.08, 0x2c2c33, 10);
+    wheel.rotation.x = Math.PI / 2; wheel.rotation.z = Math.PI / 2;
+    wheel.position.set(wxo, 0.11, 0); s.add(wheel);
+  }
+  const carry = box(0.28, 0.26, 0.26, 0xffd166); carry.position.set(-0.26, 0.6, 0); s.add(carry);
+  if (dv) s.position.set(dv.group.position.x + 0.5, 0, dv.group.position.z + 0.9);
+  scene.add(s);
+  scooters.push({ group: s, speed: 6,
+    waypoints: [{ x: DOOR_X, z: wz(5) }, { x: DOOR_X, z: SIDEWALK_Z }, { x: DOOR_X, z: wz(9) + 0.5 },
+                { x: -EDGE_X, z: wz(9) + 0.5 }] });   // 🚪 문 → 도로 → 왼쪽 밖으로
+  if (dv) {
+    dropCoin(dv.group.position.x + 0.5, dv.group.position.z + 1.1, 80, true);   // 💰 대형 정산!
+    state.dayGold += 80;
+    showBubble(dv.group, '💰 배달 출발! +80G', 1.8, 2.0);
+  }
+  toast('🏍️ 부릉! 배달 출발 — 대형 정산 +80G');
+}
+function updateScooters(dt) {
+  for (let i = scooters.length - 1; i >= 0; i--) {
+    if (walkStep(scooters[i], dt)) {   // walkStep 재사용 (회전·이동)
+      removeCharacter(scooters[i].group);
+      scooters.splice(i, 1);
+    }
+  }
+}
+
 /* ── 🌦️ 실시간 날씨 & 감성 야간 조명 시스템 ─────────────────
    하루 120초: ☀️ 화창(120~80s) → 🌧️ 우천(80~40s) → 🌇 노을(40~25s) → 🌙 야간(25~0s) */
 function weatherPhase() {
@@ -4263,16 +4348,12 @@ function tick() {
         state.dayPhase = 'closing';
         toast('🌇 오늘 영업 종료! 홀에 남은 손님을 마무리하고 정산할게요');
       }
-      // 🛵 배달 주문 수익 (배달 센터 설치 시 18초마다 50G 동전)
+      // 🛵 배달 주문 스폰 (배달 센터 설치 + 이전 주문 완료 시, 18초 주기)
       deliveryTimer -= dt;
       if (deliveryTimer <= 0) {
         deliveryTimer = 18;
         const dv = tables.find(t => t.key === 'delivery');
-        if (dv) {
-          dropCoin(dv.group.position.x + 0.5, dv.group.position.z + 0.7, 50);
-          state.dayGold += 50;
-          showBubble(dv.group, '🛵 배달 주문!', 1.6, 1.6);
-        }
+        if (dv && !deliveryOrder) spawnDeliveryOrder(dv);
       }
     } else if (state.dayPhase === 'closing') {
       // 잔여 손님·서빙이 모두 끝나면 마감 보고서
@@ -4315,6 +4396,7 @@ function tick() {
   updatePoppingCoins(dt);
   updatePetals(dt, time);   // 🌸 벚꽃잎 흩날림
   updateWeather(dt);        // 🌦️ 날씨/조명 전환 + 빗줄기 + 야간 포인트 조명
+  updateScooters(dt);       // 🏍️ 배달 오토바이 출발 애니메이션
   updateCat(dt, time);      // 🐱 고양이 알바 순찰/수거
   updateConfetti(dt);       // 🎉 폭죽 파티클
 
