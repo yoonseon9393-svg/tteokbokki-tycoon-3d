@@ -415,7 +415,7 @@
 <div id="feverFx"></div>
 
 <div id="bottombar">
-  <button class="bigbtn" id="shopBtn">🛒 가구 상점</button>
+  <button class="bigbtn" id="shopBtn">🛒 상점</button>
   <button class="bigbtn" id="editBtn">🪑 가구 편집</button>
   <button class="bigbtn" id="researchBtn">🔬 메뉴 연구</button>
   <button class="bigbtn" id="expandBtn">🏗️ 확장</button>
@@ -580,9 +580,9 @@ const HELPER_COST = 2500;   // 👩‍🍳 주방 보조 고용 비용
 
 // 🐱 고양이 알바 코스튬 (구매 후 장착 — 1벌씩만 착용, 고유 버프)
 const CAT_COSTUMES = [
-  { id: 'chef',  emoji: '👨‍🍳', name: '주방장 모자 고양이', cost: 1000, desc: '이동 속도 +25%' },
-  { id: 'bee',   emoji: '🐝', name: '황금 꿀벌 고양이',   cost: 2000, desc: '동전 자석 반경 ×1.8 추가' },
-  { id: 'astro', emoji: '🚀', name: '우주비행사 고양이',  cost: 3500, desc: 'VIP 피버 지속 +4초' },
+  { id: 'chef',  emoji: '👨‍🍳', name: '주방장 모자', cost: 1000, desc: '이동 속도 +25%' },
+  { id: 'bee',   emoji: '🐝', name: '황금 꿀벌',   cost: 2000, desc: '동전 자석 반경 ×1.8 추가' },
+  { id: 'astro', emoji: '🚀', name: '우주비행사',  cost: 3500, desc: 'VIP 피버 지속 +4초' },
 ];
 // 🌶️ 양념 연구소: 골드 소모 일회성 영구 강화 3종 (state.research에 저장)
 const SAUCE_RESEARCH = [
@@ -4225,7 +4225,7 @@ document.getElementById('resetYes').addEventListener('click', () => {
 (function buildShopUI() {
   const wrap = document.getElementById('shopItems');
   // 🗂️ 카테고리 탭: 홀 가구 / 주방 기물 / 특별 엔터
-  const TABS = [['hall', '🪑 홀 가구'], ['kitchen', '🧰 주방 기물'], ['ent', '🎪 특별 엔터'], ['lab', '🧪 연구']];
+  const TABS = [['hall', '🪑 홀 가구'], ['kitchen', '🧰 주방 기물'], ['ent', '🎪 알바/코스튬'], ['lab', '🧪 연구']];
   const tabBar = document.createElement('div');
   tabBar.id = 'shopTabs';
   const panes = {};
@@ -4271,7 +4271,7 @@ document.getElementById('resetYes').addEventListener('click', () => {
       const lock = lockText();
       if (lock) {
         toast(item.needsCat && !state.catHired
-          ? '🙀 우선 고양이 알바생을 먼저 고용해 주세요! (상점 🎪 특별 엔터 탭)'
+          ? '🙀 우선 고양이 알바생을 먼저 고용해 주세요! (상점 🎪 알바/코스튬 탭)'
           : '🛵 장사 3일 차 완료 + 운영 등급 A 이상을 달성해야 열려요!');
         return;
       }
@@ -4352,7 +4352,7 @@ document.getElementById('resetYes').addEventListener('click', () => {
       applyCatLockStyle(btn, locked);
       btn.addEventListener('click', () => {
         if (!state.catHired) {
-          toast('🙀 우선 고양이 알바생을 먼저 고용해 주세요! (상점 🎪 특별 엔터 탭)');
+          toast('🙀 우선 고양이 알바생을 먼저 고용해 주세요! (상점 🎪 알바/코스튬 탭)');
           return;
         }
         if (state.catWearing === cos.id) {          // 다시 누르면 벗기
