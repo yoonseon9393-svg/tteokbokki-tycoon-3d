@@ -84,7 +84,7 @@
     width: min(340px, 90vw); max-height: 70vh; overflow-y: auto;
   }
   #shopPanel h3, #menuPanel h3, #labPanel h3, #newsPanel h3, #achvPanel h3 { color: #5a4a42; font-size: 17px; margin-bottom: 12px; text-align: center; }
-  #shopClose, #menuClose, #labClose, #newsClose, #achvClose {
+  #shopClose, #menuClose, #labClose, #newsClose, #achvClose, #setClose {
     position: absolute; top: 12px; right: 14px;
     border: none; background: #ffd9b8; color: #7a5c3a;
     width: 32px; height: 32px; border-radius: 50%;
@@ -223,6 +223,23 @@
     touch-action: manipulation;
   }
   #achvBtn:active { transform: scale(1.2); }
+  /* ── ⚙️ 설정 패널 ─────────── */
+  #setOverlay { position: fixed; inset: 0; background: rgba(70,55,45,.45); z-index: 40; display: none; }
+  #setPanel {
+    position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    background: linear-gradient(160deg, #fff8ec, #ffeddb);
+    border: 3px solid #ffd9b8; border-radius: 24px;
+    padding: 18px 20px 20px; z-index: 41; display: none;
+    box-shadow: 0 14px 40px rgba(90,60,40,.4); width: min(300px, 88vw);
+  }
+  #setPanel h3 { color: #5a4a42; font-size: 17px; margin-bottom: 12px; text-align: center; }
+  .setBtn {
+    width: 100%; border: none; cursor: pointer; border-radius: 16px;
+    padding: 13px; margin-top: 8px; font-size: 14px; font-weight: 800; color: #fff;
+    background: #7ec8a9; box-shadow: 0 4px 0 rgba(0,0,0,.13); touch-action: manipulation;
+  }
+  .setBtn.danger { background: #e05a5a; }
+  .setBtn:active { transform: translateY(3px); box-shadow: none; }
   /* 📋 업적 보상 버튼 상태 */
   .achReward { border: none; border-radius: 12px; padding: 7px 12px; font-weight: 800; font-size: 12px; cursor: pointer; touch-action: manipulation; }
   .achReward.ready { background: #ffd166; color: #7a5c00; animation: rushBlink .6s infinite alternate; }
@@ -433,7 +450,14 @@
   <button id="openShopBtn">🏮 영업 개시!</button>
 </div>
 
-<button id="resetBtn" title="처음부터 다시 시작">🔄</button>
+<button id="resetBtn" title="설정">⚙️</button>
+<div id="setOverlay"></div>
+<div id="setPanel">
+  <button id="setClose">✕</button>
+  <h3>⚙️ 설정</h3>
+  <button class="setBtn" id="manualSaveBtn">💾 현재 진행상황 저장</button>
+  <button class="setBtn danger" id="fullResetBtn">🔄 처음부터 다시 시작</button>
+</div>
 <button id="catBtn" title="고양이 알바 고용 (1500G)">🐱</button>
 <button id="labBtn" title="가게 연구 센터">🧪</button>
 <button id="newsBtn" title="오늘의 뉴스">📰</button>
@@ -982,7 +1006,7 @@ function buildCounterGroup() {
     tteok.position.set(1 + (i % 2 ? 0.12 : -0.13), 1.1, (i < 2 ? 0.1 : -0.1));
     g.add(tteok);
   }
-  for (let i = 0; i < 3; i++) {           // 김(스팀) 파티클도 솥과 함께 이사
+  for (let i = 0; i < 5; i++) {           // 김(스팀) 파티클 5줄기 — 솥과 함께 이사
     const s = new THREE.Mesh(
       new THREE.SphereGeometry(0.09, 8, 8),
       new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.7 })
@@ -1234,7 +1258,7 @@ scene.add(villageGroup);
   // 🏞️ 마을 땅 대폭 확장: 가게가 골목 중심부에 든든하게 자리잡도록
   villageBackGroup.add(pad(28, 5.0, 0, -9.55));   // 뒤편 골목 땅 → 매장 확장 시 함께 밀려남
   pad(7.0, 21, -11.9, -1.5);         // 왼쪽 골목 땅 (외곽 대피한 집들까지 넓게 커버)
-  pad(6.4, 21, 10.8, -1.5);          // 오른쪽 골목 땅 (테라스·빵집·이웃집까지)
+  pad(9.2, 21, 12.2, -1.5);          // 오른쪽 골목 땅 (Lv3 테라스 + 외곽 대피한 집들까지 넓게)
   pad(15.4, 2.6, 0, 8.35, 0x9cc487); // 앞쪽 풀밭 (잔디 절벽 방지)
 
   // 2) 도로가 좌우 허공으로 끊기지 않고 옆 골목 끝까지 이어지는 연출
@@ -1242,8 +1266,8 @@ scene.add(villageGroup);
   roadL.position.set(-11.9, -0.045, 3.5);
   roadL.castShadow = false;
   villageGroup.add(roadL);
-  const roadR = box(6.4, 0.05, 2.0, 0x8f99a8);
-  roadR.position.set(10.8, -0.045, 3.5);
+  const roadR = box(9.2, 0.05, 2.0, 0x8f99a8);
+  roadR.position.set(12.2, -0.045, 3.5);
   roadR.castShadow = false;
   villageGroup.add(roadR);
 
@@ -1289,13 +1313,13 @@ scene.add(villageGroup);
   // 왼쪽 골목: 작은 카페 + 이웃집 — 🚧 매장 왼쪽 벽(x -11)과 절대 안 겹치게 외곽(x ≤ -12.4)으로 대피!
   buildHouse(-12.6, 1.0,  { w: 2.0, d: 1.9, h: 1.8, body: 0xdcd8d2, roof: 0xa8bfa0, chimney: true, sign: 0xfff2dc, ry: Math.PI / 2 });
   buildHouse(-12.8, -5.2, { w: 2.0, d: 1.9, h: 1.6, body: 0xebd2c0, roof: 0xb99f8a, ry: Math.PI / 2 });
-  // 오른쪽 골목: 아담한 빵집 + 이웃집 — 오른쪽 벽(x 10~11) 바깥으로 한 뼘 더 이사
-  buildHouse(12.4, 0.7,  { w: 2.2, d: 2.0, h: 1.7, body: 0xecd9bd, roof: 0xd98e7a, sign: 0xfff2dc, ry: -Math.PI / 2 });
-  buildHouse(12.6, -4.8, { w: 2.1, d: 2.0, h: 1.8, body: 0xdfe3e8, roof: 0x9fb4c8, ry: -Math.PI / 2 });
+  // 오른쪽 골목: 아담한 빵집 + 이웃집 — 🚧 Lv3 테라스 열(x 12.5)과 대기줄까지 피해서 완전 외곽(x ≥ 14.6)으로!
+  buildHouse(14.6, 0.9,  { w: 2.2, d: 2.0, h: 1.7, body: 0xecd9bd, roof: 0xd98e7a, sign: 0xfff2dc, ry: -Math.PI / 2 });
+  buildHouse(14.8, -4.6, { w: 2.1, d: 2.0, h: 1.8, body: 0xdfe3e8, roof: 0x9fb4c8, ry: -Math.PI / 2 });
 
   // 🌳 넓어진 마을 곳곳에 나무 심기 (초록 + 벚꽃 믹스)
   buildTree(-9.7, 6.4, 0.9);
-  buildTree(13.1, 2.0, 1.0);
+  buildTree(15.6, 2.2, 1.0);   // 🚧 테라스 아치문 길목(x 12.5)을 비우고 외곽으로
   villageBackGroup.add(buildCherryTree(12.2, -8.2, 0.95));    // 🌸 뒤편 나무들도 함께 밀려남
   villageBackGroup.add(buildCherryTree(-10.4, -8.9, 1.05));
   buildCherryTree(-4.3, 8.35, 0.9);
@@ -3252,6 +3276,18 @@ function updateCustomers(dt) {
           * (raining && c.seat.terrace ? 1.5 : 1);
         if (c.nearStage && !c.group.userData.bubbleOn && Math.random() < dt * 0.12)
           showBubble(c.group, '🎵', 1.55, 1.2);   // 공연 감상 음표
+        // 💬 상태 연동형 리뷰 말풍선: 날씨/시간대/연구 버프에 맞춰 은은하게 (식사당 1~2회)
+        if (c.mainServed && !c.group.userData.bubbleOn && Math.random() < dt * 0.14) {
+          const lines = [];
+          if (raining && !c.seat.terrace) lines.push('☂️ 크으~ 빗소리 들으며 먹는 매운 떡볶이가 진리!');
+          if (weatherPhase() === 'night') lines.push('🌙 분위기 대박! 단골 될 것 같아');
+          if (state.research.gochujang) lines.push('🌶️ 이 집 소스 마법 가루 썼나? 중독성 쩔어!');
+          if (lines.length) showBubble(c.group, pick(lines), 1.55, 2.2);
+        }
+        // 💢 떡볶이가 6초 넘게 안 나오면 배고픔 호소
+        if (!c.mainServed && (c.hungerT = (c.hungerT || 0) + dt) > 6 &&
+            !c.group.userData.bubbleOn && Math.random() < dt * 0.5)
+          showBubble(c.group, '💢 꼬르륵.. 배고파요 사장님 빨리요!', 1.55, 1.8);
         c.group.position.y = c.seat.terrace ? 0.29 : 0.2;   // 의자 높이 유지 (테라스는 데크 위)
         // 식사 중엔 말풍선 없이 고개 까딱까딱 애니메이션만 (화면 깔끔하게)
         const head = c.group.userData.anim.head;
@@ -3608,6 +3644,7 @@ function updateWorkerServing(w, dt, kinds) {
       }
       if (walkStep(j, dt)) {
         w.hands[t.hand].g.visible = false;        // 내려놓은 손 비우기
+        sfx('serve');                             // 🔊 탁! 접시 놓는 소리
         if (t.kind === 'delivery') {
           deliverPackage(t);                      // 🥡 포장대에 차곡차곡 → 다 채우면 오토바이 출발!
           showBubble(ch, '📦 포장 완료!', 1.5, 1.2);
@@ -4092,6 +4129,7 @@ function showDayReport() {
   document.getElementById('dayBody').innerHTML = html;
   dayPanel.style.display = 'block';
   dayOverlay.style.display = 'block';
+  sfx('stamp');   // 🔊 쿵! 등급 도장
 }
 document.getElementById('nextDayBtn').addEventListener('click', () => {
   state.day++;
@@ -4161,8 +4199,23 @@ function closeReset() {
   resetPanel.style.display = 'none';
   resetOverlay.style.display = 'none';
 }
+/* ── ⚙️ 설정 패널: 수동 저장 / 완전 초기화 진입 ── */
+const setPanel = document.getElementById('setPanel');
+const setOverlay = document.getElementById('setOverlay');
+function closeSettings() { setPanel.style.display = 'none'; setOverlay.style.display = 'none'; }
 document.getElementById('resetBtn').addEventListener('click', () => {
-  resetPanel.style.display = 'block';
+  setPanel.style.display = 'block';
+  setOverlay.style.display = 'block';
+});
+document.getElementById('setClose').addEventListener('click', closeSettings);
+setOverlay.addEventListener('click', closeSettings);
+document.getElementById('manualSaveBtn').addEventListener('click', () => {
+  saveGame();   // 연구·Day·자금·업적 전 필드 즉시 기록
+  toast('💾 저장 완료! 연구 트리·Day·자금·업적까지 안전하게 보관했어요');
+});
+document.getElementById('fullResetBtn').addEventListener('click', () => {
+  closeSettings();
+  resetPanel.style.display = 'block';    // 기존 "정말 다시 시작할까요?" 확인 팝업 재사용
   resetOverlay.style.display = 'block';
 });
 document.getElementById('resetNo').addEventListener('click', closeReset);
@@ -4326,6 +4379,40 @@ if (!state.opened) showWelcome();   // 첫 창업이면 웰컴 팝업부터!
 
 /* ── 메인 루프 ───────────────────────────────────────────── */
 const clock = new THREE.Clock();
+/* ── 🔊 상황별 신스 효과음 (Web Audio — 파일 없이 가벼운 톤 생성) ── */
+let audioCtx = null;
+function sfx(type) {
+  try {
+    audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    const t0 = audioCtx.currentTime;
+    const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+    o.connect(g); g.connect(audioCtx.destination);
+    if (type === 'serve') {          // 🍽️ 탁! 접시 놓는 톤
+      o.type = 'triangle';
+      o.frequency.setValueAtTime(880, t0);
+      o.frequency.exponentialRampToValueAtTime(440, t0 + 0.08);
+      g.gain.setValueAtTime(0.12, t0);
+      g.gain.exponentialRampToValueAtTime(0.001, t0 + 0.12);
+      o.start(t0); o.stop(t0 + 0.13);
+    } else if (type === 'scooter') { // 🏍️ 부릉~ 진동음 톤
+      o.type = 'sawtooth';
+      o.frequency.setValueAtTime(70, t0);
+      o.frequency.linearRampToValueAtTime(165, t0 + 0.5);
+      g.gain.setValueAtTime(0.09, t0);
+      g.gain.exponentialRampToValueAtTime(0.001, t0 + 0.6);
+      o.start(t0); o.stop(t0 + 0.62);
+    } else if (type === 'stamp') {   // 📋 쿵! 도장 타격 톤
+      o.type = 'square';
+      o.frequency.setValueAtTime(150, t0);
+      o.frequency.exponentialRampToValueAtTime(50, t0 + 0.15);
+      g.gain.setValueAtTime(0.16, t0);
+      g.gain.exponentialRampToValueAtTime(0.001, t0 + 0.2);
+      o.start(t0); o.stop(t0 + 0.22);
+    }
+  } catch (e) {}   // 오디오 차단/미지원 환경에서도 게임은 계속
+}
+
 /* ── 🛵 오토바이 배달 주문 센터 실전 루프 ─────────────────────
    주문 스폰(18초) → 주방팀이 kind:'delivery' 태스크로 픽업 → 포장대에 적재
    → 수량 충족 시 오토바이가 도로로 부릉 + 대형 정산 +80G */
@@ -4380,6 +4467,7 @@ function dispatchScooter(dv, o) {
     showBubble(dv.group, '💰 배달 출발! +80G', 1.8, 2.0);
   }
   state.deliveryCount++;   // 📋 업적: 폭풍 배달의 민족 카운트
+  sfx('scooter');          // 🔊 부릉~
   toast('🏍️ 부릉! 배달 출발 — 대형 정산 +80G');
 }
 function updateScooters(dt) {
@@ -4564,6 +4652,7 @@ function tick() {
   for (const s of steam) {
     const k = (time * 0.7 + s.phase) % 1.1;
     s.mesh.position.y = 1.15 + k * 0.8;
+    s.mesh.position.x = 1 + Math.sin((time + s.phase * 4) * 1.6) * 0.09;   // 모락모락 좌우 하늘거림
     s.mesh.material.opacity = 0.65 * (1 - k / 1.1);
     const sc = 0.6 + k * 0.9;
     s.mesh.scale.setScalar(sc);
