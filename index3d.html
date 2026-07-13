@@ -70,12 +70,12 @@
   .bigbtn:disabled { background: #c9c2bc; cursor: not-allowed; }
 
   /* ── 상점 패널 ───────────────────────── */
-  #shopOverlay, #menuOverlay, #labOverlay, #newsOverlay {
+  #shopOverlay, #menuOverlay, #labOverlay, #newsOverlay, #achvOverlay {
     position: fixed; inset: 0; background: rgba(70,55,45,.35);
     z-index: 29; display: none;
   }
   #menuPanel .locked, #labPanel .locked { opacity: .5; }
-  #shopPanel, #menuPanel, #labPanel, #newsPanel {
+  #shopPanel, #menuPanel, #labPanel, #newsPanel, #achvPanel {
     position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
     background: linear-gradient(160deg, #fff8ec, #ffeddb);
     border: 3px solid #ffd9b8; border-radius: 24px;
@@ -83,8 +83,8 @@
     box-shadow: 0 14px 40px rgba(90,60,40,.35);
     width: min(340px, 90vw); max-height: 70vh; overflow-y: auto;
   }
-  #shopPanel h3, #menuPanel h3, #labPanel h3, #newsPanel h3 { color: #5a4a42; font-size: 17px; margin-bottom: 12px; text-align: center; }
-  #shopClose, #menuClose, #labClose, #newsClose {
+  #shopPanel h3, #menuPanel h3, #labPanel h3, #newsPanel h3, #achvPanel h3 { color: #5a4a42; font-size: 17px; margin-bottom: 12px; text-align: center; }
+  #shopClose, #menuClose, #labClose, #newsClose, #achvClose {
     position: absolute; top: 12px; right: 14px;
     border: none; background: #ffd9b8; color: #7a5c3a;
     width: 32px; height: 32px; border-radius: 50%;
@@ -214,6 +214,20 @@
     touch-action: manipulation;
   }
   #newsBtn:active { transform: scale(1.2); }
+  #achvBtn {
+    position: fixed; top: calc(196px + env(safe-area-inset-top)); right: 12px;
+    z-index: 10; border: none; cursor: pointer;
+    background: rgba(255,255,255,.9);
+    width: 38px; height: 38px; border-radius: 50%;
+    font-size: 17px; box-shadow: 0 3px 10px rgba(90,60,40,.18);
+    touch-action: manipulation;
+  }
+  #achvBtn:active { transform: scale(1.2); }
+  /* 📋 업적 보상 버튼 상태 */
+  .achReward { border: none; border-radius: 12px; padding: 7px 12px; font-weight: 800; font-size: 12px; cursor: pointer; touch-action: manipulation; }
+  .achReward.ready { background: #ffd166; color: #7a5c00; animation: rushBlink .6s infinite alternate; }
+  .achReward.done { background: #d9ead9; color: #4a7a4a; cursor: default; }
+  .achReward.locked { background: #e8ddd0; color: #a09383; cursor: default; }
   /* 📰 신문 지면 스타일 */
   #newsBody {
     background: #fbf7ee; border: 2px solid #d8cdb8; border-radius: 8px;
@@ -360,7 +374,7 @@
       padding: 10px 6px; font-size: 14px; line-height: 1.3;
       border-radius: 16px; white-space: normal;
     }
-    #shopPanel, #menuPanel, #labPanel, #newsPanel { max-height: 62vh; }
+    #shopPanel, #menuPanel, #labPanel, #newsPanel, #achvPanel { max-height: 62vh; }
     #toast {
       bottom: calc(160px + env(safe-area-inset-bottom));
       max-width: 90vw; text-align: center; font-size: 13px;
@@ -423,6 +437,13 @@
 <button id="catBtn" title="고양이 알바 고용 (1500G)">🐱</button>
 <button id="labBtn" title="가게 연구 센터">🧪</button>
 <button id="newsBtn" title="오늘의 뉴스">📰</button>
+<button id="achvBtn" title="시즌 수첩">📋</button>
+<div id="achvOverlay"></div>
+<div id="achvPanel">
+  <button id="achvClose">✕</button>
+  <h3>📋 시즌 수첩 — 장기 업적</h3>
+  <div id="achvList"></div>
+</div>
 <button id="rushBtn">🔥 폭풍 호객 (클릭!!)</button>
 <div id="newsOverlay"></div>
 <div id="newsPanel">
@@ -518,6 +539,10 @@ const state = {
   bestGradeIdx: -1,   // 역대 최고 등급 인덱스 (GRADES 기준)
   dayHistory: [],     // 일별 마감 기록 (월/분기 정산용, 최근 24일)
   tutorialStep: 0,    // 🎓 실시간 튜토리얼 (0=대기, 1~4=진행, 5=완료)
+  research: {},       // 🌶️ 양념 연구소 완료 여부 { gochujang, capsaicin, goldjjajang }
+  deliveryCount: 0,   // 🛵 누적 배달 완료 건수 (업적용)
+  sGradeCount: 0,     // ⭐ S등급 이상 마감 횟수 (업적용)
+  achClaimed: [],     // 📋 보상 수령한 업적 id 목록
 };
 const GRADES = ['D', 'C', 'B', 'A', 'S', 'SS', 'SSS'];
 const DAY_LENGTH = 120;   // 하루 영업 120초
@@ -536,6 +561,22 @@ const CAT_COSTUMES = [
   { id: 'bee',   emoji: '🐝', name: '황금 꿀벌 고양이',   cost: 2000, desc: '동전 자석 반경 ×1.8 추가' },
   { id: 'astro', emoji: '🚀', name: '우주비행사 고양이',  cost: 3500, desc: 'VIP 피버 지속 +4초' },
 ];
+// 🌶️ 양념 연구소: 골드 소모 일회성 영구 강화 3종 (state.research에 저장)
+const SAUCE_RESEARCH = [
+  { id: 'gochujang',   emoji: '🌶️', name: '고추장 마스터리',   cost: 1500, desc: '전 메뉴 정산 골드 영구 +15%' },
+  { id: 'capsaicin',   emoji: '✨', name: '마법의 캡사이신',   cost: 2500, desc: '우천 실내 매출 버프 1.3배 → 1.6배 강화' },
+  { id: 'goldjjajang', emoji: '🥇', name: '황금 짜장 가루',    cost: 4000, desc: '야간 VIP 등장 확률 +10%p 보너스' },
+];
+// 📋 시즌 수첩: 30일 장기 리텐션 업적 3종
+const ACHIEVEMENTS = [
+  { id: 'landlord', emoji: '🏘️', name: '골목길 터줏대감', desc: 'Day 5 달성하기',
+    reward: '즉시 2,000G 지급', check: () => state.day >= 5, prog: () => 'Day ' + Math.min(state.day, 5) + '/5' },
+  { id: 'rider', emoji: '🛵', name: '폭풍 배달의 민족', desc: '누적 배달 완료 5건 달성',
+    reward: '주방 팀 이동속도 영구 1.2배', check: () => state.deliveryCount >= 5, prog: () => Math.min(state.deliveryCount, 5) + '/5건' },
+  { id: 'michelin', emoji: '⭐', name: '미슐랭 가이드', desc: 'S등급 이상 마감 3회 달성',
+    reward: '기본 평판 별점 +0.5 보너스', check: () => state.sGradeCount >= 3, prog: () => Math.min(state.sGradeCount, 3) + '/3회' },
+];
+
 // 📰 일일 마케팅 트렌드 뉴스 (하루 1개 랜덤, 당일 장사에 실시간 적용)
 const NEWS_LIST = [
   { id: 'jjajang',  emoji: '🖤', title: '짜장 대유행!',   desc: '오늘 짜장 떡볶이(세트 포함) 정산 골드 1.5배!' },
@@ -587,6 +628,9 @@ function saveGame() {
       dayGold: state.dayGold, dayServed: state.dayServed, dayVip: state.dayVip, dayFailed: state.dayFailed,
       bestGradeIdx: state.bestGradeIdx, dayHistory: state.dayHistory,
       tutorialStep: state.tutorialStep,
+      research: state.research,
+      deliveryCount: state.deliveryCount, sGradeCount: state.sGradeCount,
+      achClaimed: state.achClaimed,
       fixturesPos: fixtures.pot   // 🧰 주방 기물 배치 (부팅 초기엔 아직 없을 수 있음)
         ? { pot: fixtures.pot.rec, fridge: fixtures.fridge.rec, stand: fixtures.stand.rec }
         : undefined,
@@ -2049,6 +2093,10 @@ function leavePath(seat, exitDir) {
     state.dayHistory = Array.isArray(saved.dayHistory) ? saved.dayHistory : [];
     // 🎓 튜토리얼: 기록 없으면 기존(이미 오픈한) 유저는 완료 처리
     state.tutorialStep = typeof saved.tutorialStep === 'number' ? saved.tutorialStep : (state.opened ? 5 : 0);
+    state.research = saved.research || {};
+    state.deliveryCount = saved.deliveryCount || 0;
+    state.sGradeCount = saved.sGradeCount || 0;
+    state.achClaimed = Array.isArray(saved.achClaimed) ? saved.achClaimed : [];
     // 🧰 주방 기물 위치 복원 — 가구보다 먼저 해야 점유 충돌 검사가 정확함
     if (saved.fixturesPos) {
       for (const id of ['pot', 'fridge', 'stand']) {
@@ -2964,7 +3012,7 @@ function endFever() {
   document.getElementById('feverFx').style.display = 'none';
   potSauce.material.emissive.setHex(0x000000);
   updateKitchenVisual();                               // 솥을 원래 메뉴 색으로
-  state.reputation = 3.5;                              // 평판을 다시 쌓아 재발동!
+  state.reputation = 3.5 + (state.achClaimed.includes('michelin') ? 0.5 : 0);   // ⭐ 미슐랭 업적: 기본 평판 +0.5
   updateUI();
   toast('피버 종료! 평판 ⭐을 다시 쌓으면 또 발동돼요');
 }
@@ -3099,8 +3147,9 @@ function spawnCustomer() {
     spark.position.set(0.15, 1.42, 0); g.add(spark);
   }
 
-  // 🕶️ VIP 인플루언서 (7%, 🌙 야간 영업 땐 2배!): 선글라스 + 최고급 세트, 만족 시 대박 피버!
-  const vip = !influencer && Math.random() < (weatherPhase() === 'night' ? 0.14 : 0.07);
+  // 🕶️ VIP 인플루언서 (7%, 🌙 야간 2배 + 🥇 황금 짜장 가루 연구 시 +10%p!)
+  const vip = !influencer && Math.random() <
+    (weatherPhase() === 'night' ? 0.14 + (state.research.goldjjajang ? 0.10 : 0) : 0.07);
   if (vip) {
     const shades = box(0.36, 0.075, 0.03, 0x1c1c24);
     shades.position.set(0, 0.93, 0.165); shades.castShadow = false; g.add(shades);
@@ -3239,8 +3288,10 @@ function updateCustomers(dt) {
           // 📰 오늘의 트렌드 보정: 짜장 대유행(해당 메뉴 1.5배) / 테라스 축제(테라스석 1.4배)
           if (state.newsId === 'jjajang' && c.menu.name.includes('짜장')) income = Math.round(income * 1.5);
           if (state.newsId === 'terrace' && c.seat.terrace) income = Math.round(income * 1.4);
-          // 🌧️ 우천 전략 밸런스: 실내에서 따끈하게 먹은 손님은 1.3배 정산
-          if (raining && !c.seat.terrace) income = Math.round(income * 1.3);
+          // 🌧️ 우천 전략 밸런스: 실내 손님 1.3배 (✨ 마법의 캡사이신 연구 시 1.6배)
+          if (raining && !c.seat.terrace) income = Math.round(income * (state.research.capsaicin ? 1.6 : 1.3));
+          // 🌶️ 고추장 마스터리: 전 메뉴 정산 골드 영구 +15%
+          if (state.research.gochujang) income = Math.round(income * 1.15);
           if (c.trait === 'glutton') income *= 2;   // 🐷 대식가: 2그릇 값을 통 크게 지불
           if (c.trait === 'gourmet') {              // 🐢 미식가: 두둑한 팁을 바닥에 흘리고 감
             dropCoin(c.seat.x - Math.sin(c.seat.ry) * 0.4, c.seat.z - Math.cos(c.seat.ry) * 0.4, 20);
@@ -3519,7 +3570,9 @@ function updateWorkerServing(w, dt, kinds) {
     picked.sort((a, b) => pickupSpot(a).x - pickupSpot(b).x);   // 픽업 동선: 솥 → 냉장고 → 조리대 순
     // 주문이 밀릴수록 종종걸음 (기본 2.4 → 최대 4.6) × 🧪 주방 속도 연구 보너스(+15%/Lv)
     w.job = { tasks: picked, idx: 0, order: null, di: 0, phase: 'go', timer: 0,
-      speed: (2.4 + Math.min(2.2, cookTasks.length * 0.4)) * (1 + 0.15 * state.labKitchen), group: w.group,
+      speed: (2.4 + Math.min(2.2, cookTasks.length * 0.4)) * (1 + 0.15 * state.labKitchen)
+        * (state.achClaimed.includes('rider') ? 1.2 : 1),   // 🛵 업적: 폭풍 배달의 민족
+      group: w.group,
       waypoints: routeToPickup(w, pickupSpot(picked[0])) };
   }
   const j = w.job, ch = w.group;
@@ -3828,6 +3881,36 @@ function renderLab() {
     }
     wrap.appendChild(row);
   });
+
+  // 🌶️ 양념 연구소 섹션 — 일회성 영구 강화 3종 (state.research 저장·즉시 적용)
+  const sHead = document.createElement('div');
+  sHead.style.cssText = 'margin:12px 0 2px;font-weight:800;color:#b58a5a;font-size:13px;';
+  sHead.textContent = '🌶️ 양념 연구소 — 비법 소스 영구 강화!';
+  wrap.appendChild(sHead);
+  SAUCE_RESEARCH.forEach(rs => {
+    const row = document.createElement('div');
+    row.className = 'shopItem';
+    row.innerHTML = '<div class="info">' + rs.emoji + ' ' + rs.name +
+      '<small>' + rs.desc + '</small></div>';
+    if (state.research[rs.id]) {
+      const done = document.createElement('span');
+      done.textContent = '✅';
+      row.appendChild(done);
+    } else {
+      const btn = document.createElement('button');
+      btn.textContent = rs.cost + 'G 연구';
+      btn.addEventListener('click', () => {
+        if (state.gold < rs.cost) { toast('💸 골드가 부족해요! (' + rs.cost + 'G 필요)'); return; }
+        state.gold -= rs.cost;
+        state.research[rs.id] = true;   // 매출/확률 로직이 참조 지점에서 즉시 반영
+        toast('🧪 「' + rs.name + '」 연구 완료! ' + rs.desc);
+        updateUI(true);
+        renderLab();
+      });
+      row.appendChild(btn);
+    }
+    wrap.appendChild(row);
+  });
 }
 function openLab() {
   if (editMode) exitEditMode();
@@ -3843,6 +3926,50 @@ function closeLab() {
 document.getElementById('labBtn').addEventListener('click', openLab);
 document.getElementById('labClose').addEventListener('click', closeLab);
 labOverlay.addEventListener('click', closeLab);
+
+/* ── 📋 시즌 수첩 (장기 업적 & 보상) ─────────────────────────── */
+const achvPanel = document.getElementById('achvPanel');
+const achvOverlay = document.getElementById('achvOverlay');
+function claimAchievement(a) {
+  if (state.achClaimed.includes(a.id) || !a.check()) return;
+  state.achClaimed.push(a.id);
+  if (a.id === 'landlord') state.gold += 2000;                                     // 💰 즉시 지급
+  if (a.id === 'michelin') state.reputation = Math.min(5, state.reputation + 0.5); // ⭐ 즉시 +0.5 (기본선도 상향)
+  // 'rider' 속도 1.2배는 워커 job 생성 시 참조 지점에서 즉시 반영
+  spawnConfetti(wx(6.5), wz(3));
+  toast('🏆 업적 달성! 「' + a.name + '」 — ' + a.reward);
+  updateUI(true);
+  renderAchv();
+}
+function renderAchv() {
+  const wrap = document.getElementById('achvList');
+  wrap.innerHTML = '';
+  ACHIEVEMENTS.forEach(a => {
+    const claimed = state.achClaimed.includes(a.id);
+    const ready = !claimed && a.check();
+    const row = document.createElement('div');
+    row.className = 'shopItem' + (claimed || ready ? '' : ' locked');
+    row.innerHTML = '<div class="info">' + a.emoji + ' ' + a.name +
+      '<small>' + a.desc + ' (' + a.prog() + ')<br>🎁 ' + a.reward + '</small></div>';
+    const btn = document.createElement('button');
+    btn.className = 'achReward ' + (claimed ? 'done' : ready ? 'ready' : 'locked');
+    btn.textContent = claimed ? '✅ 수령 완료' : ready ? '🎁 보상 받기' : '⏳ 진행 중';
+    if (ready) btn.addEventListener('click', () => claimAchievement(a));
+    row.appendChild(btn);
+    wrap.appendChild(row);
+  });
+}
+function openAchv() {
+  cancelPlacing(); closeShop(); closeMenuBook(); closeLab(); closeNews();
+  if (editMode) exitEditMode();
+  renderAchv();
+  achvPanel.style.display = 'block';
+  achvOverlay.style.display = 'block';
+}
+function closeAchv() { achvPanel.style.display = 'none'; achvOverlay.style.display = 'none'; }
+document.getElementById('achvBtn').addEventListener('click', openAchv);
+document.getElementById('achvClose').addEventListener('click', closeAchv);
+achvOverlay.addEventListener('click', closeAchv);
 
 /* ── 📰 일일 마케팅 트렌드 뉴스 ─────────────────────────────── */
 const newsPanel = document.getElementById('newsPanel');
@@ -3936,6 +4063,7 @@ function closeDay() {
   const grade = gradeOfDay();
   const gi = GRADES.indexOf(grade);
   if (gi > state.bestGradeIdx) state.bestGradeIdx = gi;
+  if (gi >= GRADES.indexOf('S')) state.sGradeCount++;   // 📋 업적: 미슐랭 가이드 카운트
   state.daysDone++;
   state.dayHistory.push({ day: state.day, gold: state.dayGold, served: state.dayServed,
     vip: state.dayVip, failed: state.dayFailed, grade });
@@ -4251,6 +4379,7 @@ function dispatchScooter(dv, o) {
     state.dayGold += 80;
     showBubble(dv.group, '💰 배달 출발! +80G', 1.8, 2.0);
   }
+  state.deliveryCount++;   // 📋 업적: 폭풍 배달의 민족 카운트
   toast('🏍️ 부릉! 배달 출발 — 대형 정산 +80G');
 }
 function updateScooters(dt) {
