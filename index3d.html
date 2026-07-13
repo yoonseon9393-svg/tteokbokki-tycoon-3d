@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-<title>🍢 미니 떡볶이 타이쿤 3D</title>
+<title>🍢 골목길 떡볶이 타이쿤</title>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   html, body {
@@ -104,6 +104,14 @@
     font-size: 13px;
   }
   .shopItem button:hover { background: #ffc94d; }
+  /* 🗂️ 상점 카테고리 탭 */
+  #shopTabs { display: flex; gap: 6px; margin-bottom: 10px; }
+  .shopTabBtn {
+    flex: 1; border: none; border-radius: 12px; padding: 8px 4px;
+    font-weight: 800; font-size: 12px; cursor: pointer;
+    background: #f1e5d3; color: #8a745c; touch-action: manipulation;
+  }
+  .shopTabBtn.active { background: #ffd166; color: #7a5c00; }
 
   /* ── 배치 모드 힌트 ───────────────────── */
   #placeHint {
@@ -216,6 +224,37 @@
   #newsBody .nDesc { font-size: 13px; line-height: 1.6; }
   #newsBody .nTag { display: inline-block; margin-top: 12px; background: #ffd166; color: #7a5c00;
     border-radius: 999px; padding: 4px 12px; font-size: 12px; font-weight: 800; font-family: sans-serif; }
+  /* ── 📋 일일 마감 보고서 (영수증 스타일) ─────────── */
+  #dayOverlay { position: fixed; inset: 0; background: rgba(70,55,45,.5); z-index: 33; display: none; }
+  #dayPanel {
+    position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    background: linear-gradient(160deg, #fff8ec, #ffeddb);
+    border: 3px solid #ffd9b8; border-radius: 24px;
+    padding: 18px 20px; z-index: 34; display: none;
+    box-shadow: 0 14px 40px rgba(90,60,40,.4);
+    width: min(340px, 90vw); max-height: 76vh; overflow-y: auto;
+  }
+  #dayPanel h3 { color: #5a4a42; font-size: 17px; margin-bottom: 12px; text-align: center; }
+  #dayBody .rcpt {
+    position: relative; background: #fffdf6; border: 2px dashed #d8cdb8; border-radius: 10px;
+    padding: 14px 16px; font-size: 13px; color: #4a4038;
+  }
+  #dayBody .rTitle { text-align: center; font-weight: 900; border-bottom: 3px double #c9bda5; padding-bottom: 6px; margin-bottom: 8px; }
+  #dayBody .rRow { display: flex; justify-content: space-between; padding: 3px 0; border-bottom: 1px dotted #e6dcc9; }
+  #dayBody .rRow b { color: #b0713a; }
+  #dayBody .rMile { margin-top: 8px; background: #fff2d6; border-radius: 8px; padding: 6px 10px; font-weight: 700; font-size: 12px; }
+  #dayBody .stamp {
+    position: absolute; right: 10px; bottom: 8px; transform: rotate(-14deg);
+    border: 3px solid currentColor; border-radius: 10px; padding: 2px 12px;
+    font-size: 30px; font-weight: 900; opacity: .85; font-family: sans-serif;
+  }
+  #nextDayBtn {
+    width: 100%; margin-top: 14px; border: none; cursor: pointer; border-radius: 16px;
+    padding: 13px; font-size: 15px; font-weight: 800; color: #fff;
+    background: linear-gradient(160deg, #ffb56b, #ff8fab);
+    box-shadow: 0 4px 0 rgba(0,0,0,.13); touch-action: manipulation;
+  }
+  #nextDayBtn:active { transform: translateY(3px); box-shadow: none; }
   /* ── 🪑 배치 가구 이동/철거 미니 팝업 ─────────── */
   #furniPop {
     position: fixed; z-index: 22; display: none; gap: 6px;
@@ -241,6 +280,24 @@
     border: none; background: #2fae6e; color: #fff; border-radius: 999px;
     padding: 5px 13px; font-weight: 800; font-size: 12px; cursor: pointer;
     touch-action: manipulation;
+  }
+  /* ── 🎓 상황 맞춤형 실시간 튜토리얼 가이드 ─────────── */
+  #tutoGuide {
+    position: fixed; top: calc(128px + env(safe-area-inset-top)); left: 50%;
+    transform: translateX(-50%);
+    background: rgba(255,250,238,.97); color: #6b5638;
+    border: 2px solid #ffd166; border-radius: 14px;
+    padding: 9px 10px 9px 14px; font-size: 12.5px; font-weight: 700;
+    z-index: 12; display: none; align-items: center; gap: 8px;
+    max-width: min(420px, 92vw); line-height: 1.45;
+    box-shadow: 0 6px 18px rgba(90,60,40,.2);
+    animation: tutoPop .35s ease-out;
+  }
+  @keyframes tutoPop { from { transform: translateX(-50%) translateY(-8px); opacity: 0; } }
+  #tutoSkip {
+    border: none; background: #f1e5d3; color: #8a745c; border-radius: 50%;
+    width: 24px; height: 24px; font-size: 11px; font-weight: 800; cursor: pointer;
+    flex: none; touch-action: manipulation;
   }
   #resetOverlay {
     position: fixed; inset: 0; background: rgba(70,55,45,.45);
@@ -321,6 +378,7 @@
   <div class="chip" id="servedChip">😋 손님 0명</div>
   <div class="chip" id="repChip">★★★☆☆ 3.0</div>
   <div class="chip" id="newsChip" title="오늘의 트렌드">📰 -</div>
+  <div class="chip" id="dayChip" title="오늘의 영업시간">☀️ Day 1 · 120s</div>
 </div>
 
 <div id="feverFx"></div>
@@ -332,6 +390,7 @@
   <button class="bigbtn" id="expandBtn">🏗️ 확장</button>
 </div>
 <div id="editHint">🪑 가구를 클릭하여 이동, 회전, 철거할 수 있습니다 <button id="editDoneBtn">✅ 편집 완료</button></div>
+<div id="tutoGuide"><span id="tutoText"></span><button id="tutoSkip" title="가이드 건너뛰기">✕</button></div>
 
 <div id="shopOverlay"></div>
 <div id="shopPanel">
@@ -353,11 +412,11 @@
 
 <div id="welcomeOverlay"></div>
 <div id="welcomePanel">
-  <h2>🍢 웰컴, 사장님!</h2>
-  <p>나만의 작은 3D 떡볶이 가게에 오신 것을 환영합니다!<br>사장님, 우리 가게의 이름을<br>무엇으로 정하시겠어요?</p>
+  <h2>🍢 골목길 떡볶이 타이쿤</h2>
+  <p>작은 골목길 포장마차에서 시작해<br>대한민국 최고의 요식업 왕국을<br>만들어보세요!<br><br>간판에 내걸 우리 가게의 이름은?</p>
   <input id="shopNameInput" type="text" maxlength="7" placeholder="예: 대박맛집 (최대 7글자)">
   <div id="nameCount">0 / 7</div>
-  <button id="openShopBtn">오픈하기! 🎉</button>
+  <button id="openShopBtn">🏮 영업 개시!</button>
 </div>
 
 <button id="resetBtn" title="처음부터 다시 시작">🔄</button>
@@ -370,6 +429,12 @@
   <button id="newsClose">✕</button>
   <h3>📰 오늘의 마케팅 트렌드</h3>
   <div id="newsBody"></div>
+</div>
+<div id="dayOverlay"></div>
+<div id="dayPanel">
+  <h3>📋 오늘의 장사 마감 보고서</h3>
+  <div id="dayBody"></div>
+  <button id="nextDayBtn">🌅 다음 날 영업 시작!</button>
 </div>
 <div id="labOverlay"></div>
 <div id="labPanel">
@@ -444,7 +509,18 @@ const state = {
   catWearing: null,   // 🐱 현재 장착 중인 코스튬 id (null = 기본)
   newsDay: '',        // 📰 마지막 뉴스 발행일 (YYYY-M-D)
   newsId: '',         // 📰 오늘 적용 중인 트렌드 id
+  // ☀️ 일일 장사 메타 루프
+  day: 1,             // 현재 일차
+  daysDone: 0,        // 완료한 영업일 수 (해금 조건용)
+  dayPhase: 'open',   // open(영업 중) | closing(마감 정리) | report(보고서)
+  dayTimer: 120,      // 하루 영업시간 (초)
+  dayGold: 0, dayServed: 0, dayVip: 0, dayFailed: 0,   // 오늘 실적
+  bestGradeIdx: -1,   // 역대 최고 등급 인덱스 (GRADES 기준)
+  dayHistory: [],     // 일별 마감 기록 (월/분기 정산용, 최근 24일)
+  tutorialStep: 0,    // 🎓 실시간 튜토리얼 (0=대기, 1~4=진행, 5=완료)
 };
+const GRADES = ['D', 'C', 'B', 'A', 'S', 'SS', 'SSS'];
+const DAY_LENGTH = 120;   // 하루 영업 120초
 
 // 🌶️ 맵기 단계 & 🥚 추가 토핑 커스텀 주문 (토핑은 정산 시 보너스 골드)
 const SPICES = ['🍼 순한맛', '🔥 매운맛', '😈 지옥맛'];
@@ -507,6 +583,10 @@ function saveGame() {
       catWearing: state.catWearing,
       newsDay: state.newsDay,
       newsId: state.newsId,
+      day: state.day, daysDone: state.daysDone, dayPhase: state.dayPhase, dayTimer: state.dayTimer,
+      dayGold: state.dayGold, dayServed: state.dayServed, dayVip: state.dayVip, dayFailed: state.dayFailed,
+      bestGradeIdx: state.bestGradeIdx, dayHistory: state.dayHistory,
+      tutorialStep: state.tutorialStep,
       fixturesPos: fixtures.pot   // 🧰 주방 기물 배치 (부팅 초기엔 아직 없을 수 있음)
         ? { pot: fixtures.pot.rec, fridge: fixtures.fridge.rec, stand: fixtures.stand.rec }
         : undefined,
@@ -533,6 +613,14 @@ const SIDEWALK_Z = wz(8);            // 사람들이 걷는 인도 z = 2
 const FAR_WALK_Z = wz(11);           // 건너편 인도 z = 5
 const DOOR_X = wx(6.5);              // 출입문 중앙 x (문 칸 gx6~7은 고정 — 폭이 넓어져도 주방 옆)
 const EDGE_X = 14;                   // 화면 밖 스폰 x (넓어진 매장+테라스 바깥)
+
+// 🏗️ 다단계 확장: Lv1~3 가로 성장 → Lv4~6 세로(뒤쪽) 성장으로 균형 잡힌 대형 매장
+const MAX_SHOP_LEVEL = 6;
+const SHOP_LEVEL_COST = [0, 1000, 3000, 6000, 12000, 24000];   // [n→n+1 비용]
+const SHOP_X1 = [0, 16, 18, 20, 20, 20, 20];   // 레벨별 내부 오른쪽 끝 칸
+const SHOP_Z0 = [0, -1, -1, -1, -3, -5, -7];   // 레벨별 내부 '뒤쪽 끝' 행 — 시작부터 깊이 7칸, Lv4+ 9→11→13칸
+function shopZ0() { return SHOP_Z0[state.shopLevel]; }
+function shopExtraZ() { return 1 - SHOP_Z0[state.shopLevel]; }   // 뒤로 늘어난 행 수 (0~6)
 
 /* ── 기본 셋업 ───────────────────────────────────────────── */
 const canvas = document.getElementById('game');
@@ -589,7 +677,11 @@ function fitCamera() {
   // 🏗️ 넓어진 매장 중심으로 카메라 평행이동 (앵글은 그대로 유지)
   px += SHOP_CX; tx += SHOP_CX;
   // 매장이 오른쪽으로 확장되면 카메라 중심도 살짝 따라가 테라스까지 한눈에
-  tx += (state.shopLevel - 1) * 1.0;
+  tx += (Math.min(state.shopLevel, 3) - 1) * 1.0;
+  // 🏗️ Lv4+ 세로 확장: 늘어난 깊이만큼 초점을 뒤로 밀고 줌아웃해서 전체가 한눈에
+  const exZ = shopExtraZ();
+  pz -= exZ * 0.5; tz -= exZ * 0.5;
+  halfH *= 1 + exZ * 0.055;
   camera.left = -halfH * a; camera.right = halfH * a;
   camera.top = halfH; camera.bottom = -halfH;
   camera.near = 0.1; camera.far = 100;
@@ -698,6 +790,7 @@ const workers = [];              // 🧑‍🍳 서빙 인력 목록 (주방장 
 let helperWorker = null;         // 👩‍🍳 주방 보조 알바생 워커
 let vipFeverT = 0;               // 📱 VIP 인플루언서 대박 피버 남은 시간
 let rushBuffT = 0;               // 🔥 폭풍 호객 연타 버프 남은 시간 (일꾼 1.4배 가속)
+let deliveryTimer = 18;          // 🛵 배달 주문 주기 타이머
 
 function addTile(gx, gz, color, interior = false) {
   const t = box(0.98, 0.12, 0.98, color);
@@ -967,6 +1060,7 @@ function buildTree(x, z, scale = 1) {
   g.scale.setScalar(scale);
   g.position.set(x, 0, z);
   scene.add(g);
+  return g;   // 호출부에서 그룹(뒤편 마을 등)으로 재부착 가능
 }
 function buildBench(x, z) {
   const g = new THREE.Group();
@@ -1023,6 +1117,7 @@ function buildCherryTree(x, z, scale = 1) {
   g.position.set(x, 0, z);
   scene.add(g);
   ENV.trees.push({ group: g, foliage });
+  return g;   // 호출부에서 그룹(뒤편 마을 등)으로 재부착 가능
 }
 // 도로 건너편 잔디밭을 따라 벚꽃나무 5그루
 buildCherryTree(-6.1, 6.1, 1.1);
@@ -1076,6 +1171,10 @@ function updatePetals(dt, time) {
    가게 받침대 뒤/양옆에 지면 패드를 이어 붙이고
    톤다운 파스텔 건물 4채(이웃집×2, 카페, 빵집)로 골목을 감쌈 */
 const villageGroup = new THREE.Group();
+// 🏘️ 뒤편 마을 전용 그룹: 매장이 세로(뒤쪽)로 확장되면 이 그룹만 z축으로 밀려남
+// (앞/옆 골목·도로 연결부는 고정이므로 통짜 이동 금지!)
+const villageBackGroup = new THREE.Group();
+scene.add(villageBackGroup);
 scene.add(villageGroup);
 (function buildVillage() {
   // 1) 지면 패드: 메인 받침대와 같은 높이로 이어지는 마을 땅 (살짝 톤다운)
@@ -1083,16 +1182,17 @@ scene.add(villageGroup);
     const p = box(w, 0.6, d, color);
     p.position.set(x, -0.36, z);
     villageGroup.add(p);
+    return p;
   }
   // 🏞️ 마을 땅 대폭 확장: 가게가 골목 중심부에 든든하게 자리잡도록
-  pad(28, 5.0, 0, -9.55);            // 뒤편 골목 땅 (깊고 넓게)
-  pad(4.6, 21, -9.9, -1.5);          // 왼쪽 골목 땅
+  villageBackGroup.add(pad(28, 5.0, 0, -9.55));   // 뒤편 골목 땅 → 매장 확장 시 함께 밀려남
+  pad(7.0, 21, -11.9, -1.5);         // 왼쪽 골목 땅 (외곽 대피한 집들까지 넓게 커버)
   pad(6.4, 21, 10.8, -1.5);          // 오른쪽 골목 땅 (테라스·빵집·이웃집까지)
   pad(15.4, 2.6, 0, 8.35, 0x9cc487); // 앞쪽 풀밭 (잔디 절벽 방지)
 
   // 2) 도로가 좌우 허공으로 끊기지 않고 옆 골목 끝까지 이어지는 연출
-  const roadL = box(4.6, 0.05, 2.0, 0x8f99a8);
-  roadL.position.set(-9.9, -0.045, 3.5);
+  const roadL = box(7.0, 0.05, 2.0, 0x8f99a8);
+  roadL.position.set(-11.9, -0.045, 3.5);
   roadL.castShadow = false;
   villageGroup.add(roadL);
   const roadR = box(6.4, 0.05, 2.0, 0x8f99a8);
@@ -1133,23 +1233,24 @@ scene.add(villageGroup);
     g.position.set(x, 0, z);
     g.rotation.y = o.ry;
     villageGroup.add(g);
+    return g;
   }
-  // 뒤편 골목: 이웃집 세 채
-  buildHouse(-3.4, -8.8, { w: 2.4, h: 1.9, body: 0xefe3d0, roof: 0x9fb4c8, chimney: true });
-  buildHouse(2.7, -8.9,  { w: 2.1, h: 1.6, body: 0xebd2c0, roof: 0xb99f8a });
-  buildHouse(8.4, -9.5,  { w: 2.3, h: 1.7, body: 0xefe3d0, roof: 0xa8bfa0, chimney: true });
-  // 왼쪽 골목: 작은 카페 + 뒤편 이웃집
-  buildHouse(-8.95, 1.0, { w: 2.0, d: 1.9, h: 1.8, body: 0xdcd8d2, roof: 0xa8bfa0, chimney: true, sign: 0xfff2dc, ry: Math.PI / 2 });
-  buildHouse(-10.1, -5.2, { w: 2.0, d: 1.9, h: 1.6, body: 0xebd2c0, roof: 0xb99f8a, ry: Math.PI / 2 });
-  // 오른쪽 골목: 아담한 빵집 (🚪 테라스 길목을 비우도록 오른쪽으로 이사!) + 이웃집
-  buildHouse(11.6, 0.7,  { w: 2.2, d: 2.0, h: 1.7, body: 0xecd9bd, roof: 0xd98e7a, sign: 0xfff2dc, ry: -Math.PI / 2 });
-  buildHouse(11.9, -4.8, { w: 2.1, d: 2.0, h: 1.8, body: 0xdfe3e8, roof: 0x9fb4c8, ry: -Math.PI / 2 });
+  // 뒤편 골목: 이웃집 세 채 → 🏘️ 확장 시 뒤로 밀려나는 그룹 소속
+  villageBackGroup.add(buildHouse(-3.4, -8.8, { w: 2.4, h: 1.9, body: 0xefe3d0, roof: 0x9fb4c8, chimney: true }));
+  villageBackGroup.add(buildHouse(2.7, -8.9,  { w: 2.1, h: 1.6, body: 0xebd2c0, roof: 0xb99f8a }));
+  villageBackGroup.add(buildHouse(8.4, -9.5,  { w: 2.3, h: 1.7, body: 0xefe3d0, roof: 0xa8bfa0, chimney: true }));
+  // 왼쪽 골목: 작은 카페 + 이웃집 — 🚧 매장 왼쪽 벽(x -11)과 절대 안 겹치게 외곽(x ≤ -12.4)으로 대피!
+  buildHouse(-12.6, 1.0,  { w: 2.0, d: 1.9, h: 1.8, body: 0xdcd8d2, roof: 0xa8bfa0, chimney: true, sign: 0xfff2dc, ry: Math.PI / 2 });
+  buildHouse(-12.8, -5.2, { w: 2.0, d: 1.9, h: 1.6, body: 0xebd2c0, roof: 0xb99f8a, ry: Math.PI / 2 });
+  // 오른쪽 골목: 아담한 빵집 + 이웃집 — 오른쪽 벽(x 10~11) 바깥으로 한 뼘 더 이사
+  buildHouse(12.4, 0.7,  { w: 2.2, d: 2.0, h: 1.7, body: 0xecd9bd, roof: 0xd98e7a, sign: 0xfff2dc, ry: -Math.PI / 2 });
+  buildHouse(12.6, -4.8, { w: 2.1, d: 2.0, h: 1.8, body: 0xdfe3e8, roof: 0x9fb4c8, ry: -Math.PI / 2 });
 
   // 🌳 넓어진 마을 곳곳에 나무 심기 (초록 + 벚꽃 믹스)
   buildTree(-9.7, 6.4, 0.9);
   buildTree(13.1, 2.0, 1.0);
-  buildCherryTree(12.2, -8.2, 0.95);
-  buildCherryTree(-10.4, -8.9, 1.05);
+  villageBackGroup.add(buildCherryTree(12.2, -8.2, 0.95));    // 🌸 뒤편 나무들도 함께 밀려남
+  villageBackGroup.add(buildCherryTree(-10.4, -8.9, 1.05));
   buildCherryTree(-4.3, 8.35, 0.9);
   buildCherryTree(4.6, 8.4, 1.0);
 })();
@@ -1204,21 +1305,25 @@ cook.rotation.y = 0; // 손님 쪽(+z)을 바라봄
 const cookHat = cyl(0.2, 0.22, 0.22, 0xffffff);
 cookHat.position.y = 1.18;
 cook.add(cookHat);
-// 🙌 양손 서빙 슬롯: 왼손/오른손 위치에 그릇(소스 색 동적) 또는 음료(사이드 색 동적)가 붙음
+// 🙌 서빙 슬롯: 양손(하단 2) + 트레이 타워(상단 2) = 인당 최대 4개 캐리
 // parent = 부착할 캐릭터 (주방장/주방 보조 공용)
-function makeHandItem(parent, x) {
+function makeHandItem(parent, x, y = 0.68) {
   const g = new THREE.Group();
   const bowlBody = cyl(0.15, 0.11, 0.09, 0xfff4e0, 12);
   const bowlSauce = cyl(0.12, 0.12, 0.045, 0xff4d4d, 12);
   bowlSauce.position.y = 0.055;
   const cup = cyl(0.065, 0.05, 0.15, 0xffb3c8, 10);
   g.add(bowlBody); g.add(bowlSauce); g.add(cup);
-  g.position.set(x, 0.68, 0.17);   // 손 높이에 부착 — 걸을 때 몸과 함께 움직임
+  g.position.set(x, y, 0.17);   // 손/트레이 높이에 부착 — 걸을 때 몸과 함께 움직임
   g.visible = false;
   parent.add(g);
   return { g, bowlBody, bowlSauce, cup };
 }
-const cookHands = [makeHandItem(cook, 0.27), makeHandItem(cook, -0.27)];   // [오른손, 왼손]
+function makeHandSet(ch) {   // 🍱 4슬롯: 오른손·왼손 + 그 위 트레이 2단
+  return [makeHandItem(ch, 0.27), makeHandItem(ch, -0.27),
+          makeHandItem(ch, 0.27, 0.95), makeHandItem(ch, -0.27, 0.95)];
+}
+const cookHands = makeHandSet(cook);
 // 픽업 완료 시 손 위 오브젝트 종류/색 세팅 — 🍲 그릇 소스 색 = 손님이 주문한 메뉴의 고유 소스 색
 function showHandItem(h, t) {
   const isMain = t.kind === 'main';
@@ -1432,6 +1537,58 @@ function buildTerraceSet() {   // ⛱️ 테라스 전용: 미니 테이블 + �
   return g;
 }
 
+// 🪑 대기용 원목 벤치 (1칸): 주변 손님이 진득하게 기다려 줌
+function buildBenchSet() {
+  const g = new THREE.Group();
+  for (let i = 0; i < 3; i++) {
+    const plank = box(0.85, 0.06, 0.14, 0xc99e6a);
+    plank.position.set(0, 0.3, -0.14 + i * 0.15); g.add(plank);
+  }
+  const back = box(0.85, 0.32, 0.06, 0xc99e6a); back.position.set(0, 0.52, -0.27); g.add(back);
+  for (const [px, pz] of [[-0.35, -0.16], [0.35, -0.16], [-0.35, 0.14], [0.35, 0.14]]) {
+    const leg = box(0.07, 0.3, 0.07, 0x9a7a5e); leg.position.set(px, 0.15, pz); g.add(leg);
+  }
+  const cushion = box(0.4, 0.05, 0.28, 0xffb3c6); cushion.position.set(0, 0.36, 0.02); cushion.castShadow = false; g.add(cushion);
+  return g;
+}
+// 🎸 고양이 버스킹 무대 (2×2): 알바냥이 틈틈이 공연 — 주변 손님이 오래 머묾
+function buildStageSet() {
+  const g = new THREE.Group();
+  const deck = box(1.85, 0.36, 1.85, 0xb07a4f); deck.position.set(0.5, 0.18, 0.5); g.add(deck);
+  const trim = box(1.95, 0.06, 1.95, 0xffd166); trim.position.set(0.5, 0.39, 0.5); trim.castShadow = false; g.add(trim);
+  for (const sx of [-0.25, 1.25]) {   // 양쪽 스피커
+    const spk = box(0.34, 0.62, 0.34, 0x4a4a55); spk.position.set(sx, 0.72, -0.2); g.add(spk);
+    const cone = cyl(0.1, 0.1, 0.04, 0x2c2c33, 10);
+    cone.rotation.x = Math.PI / 2; cone.position.set(sx, 0.8, -0.02); g.add(cone);
+  }
+  const pole = cyl(0.03, 0.03, 0.9, 0xd9dee6); pole.position.set(0.5, 0.85, -0.2); g.add(pole);
+  const star = new THREE.Mesh(new THREE.SphereGeometry(0.1, 6, 6),
+    new THREE.MeshLambertMaterial({ color: 0xfff2b0, emissive: 0xffd764, emissiveIntensity: 0.9 }));
+  star.position.set(0.5, 1.35, -0.2); g.add(star);
+  return g;
+}
+
+// 🛵 오토바이 배달 주문 센터 (2칸): 접수 카운터 + 미니 스쿠터
+function buildDeliverySet() {
+  const g = new THREE.Group();
+  const counter = box(0.9, 0.75, 0.7, 0x8fb7d9); counter.position.set(0, 0.375, -0.05); g.add(counter);
+  const top = box(1.0, 0.06, 0.8, 0xf1e0c4); top.position.set(0, 0.78, -0.05); g.add(top);
+  const phone = box(0.2, 0.16, 0.12, 0x3a3a44); phone.position.set(-0.12, 0.89, -0.05); g.add(phone);
+  const sign = box(0.7, 0.3, 0.06, 0xffd166); sign.position.set(0, 1.25, -0.25); g.add(sign);
+  const pole2 = cyl(0.03, 0.03, 0.55, 0x9a7a5e); pole2.position.set(0, 0.95, -0.25); g.add(pole2);
+  const body = box(0.55, 0.2, 0.26, 0xe5383b); body.position.set(1.05, 0.34, 0.15); g.add(body);   // 🛵 스쿠터
+  const seat2 = box(0.26, 0.09, 0.2, 0x2c2c33); seat2.position.set(1.1, 0.49, 0.15); g.add(seat2);
+  const handle = cyl(0.022, 0.022, 0.34, 0x8a8f98); handle.position.set(0.82, 0.55, 0.15); g.add(handle);
+  for (const wxo of [0.82, 1.3]) {
+    const wheel = cyl(0.11, 0.11, 0.08, 0x2c2c33, 10);
+    wheel.rotation.x = Math.PI / 2;   // 세워진 바퀴
+    wheel.rotation.z = Math.PI / 2;
+    wheel.position.set(wxo, 0.11, 0.15); g.add(wheel);
+  }
+  const carry = box(0.28, 0.26, 0.26, 0xffd166); carry.position.set(1.32, 0.62, 0.15); g.add(carry);
+  return g;
+}
+
 const SHOP_ITEMS = {
   terrace: {
     name: '테라스 파라솔 세트', emoji: '⛱️', price: 180,
@@ -1466,11 +1623,28 @@ const SHOP_ITEMS = {
       { x: 0.5, z: 1.18, ry: Math.PI },
     ],
   },
+  bench: {
+    name: '대기용 원목 벤치', emoji: '🛋️', price: 220,
+    desc: '주변 2.5칸 손님이 사이드를 40% 더 진득하게 기다려요',
+    build: buildBenchSet, cells: [[0, 0]], seats: [],
+  },
+  stage: {
+    name: '고양이 버스킹 무대', emoji: '🎸', price: 1800,
+    desc: '🐱 알바가 틈틈이 공연! 주변 3칸 손님의 식사가 50% 여유로워져요',
+    build: buildStageSet, cells: [[0, 0], [1, 0], [0, 1], [1, 1]], seats: [],
+    cat: 'ent', needsCat: true,   // 🔒 고양이 고용 선행 조건
+  },
+  delivery: {
+    name: '오토바이 배달 주문 센터', emoji: '🛵', price: 3000,
+    desc: '영업 중 18초마다 배달 주문이 들어와 50G 동전이 쌓여요!',
+    build: buildDeliverySet, cells: [[0, 0], [1, 0]], seats: [],
+    cat: 'ent', needsBiz: true,   // 🔒 Day 3 완료 + 누적 등급 A 이상 선행 조건
+  },
 };
 // 🧰 주방 기물을 배치 시스템(고스트/격자)에 등록 — 상점 판매 아님(fixture 플래그)
 for (const [fid, def] of Object.entries(FIXTURE_DEFS)) {
   SHOP_ITEMS['fx_' + fid] = { name: def.name, emoji: def.emoji, price: 0, desc: '',
-    build: def.build, cells: def.cells, seats: [], fixture: true, fixtureId: fid };
+    build: def.build, cells: def.cells, seats: [], fixture: true, fixtureId: fid, cat: 'kitchen' };
 }
 
 const tables = [];   // { group, seats: [{x, z, ry, taken}] }
@@ -1521,7 +1695,7 @@ function rotCell(dx, dz, rot) {
 }
 // 가게 안이면서 비어있는 칸인지 (레벨에 따라 내부 폭이 넓어짐)
 function cellFree(gx, gz) {
-  return gx >= 1 && gx <= SHOP_X1[state.shopLevel] && gz >= 1 && gz <= 5 && !occupied.has(gx + ',' + gz);
+  return gx >= 1 && gx <= SHOP_X1[state.shopLevel] && gz >= shopZ0() && gz <= 5 && !occupied.has(gx + ',' + gz);
 }
 // 아이템 종류별 배치 가능 판정: 테라스 전용은 데크 칸(벽+3열)만, 일반 가구는 실내만
 function cellOkFor(item, gx, gz) {
@@ -1556,6 +1730,7 @@ function placeFurniture(key, gx, gz, rot, free = false) {
   });
   if (!free) {
     state.gold -= item.price;
+    tutoAdvance(1);   // 🎓 Step1 완료: 첫 가구 구매 배치
     updateUI(true);
   }
 }
@@ -1578,8 +1753,7 @@ function removeFurniture(table) {
    레벨 비주얼은 expansionGroup에 모아 레벨에 맞게 재구성하고,
    테라스 보너스 테이블은 격자 밖(gx 15)에 placeFurniture로 설치되어
    기존 좌석 AI·세이브에 자동으로 편입됨 */
-const SHOP_LEVEL_COST = [0, 1000, 3000];   // [사용안함, Lv1→2, Lv2→3]
-const SHOP_X1 = [0, 16, 18, 20];           // 레벨별 매장 내부 오른쪽 끝 칸 (폭 16→18→20칸, 시작 면적 2배!)
+// (🏗️ 확장 레벨 테이블은 카메라 부팅보다 먼저 필요해서 맵 좌표계 상수 옆에 선언됨)
 const expansionGroup = new THREE.Group();
 scene.add(expansionGroup);
 let stringBulbs = [];   // Lv3 반짝이 알전구들
@@ -1602,24 +1776,34 @@ function buildShopShell() {
 
   const x1 = SHOP_X1[state.shopLevel];   // 내부 오른쪽 끝
   const R = x1 + 1;                      // 오른쪽 벽 칸
-  // 1) 존(0~6행) 바닥: 매장+벽 아래는 크림 체크, 벽 밖은 플라자 포장
-  for (let gz = 0; gz <= 6; gz++) {
+  const zTop = shopZ0() - 1;             // 🏗️ 뒷벽 행 (Lv4+에서 뒤로 밀림: 0 → -2 → -4 → -6)
+  // 1) 존(zTop~6행) 바닥: 매장+벽 아래는 크림 체크, 벽 밖은 플라자 포장
+  for (let gz = zTop; gz <= 6; gz++) {
     for (let gx = 0; gx < W; gx++) {
-      const inside = gx >= 1 && gx <= x1 && gz >= 1 && gz <= 5;
+      const inside = gx >= 1 && gx <= x1 && gz >= shopZ0() && gz <= 5;
       const color = gx <= R
-        ? ((gx + gz) % 2 ? 0xf5f2eb : 0xe7e0d3)   // 매장 크림 체크 바닥
-        : ((gx % 2) ? 0xd9d0be : 0xcfc4ae);        // 매장 밖 플라자 포장 (테라스와 연결)
+        ? ((((gx + gz) % 2) + 2) % 2 ? 0xf5f2eb : 0xe7e0d3)   // 매장 크림 체크 바닥 (음수 행 대응)
+        : ((gx % 2) ? 0xd9d0be : 0xcfc4ae);                    // 매장 밖 플라자 포장 (테라스와 연결)
       const t = addTile(gx, gz, color, inside);
       shellMeshes.push(t);
     }
   }
+  // 1.5) 뒤로 늘어난 만큼 받침대(디오라마 단) 연장 패드
+  if (shopExtraZ() > 0) {
+    const zStart = wz(zTop) - 0.6, zEnd = -6.9;   // 새 뒷벽 밑 ~ 기존 받침대와 살짝 겹치게
+    const ext = box(W + 1.2, 0.6, zEnd - zStart, 0xd9c7a5);
+    ext.position.set(0, -0.36, (zStart + zEnd) / 2);
+    ext.castShadow = false;
+    restaurantGroup.add(ext);
+    shellMeshes.push(ext);
+  }
   // 2) 벽: 뒤/왼쪽 높게, 오른쪽/앞 낮게 (쿼터뷰에서 내부가 보이도록)
-  for (let gx = 0; gx <= R; gx++) addWall(gx, 0, 1.6, 0xf0b9c6);        // 뒷벽
-  for (let gz = 1; gz <= 6; gz++) addWall(0, gz, 1.6, 0xf0b9c6);        // 왼쪽 벽
-  for (let gz = 1; gz <= 6; gz++) addWall(R, gz, 0.45, 0xf3cbd4);       // 오른쪽 낮은 벽 (레벨업 시 이동!)
+  for (let gx = 0; gx <= R; gx++) addWall(gx, zTop, 1.6, 0xf0b9c6);          // 뒷벽 (레벨업 시 뒤로!)
+  for (let gz = zTop + 1; gz <= 6; gz++) addWall(0, gz, 1.6, 0xf0b9c6);      // 왼쪽 벽
+  for (let gz = zTop + 1; gz <= 6; gz++) addWall(R, gz, 0.45, 0xf3cbd4);     // 오른쪽 낮은 벽
   for (let gx = 1; gx <= R - 1; gx++) {
-    if (gx === 6 || gx === 7) continue;                                  // 출입문 (고정)
-    addWall(gx, 6, 0.45, 0xf3cbd4);                                      // 앞 낮은 벽
+    if (gx === 6 || gx === 7) continue;                                       // 출입문 (고정)
+    addWall(gx, 6, 0.45, 0xf3cbd4);                                           // 앞 낮은 벽
   }
 }
 
@@ -1742,6 +1926,8 @@ function shiftTerraceFurniture(dx) {
 
 function applyShopLevelVisuals() {
   buildShopShell();       // 매장 평수를 레벨에 맞춰 재구성
+  villageBackGroup.position.z = -shopExtraZ();   // 🏘️ 뒤편 마을(집·나무·땅)만 정확히 깊이만큼 뒤로 이사
+  camCtl.panLimitZ = 7 + shopExtraZ();           // 카메라 팬 한계도 깊이에 맞춰 확장
   fitCamera();            // 확장된 매장+테라스가 화면에 들어오게 카메라 보정
   stringBulbs = [];
   while (expansionGroup.children.length) {   // 기존 확장 오브젝트 정리 후 재구성
@@ -1777,17 +1963,22 @@ function applyShopLevelVisuals() {
 }
 
 function upgradeShop() {
-  if (state.shopLevel >= 3) return;
+  if (state.shopLevel >= MAX_SHOP_LEVEL) return;
   const cost = SHOP_LEVEL_COST[state.shopLevel];
   if (state.gold < cost) { toast('💸 골드가 부족해요! (' + cost + 'G 필요)'); return; }
   state.gold -= cost;
+  const widthGrew = SHOP_X1[state.shopLevel + 1] - SHOP_X1[state.shopLevel];
   state.shopLevel++;
-  if (state.shopLevel === 2) {
-    toast('🎉 가게 확장 Lv2! 테라스 데크 오픈 — 상점에서 ⛱️ 파라솔 세트를 배치하세요!');
-  } else if (state.shopLevel === 3) {
-    shiftTerraceFurniture(2);   // 직접 배치한 테라스 가구도 벽 따라 2칸 함께 이동
-    toast('🏆 최고 레벨 Lv3! 풀사이즈 매장 + 알전구 — 테라스 가구도 함께 이사했어요!');
-  }
+  tutoAdvance(3);   // 🎓 Step3 완료: 첫 매장 확장
+  if (widthGrew > 0 && state.shopLevel >= 3) shiftTerraceFurniture(widthGrew);   // 벽 이동 시 테라스 가구 동반 이사
+  const msgs = {
+    2: '🎉 가게 확장 Lv2! 테라스 데크 오픈 — 상점에서 ⛱️ 파라솔 세트를 배치하세요!',
+    3: '✨ 확장 Lv3! 풀와이드 매장 + 알전구 — 이제부터는 뒤쪽으로 깊어져요!',
+    4: '🏗️ 확장 Lv4! 뒷벽을 허물고 매장이 2칸 깊어졌어요 (깊이 9칸)',
+    5: '🏗️ 확장 Lv5! 더 깊숙한 안쪽 홀 오픈 (깊이 11칸)',
+    6: '🏆 최종 확장 Lv6! 가로 20 × 세로 13칸 초대형 플래그십 매장 완성!!',
+  };
+  toast(msgs[state.shopLevel]);
   applyShopLevelVisuals();
   showBubble(cook, '🎉');
   updateUI(true);
@@ -1833,7 +2024,7 @@ function leavePath(seat, exitDir) {
     state.shopName = (saved.shopName || '떡볶이').slice(0, 7);
     // 예전 세이브(opened 없음)는 오픈 완료로 간주, 이름 짓기 전 새로고침했으면 다시 팝업
     state.opened = saved.opened !== undefined ? !!saved.opened : true;
-    state.shopLevel = Math.min(Math.max(saved.shopLevel || 1, 1), 3);
+    state.shopLevel = Math.min(Math.max(saved.shopLevel || 1, 1), MAX_SHOP_LEVEL);
     state.catHired = !!saved.catHired;
     state.reputation = Math.min(5, Math.max(1, saved.reputation || 3));
     state.sideLevel = Math.min(saved.sideLevel !== undefined ? saved.sideLevel : -1, SIDE_MENUS.length - 1);
@@ -1844,6 +2035,16 @@ function leavePath(seat, exitDir) {
     state.catWearing = saved.catWearing || null;
     state.newsDay = saved.newsDay || '';
     state.newsId = saved.newsId || '';
+    state.day = saved.day || 1;
+    state.daysDone = saved.daysDone || 0;
+    state.dayPhase = saved.dayPhase || 'open';
+    state.dayTimer = typeof saved.dayTimer === 'number' ? saved.dayTimer : DAY_LENGTH;
+    state.dayGold = saved.dayGold || 0; state.dayServed = saved.dayServed || 0;
+    state.dayVip = saved.dayVip || 0; state.dayFailed = saved.dayFailed || 0;
+    state.bestGradeIdx = typeof saved.bestGradeIdx === 'number' ? saved.bestGradeIdx : -1;
+    state.dayHistory = Array.isArray(saved.dayHistory) ? saved.dayHistory : [];
+    // 🎓 튜토리얼: 기록 없으면 기존(이미 오픈한) 유저는 완료 처리
+    state.tutorialStep = typeof saved.tutorialStep === 'number' ? saved.tutorialStep : (state.opened ? 5 : 0);
     // 🧰 주방 기물 위치 복원 — 가구보다 먼저 해야 점유 충돌 검사가 정확함
     if (saved.fixturesPos) {
       for (const id of ['pot', 'fridge', 'stand']) {
@@ -2002,9 +2203,9 @@ function showPlacementGrid() {
       for (let gz = 1; gz <= 5; gz++) cellsList.push([tg, gz, 0.14]);
     }
   } else {
-    // 실내 가구: 매장 내부에만 격자 표시
+    // 실내 가구: 매장 내부(확장된 깊이 포함)에만 격자 표시
     const x1 = SHOP_X1[state.shopLevel];
-    for (let gz = 1; gz <= 5; gz++) {
+    for (let gz = shopZ0(); gz <= 5; gz++) {
       for (let gx = 1; gx <= x1; gx++) cellsList.push([gx, gz, 0.07]);
     }
   }
@@ -2205,6 +2406,8 @@ function enterEditMode() {
   cancelPlacing(); closeShop(); closeMenuBook(); closeLab(); hideFurniPop();
   editMode = true;
   editHint.style.display = 'flex';
+  tutoEditSeen = true;   // 🎓 Step4 가이드는 편집 모드 첫 진입 시 등장
+  refreshTuto();
 }
 function exitEditMode() {
   editMode = false;
@@ -2231,6 +2434,7 @@ function evictSeated(table, angry) {
     c.seat.taken = false;
     if (angry) {
       showBubble(c.group, '💢 못 먹고 가요!', 1.55, 1.8);
+      state.dayFailed++;   // ☀️ 실패 손님 집계
       state.reputation = Math.max(1, state.reputation - 0.1);   // ⭐ 평판 소폭 하락
     } else {
       showBubble(c.group, '💨', 1.55, 1.2);
@@ -2252,6 +2456,7 @@ function beginMoveTable(t) {
   moveInfo = rec;
   document.getElementById('discardBtn').style.display = 'block';   // 🗑️ 테이블류만 철거 가능
   toast('🖐️ ' + SHOP_ITEMS[rec.key].name + ' 들어올림! 초록 칸 클릭=배치 · 🔄회전 · 🗑️철거');
+  tutoAdvance(4);   // 🎓 Step4 완료 (축하 토스트가 마지막에 뜨도록 뒤에서 호출)
 }
 function beginMoveFixture(fid) {
   const f = fixtures[fid], rec = { ...f.rec };
@@ -2264,6 +2469,7 @@ function beginMoveFixture(fid) {
   state.placeRot = rec.rot;
   moveInfo = { fixture: fid, key: 'fx_' + fid, gx: rec.gx, gz: rec.gz, rot: rec.rot };
   toast('🖐️ ' + FIXTURE_DEFS[fid].name + ' 들어올림! 초록 칸 클릭=배치 · 🔄회전 (철거 불가)');
+  tutoAdvance(4);   // 🎓 주방 기물 들어올리기도 Step4 완료로 인정
 }
 // 🗑️ 들림 상태에서 철거: 복원하지 않고 소멸 + 전액 회수 (주방 기물은 버튼 자체가 안 뜸)
 document.getElementById('discardBtn').addEventListener('click', () => {
@@ -2433,6 +2639,7 @@ function collectCoin(coin) {
   if (i < 0) return;
   coins.splice(i, 1);
   state.gold += coin.value;
+  tutoAdvance(2);   // 🎓 Step2 완료: 첫 동전 수집
   updateUI(true);
   // '+N G' 말풍선을 동전 자리에 잠깐 띄움
   const anchor = new THREE.Group();
@@ -2475,6 +2682,7 @@ function goldUiWorldPoint() {
 function magnetFinish(c, i) {
   coins.splice(i, 1);
   state.gold += c.value;
+  tutoAdvance(2);   // 🎓 자동 흡수로도 첫 수집 인정
   updateUI(true);
   scene.remove(c.mesh);
   c.mesh.geometry.dispose();
@@ -2574,7 +2782,8 @@ function catWanderSpot() {
     return { x: terraceGateX() + (Math.random() - 0.5) * 1.6, z: -1.2 - Math.random() * 3.6 };
   }
   const xMax = wx(SHOP_X1[state.shopLevel]) - 0.4;
-  return { x: -5.1 + Math.random() * (xMax + 5.1), z: -4.6 + Math.random() * 3.4 };
+  const zMin = wz(shopZ0()) + 0.4;   // 🏗️ 확장된 깊은 안쪽까지 순찰
+  return { x: -5.1 + Math.random() * (xMax + 5.1), z: zMin + Math.random() * (-1.2 - zMin) };
 }
 function updateCat(dt, time) {
   if (!catWorker) return;
@@ -2585,6 +2794,27 @@ function updateCat(dt, time) {
     if (c.magnetV !== undefined) continue;
     const d = (c.mesh.position.x - g.position.x) ** 2 + (c.mesh.position.z - g.position.z) ** 2;
     if (d < best) { best = d; target = c; }
+  }
+  // 🎸 버스킹: 무대가 있고 동전이 없을 때 틈틈이 공연 (동전이 생기면 즉시 수거 복귀)
+  const stageT = tables.find(t => t.key === 'stage');
+  if (target || !stageT) {
+    if (catWorker.busk) { catWorker.busk = 0; g.position.y = 0; }   // 공연 중단, 무대에서 내려옴
+  } else {
+    if (!catWorker.busk && Math.random() < dt * 0.08) catWorker.busk = 8;   // 평균 ~12초마다 공연 시작
+    if (catWorker.busk > 0) {
+      const sx = stageT.group.position.x + 0.5, sz = stageT.group.position.z + 0.5;
+      if (Math.hypot(sx - g.position.x, sz - g.position.z) < 0.3) {
+        catWorker.busk -= dt;                       // 🎤 무대 위 공연!
+        g.position.set(sx, 0.42 + Math.abs(Math.sin(time * 6)) * 0.07, sz);   // 폴짝폴짝
+        g.rotation.y += dt * 1.3;                   // 빙글 돌며 관객 인사
+        catWorker.tail.rotation.y = Math.sin(time * 9) * 0.85;
+        if (!g.userData.bubbleOn) showBubble(g, pick(['🎵', '🎶', '🎸']), 1.0, 1.2);
+        if (catWorker.busk <= 0) g.position.y = 0;  // 공연 끝 — 착지
+        return;
+      }
+      catWorker.wander = { x: sx, z: sz };          // 무대로 이동 (아래 순찰 로직 재사용)
+      catWorker.wanderT = 2;
+    }
   }
   let tx2, tz2, speed;
   if (target) {
@@ -2634,8 +2864,16 @@ function hireCat() {
   state.gold -= 1500;
   state.catHired = true;
   spawnCat();
-  toast('🐱 야옹! 고양이 알바생 출근 — 동전은 이제 맡겨주세요!');
+  refreshCatShopLocks();   // 🔓 코스튬·버스킹 무대 구매 잠금 실시간 해제
+  toast('🐱 야옹! 고양이 알바생 출근 — 코스튬·버스킹 무대도 해금됐어요!');
   updateUI(true);
+}
+// 🔒 고양이 선행 조건 잠금: 상점 렌더러들이 등록해두면 고용 순간 일괄 갱신
+const catLockRefreshers = [];
+function refreshCatShopLocks() { catLockRefreshers.forEach(f => f()); }
+function applyCatLockStyle(btn, locked) {
+  btn.style.background = locked ? '#ffb3b3' : '';
+  btn.style.color = locked ? '#7a2e2e' : '';
 }
 
 /* ── 🎉 축하 폭죽 파티클 (인플루언서 정산 연출) ── */
@@ -2915,6 +3153,11 @@ function updateCustomers(dt) {
             makeVipGauge(c);
             c.vipTotal = c.timer + (c.side ? 4 : 0);
           }
+          // 🛋️ 벤치(2.5칸)·🎸 무대(3칸) 근접 버프는 착석 시 1회 판정
+          c.nearBench = tables.some(t => t.key === 'bench' &&
+            Math.hypot(t.group.position.x - c.seat.x, t.group.position.z - c.seat.z) < 2.5);
+          c.nearStage = tables.some(t => t.key === 'stage' &&
+            Math.hypot(t.group.position.x + 0.5 - c.seat.x, t.group.position.z + 0.5 - c.seat.z) < 3);
           // 의자에 엉덩이 붙이고 정확히 앉기 + 테이블 방향 바라보기 (테라스는 데크 높이 반영)
           c.group.position.set(c.seat.x, c.seat.terrace ? 0.29 : 0.2, c.seat.z);
           c.group.rotation.y = c.seat.ry;
@@ -2942,8 +3185,10 @@ function updateCustomers(dt) {
         break;
       }
       case 'eating': {
-        // 🍲 떡볶이가 테이블에 놓인 후부터 식사 시작 (그 전엔 얌전히 착석 대기)
-        if (c.mainServed) c.timer -= dt * (feverT > 0 ? 2 : 1);   // 🔥 피버타임엔 2배 속도로 냠냠
+        // 🍲 떡볶이가 테이블에 놓인 후부터 식사 시작 (🎸 무대 근처는 공연 보느라 50% 여유)
+        if (c.mainServed) c.timer -= dt * (feverT > 0 ? 2 : 1) * (c.nearStage ? 0.5 : 1);
+        if (c.nearStage && !c.group.userData.bubbleOn && Math.random() < dt * 0.12)
+          showBubble(c.group, '🎵', 1.55, 1.2);   // 공연 감상 음표
         c.group.position.y = c.seat.terrace ? 0.29 : 0.2;   // 의자 높이 유지 (테라스는 데크 위)
         // 식사 중엔 말풍선 없이 고개 까딱까딱 애니메이션만 (화면 깔끔하게)
         const head = c.group.userData.anim.head;
@@ -2963,7 +3208,9 @@ function updateCustomers(dt) {
           }
         }
         // 🍱 세트 손님은 사이드가 도착할 때까지 자리에서 잠시 기다림 (🕶️ VIP는 4초로 깐깐!)
-        if (c.timer <= 0 && c.side && !c.sideServed && (c.sideWait = (c.sideWait || 0) + dt) < (c.vip ? 4 : 8)) break;
+        // 🛋️ 벤치 근처 손님은 40% 더 진득하게 기다림
+        if (c.timer <= 0 && c.side && !c.sideServed &&
+            (c.sideWait = (c.sideWait || 0) + dt * (c.nearBench ? 0.6 : 1)) < (c.vip ? 4 : 8)) break;
         if (c.timer <= 0) {
           head.rotation.x = 0;
           setSitPose(c.group, false);       // 자리에서 일어나기
@@ -2987,9 +3234,11 @@ function updateCustomers(dt) {
           if (c.vip) {
             if (!c.side || c.sideServed) {
               showBubble(c.group, '📱 여기 진짜 맛집이네요! 업로드합니다!', 1.7, 2.4);
+              state.dayVip++;             // ☀️ 오늘 VIP 성공 집계
               startVipFever();
             } else {
               showBubble(c.group, '😤 SNS에 올릴 게 없네요…', 1.55, 1.8);
+              state.dayFailed++;          // ☀️ VIP 실패 집계
               state.reputation = Math.max(1, state.reputation - 0.1);
             }
           }
@@ -2999,6 +3248,10 @@ function updateCustomers(dt) {
             showBubble(c.group, '🎉 리뷰 대박 예감!', 1.55, 1.8);
           }
           state.served++;
+          // ☀️ 오늘의 장사 실적 집계 (마감 보고서용)
+          state.dayGold += income + (c.trait === 'gourmet' ? 20 : 0);
+          state.dayServed++;
+          if (!c.vip && c.side && !c.sideServed) state.dayFailed++;   // 사이드 못 받고 떠난 손님
           // ⭐ 만족한 손님이 평판을 올려줌 (인플루언서는 3배!) — 5.0 도달 시 피버타임
           state.reputation = Math.min(5, state.reputation + (c.influencer ? 0.15 : 0.05));
           if (state.reputation >= 5 && feverT <= 0) startFever();
@@ -3042,7 +3295,7 @@ function spawnHelper() {
   const apron = box(0.36, 0.3, 0.05, 0xfff1dc);
   apron.position.set(0, 0.45, 0.15); apron.castShadow = false; h.add(apron);
   helperWorker = makeWorker(h, wx(3), wz(1));
-  helperWorker.hands = [makeHandItem(h, 0.27), makeHandItem(h, -0.27)];
+  helperWorker.hands = makeHandSet(h);   // 🍱 보조도 4슬롯 캐리
 }
 
 // 태스크 → 담당 주방 기물 id (메인=솥 / 사이드=냉장고 or 단상)
@@ -3059,7 +3312,7 @@ function pickupSpot(task) {
    서빙 동선을 계산. 시작/목표가 점유 칸이면 가장 가까운 빈 이웃 칸으로 보정 */
 function gridRoute(fromX, fromZ, toX, toZ) {
   const x1 = SHOP_X1[state.shopLevel];
-  const free = (gx, gz) => gx >= 1 && gx <= x1 && gz >= 1 && gz <= 5 && !occupied.has(gx + ',' + gz);
+  const free = (gx, gz) => gx >= 1 && gx <= x1 && gz >= shopZ0() && gz <= 5 && !occupied.has(gx + ',' + gz);
   const toCell = (x, z) => [Math.round(x + (W - 1) / 2), Math.round(z + 6)];
   const fix = (gx, gz, refX, refZ) => {   // 점유 칸 → 가장 가까운 빈 이웃 칸 (대각 포함)
     if (free(gx, gz)) return [gx, gz];
@@ -3224,7 +3477,7 @@ function updateWorkerServing(w, dt, kinds) {
   if (rushBuffT > 0) dt *= 1.4;   // 🔥 폭풍 호객 연타 버프: 걸음·픽업 전부 1.4배 가속
   if (!w.job) {
     const picked = [];
-    for (let i = 0; i < cookTasks.length && picked.length < 2;) {
+    for (let i = 0; i < cookTasks.length && picked.length < 4;) {   // 🍱 인당 최대 4개 픽업
       const t = cookTasks[i];
       if (!kinds.includes(t.kind)) { i++; continue; }   // 담당 아닌 태스크는 남겨둠
       cookTasks.splice(i, 1);
@@ -3290,11 +3543,10 @@ function updateWorkerServing(w, dt, kinds) {
   }
 }
 
-// 👩‍🍳 역할 분담: 보조 고용 시 메인 = 주방장 / 사이드·음료 = 보조 전담
+// 👩‍🍳 AI 전면 개방: 주방장·보조 모두 메인/사이드 가리지 않고 큐에서 선착순 픽업
 function updateCookServing(dt) {
-  const split = state.helperHired && helperWorker;
-  updateWorkerServing(cookWorker, dt, split ? ['main'] : ['main', 'side']);
-  if (split) updateWorkerServing(helperWorker, dt, ['side']);
+  updateWorkerServing(cookWorker, dt, ['main', 'side']);
+  if (state.helperHired && helperWorker) updateWorkerServing(helperWorker, dt, ['main', 'side']);
 }
 
 /* ── 길거리 주민(행인) ───────────────────────────────────── */
@@ -3382,7 +3634,7 @@ function updateUI(pulse = false) {
   repChip.textContent = '★'.repeat(stars) + '☆'.repeat(5 - stars) + ' ' + state.reputation.toFixed(1);
   researchBtn.textContent = '📖 메뉴 개발 (' + (state.menuLevel + 1) + '/' + MENU_LEVELS.length + ')';
   researchBtn.disabled = false;
-  if (state.shopLevel < 3) {
+  if (state.shopLevel < MAX_SHOP_LEVEL) {
     expandBtn.textContent = '🏗️ 확장 Lv' + (state.shopLevel + 1) + ' (' + SHOP_LEVEL_COST[state.shopLevel] + 'G)';
     expandBtn.disabled = false;
   } else {
@@ -3390,6 +3642,7 @@ function updateUI(pulse = false) {
     expandBtn.disabled = true;
   }
   catBtn.style.display = state.catHired ? 'none' : 'block';   // 고용 후엔 버튼 숨김
+  refreshTuto();   // 🎓 자금 변동에 따라 Step3(1000G 돌파) 가이드 갱신
   if (pulse) {
     goldChip.classList.remove('pulse');
     void goldChip.offsetWidth;
@@ -3592,6 +3845,102 @@ function closeNews() { newsPanel.style.display = 'none'; newsOverlay.style.displ
 document.getElementById('newsBtn').addEventListener('click', openNews);
 document.getElementById('newsClose').addEventListener('click', closeNews);
 newsOverlay.addEventListener('click', closeNews);
+
+/* ── 🎓 상황 맞춤형 실시간 튜토리얼 ──────────────────────────
+   Step1 구매 배치 → Step2 동전 수집 → Step3 (1000G 돌파 시) 확장 → Step4 (편집 첫 진입 시) 동선 설계 */
+let tutoEditSeen = false;   // 이번 세션에서 편집 모드에 들어와 봤는지 (Step4 노출 조건)
+const TUTO_MSGS = {
+  1: '💡 첫 손님을 맞이하기 위해 하단 [🛒 가구 상점]에서 테이블 세트를 구매해 배치해 보세요!',
+  2: '💡 일꾼들이 서빙을 시작합니다! 손님이 다 먹고 남긴 바닥의 동전을 터치해 수집해 보세요!',
+  3: '💡 가게를 확장할 준비가 되었습니다! 하단 [🏗️ 확장] 버튼을 눌러 매장 면적을 넓혀보세요!',
+  4: '💡 가구를 클릭하면 즉시 들립니다! 주방 기물들의 위치를 조절해 일꾼들의 최적 서빙 동선을 설계해 보세요!',
+};
+function refreshTuto() {
+  const el = document.getElementById('tutoGuide');
+  const s = state.tutorialStep;
+  let show = state.opened && s >= 1 && s <= 4;
+  if (s === 3 && state.gold < 1000) show = false;         // 자금 1000G 돌파 시 등장
+  if (s === 4 && !tutoEditSeen) show = false;             // 가구 편집 첫 진입 시 등장
+  el.style.display = show ? 'flex' : 'none';
+  if (show) document.getElementById('tutoText').textContent = TUTO_MSGS[s];
+}
+function tutoAdvance(from) {
+  if (state.tutorialStep !== from) return;
+  state.tutorialStep = from + 1;
+  if (state.tutorialStep === 5) toast('🎓 기본 경영 수업 완료! 이제 골목 상권을 평정할 시간입니다');
+  refreshTuto();
+  saveGame();
+}
+document.getElementById('tutoSkip').addEventListener('click', () => {
+  state.tutorialStep = 5;
+  refreshTuto();
+  saveGame();
+  toast('가이드를 껐어요 — 언제든 감으로 경영하셔도 좋습니다!');
+});
+
+/* ── ☀️ 일일 장사 타이머 & 마감 정산 메타 루프 ─────────────── */
+const dayPanel = document.getElementById('dayPanel');
+const dayOverlay = document.getElementById('dayOverlay');
+const dayChip = document.getElementById('dayChip');
+const GRADE_COLORS = { D: '#9a8c78', C: '#8fa8c4', B: '#7ec8a9', A: '#e8a23d', S: '#ff8fab', SS: '#e5383b', SSS: '#b0713a' };
+
+// 🛵 배달 센터 해금 조건: Day 3 이상 완료 + 역대 등급 A 이상
+function bizUnlocked() {
+  return state.daysDone >= 3 && state.bestGradeIdx >= GRADES.indexOf('A');
+}
+// 오늘의 운영 등급 채점: 매출 + 손님 수 + VIP + 평판 − 실패
+function gradeOfDay() {
+  const score = state.dayGold / 100 + state.dayServed + state.dayVip * 5
+    + (state.reputation - 3) * 10 - state.dayFailed * 5;
+  const T = [['SSS', 90], ['SS', 70], ['S', 50], ['A', 35], ['B', 20], ['C', 10]];
+  for (const [k, v] of T) if (score >= v) return k;
+  return 'D';
+}
+function closeDay() {
+  const grade = gradeOfDay();
+  const gi = GRADES.indexOf(grade);
+  if (gi > state.bestGradeIdx) state.bestGradeIdx = gi;
+  state.daysDone++;
+  state.dayHistory.push({ day: state.day, gold: state.dayGold, served: state.dayServed,
+    vip: state.dayVip, failed: state.dayFailed, grade });
+  if (state.dayHistory.length > 24) state.dayHistory.shift();
+  state.dayPhase = 'report';
+  refreshCatShopLocks();   // 🛵 배달 센터 등 해금 상태 실시간 갱신
+  showDayReport();
+  updateUI(true);
+}
+function showDayReport() {
+  const rec = state.dayHistory[state.dayHistory.length - 1];
+  if (!rec) return;
+  const sum = n => state.dayHistory.slice(-n).reduce((s, r) => s + r.gold, 0);
+  let html =
+    '<div class="rcpt">' +
+    '<div class="rTitle">🧾 Day ' + rec.day + ' 영업 마감 영수증</div>' +
+    '<div class="rRow"><span>💰 총 정산 골드</span><b>' + rec.gold + ' G</b></div>' +
+    '<div class="rRow"><span>😋 만족한 손님</span><b>' + rec.served + '명</b></div>' +
+    '<div class="rRow"><span>🕶️ VIP 촬영 성공</span><b>' + rec.vip + '명</b></div>' +
+    '<div class="rRow"><span>💢 실패한 손님</span><b>' + rec.failed + '명</b></div>' +
+    '<div class="rRow"><span>⭐ 마감 평판</span><b>' + state.reputation.toFixed(1) + '</b></div>';
+  if (rec.day % 3 === 0) html += '<div class="rMile">📆 1개월 마감! 최근 3일 매출 합계 ' + sum(3) + 'G</div>';
+  if (rec.day % 12 === 0) html += '<div class="rMile">🗓️ 1년(사계절) 마감! 연 매출 ' + sum(12) + 'G — 수고했어요 사장님!</div>';
+  if (bizUnlocked()) html += '<div class="rMile">🛵 배달 주문 센터 해금 조건 달성! (상점 🎪 탭 확인)</div>';
+  html += '<div class="stamp" style="color:' + GRADE_COLORS[rec.grade] + '">' + rec.grade + '</div></div>';
+  document.getElementById('dayBody').innerHTML = html;
+  dayPanel.style.display = 'block';
+  dayOverlay.style.display = 'block';
+}
+document.getElementById('nextDayBtn').addEventListener('click', () => {
+  state.day++;
+  state.dayPhase = 'open';
+  state.dayTimer = DAY_LENGTH;
+  state.dayGold = state.dayServed = state.dayVip = state.dayFailed = 0;
+  dayPanel.style.display = 'none';
+  dayOverlay.style.display = 'none';
+  spawnTimer = 1;
+  rollDailyNews();   // 새 영업일 = 새 트렌드 확인 기회 (실제 날짜 기준 유지)
+  toast('🌅 Day ' + state.day + ' 영업 시작! 오늘도 대박 나세요!');
+  updateUI(true);
+});
 document.getElementById('menuClose').addEventListener('click', closeMenuBook);
 
 const shopOverlay = document.getElementById('shopOverlay');
@@ -3634,9 +3983,10 @@ document.getElementById('openShopBtn').addEventListener('click', () => {
   state.opened = true;           // 이제부터 손님이 옵니다!
   welcomePanel.style.display = 'none';
   welcomeOverlay.style.display = 'none';
-  toast('🎊 「' + name + '」 그랜드 오픈! 손님들이 몰려와요!');
-  // 💰 다정한 운영자금 안내 멘트 (그랜드 오픈 토스트 다음에 이어서)
-  setTimeout(() => toast('💰 초기 운영자금으로 3000G를 드렸어요! 멋진 떡볶이집으로 키워보세요!'), 2500);
+  toast('🎊 「' + name + '」 그랜드 오픈!');
+  setTimeout(() => toast('💰 초기 운영자금 3,000G 지급 — 요식업 왕국의 첫걸음을 내디뎌 보세요!'), 2500);
+  if (state.tutorialStep === 0) state.tutorialStep = 1;   // 🎓 실시간 튜토리얼 시작
+  refreshTuto();
   saveGame();
 });
 
@@ -3661,24 +4011,75 @@ document.getElementById('resetYes').addEventListener('click', () => {
 // 상점 목록 생성
 (function buildShopUI() {
   const wrap = document.getElementById('shopItems');
+  // 🗂️ 카테고리 탭: 홀 가구 / 주방 기물 / 특별 엔터
+  const TABS = [['hall', '🪑 홀 가구'], ['kitchen', '🧰 주방 기물'], ['ent', '🎪 특별 엔터']];
+  const tabBar = document.createElement('div');
+  tabBar.id = 'shopTabs';
+  const panes = {};
+  for (const [id, label] of TABS) {
+    const b = document.createElement('button');
+    b.className = 'shopTabBtn';
+    b.textContent = label;
+    b.addEventListener('click', () => selectTab(id));
+    tabBar.appendChild(b);
+    panes[id] = document.createElement('div');
+    panes[id].style.display = 'none';
+  }
+  wrap.appendChild(tabBar);
+  for (const [id] of TABS) wrap.appendChild(panes[id]);
+  function selectTab(id) {
+    TABS.forEach(([tid], i) => {
+      panes[tid].style.display = tid === id ? 'block' : 'none';
+      tabBar.children[i].classList.toggle('active', tid === id);
+    });
+  }
+  // 구매형 가구 → 카테고리별 배분 (기본 hall)
   for (const [key, item] of Object.entries(SHOP_ITEMS)) {
-    if (item.fixture) continue;   // 🧰 주방 기물은 상점에 안 나옴
+    if (item.fixture) continue;   // 🧰 기물은 아래 정보 행으로 별도 표시
     const row = document.createElement('div');
     row.className = 'shopItem';
     row.innerHTML =
       '<div class="info">' + item.emoji + ' ' + item.name +
       '<small>' + item.desc + '</small></div>';
     const btn = document.createElement('button');
-    btn.textContent = item.price + 'G 구매';
-    btn.addEventListener('click', () => startPlacing(key));
+    // 🔒 선행 조건 판정: 고양이 고용 / 운영 실적 (배달 센터)
+    const lockText = () =>
+      item.needsCat && !state.catHired ? '🔒 고양이 고용 필요'
+      : item.needsBiz && !bizUnlocked() ? '🔒 Day3 완료 & 등급 A 필요'
+      : null;
+    const refreshBuyBtn = () => {
+      const lock = lockText();
+      btn.textContent = lock || item.price + 'G 구매';
+      applyCatLockStyle(btn, !!lock);
+    };
+    btn.addEventListener('click', () => {
+      const lock = lockText();
+      if (lock) {
+        toast(item.needsCat && !state.catHired
+          ? '🙀 우선 고양이 알바생을 먼저 고용해 주세요! (우측 🐱 버튼)'
+          : '🛵 장사 3일 차 완료 + 운영 등급 A 이상을 달성해야 열려요!');
+        return;
+      }
+      startPlacing(key);
+    });
+    refreshBuyBtn();
+    if (item.needsCat || item.needsBiz) catLockRefreshers.push(refreshBuyBtn);
     row.appendChild(btn);
-    wrap.appendChild(row);
+    panes[item.cat || 'hall'].appendChild(row);
+  }
+  // 🧰 주방 기물 탭: 보유 기물 안내 (이동/회전은 편집 모드에서)
+  for (const def of Object.values(FIXTURE_DEFS)) {
+    const row = document.createElement('div');
+    row.className = 'shopItem';
+    row.innerHTML = '<div class="info">' + def.emoji + ' ' + def.name +
+      '<small>보유 중 — 🪑 가구 편집 모드에서 클릭하면 이동/회전!</small></div><span>🧰</span>';
+    panes.kitchen.appendChild(row);
   }
   // 👩‍🍳 주방 보조 알바생 고용 (1회성 항목)
   const hRow = document.createElement('div');
   hRow.className = 'shopItem';
   hRow.innerHTML = '<div class="info">👩‍🍳 주방 보조 고용' +
-    '<small>사이드·음료 서빙 전담! 주방장은 떡볶이에 집중해요 (1회 고용)</small></div>';
+    '<small>메인·사이드 가리지 않고 최대 4그릇 릴레이 서빙! (1회 고용)</small></div>';
   const hBtn = document.createElement('button');
   const refreshHelperBtn = () => {
     if (state.helperHired) { hBtn.textContent = '✅ 근무 중'; hBtn.disabled = true; }
@@ -3691,20 +4092,20 @@ document.getElementById('resetYes').addEventListener('click', () => {
     state.helperHired = true;
     spawnHelper();
     refreshHelperBtn();
-    toast('👩‍🍳 주방 보조 고용! 사이드는 보조가, 떡볶이는 주방장이 전담해요');
+    toast('👩‍🍳 주방 보조 고용! 이제 둘이서 최대 4그릇씩 릴레이 서빙해요');
     updateUI(true);
   });
   refreshHelperBtn();
   hRow.appendChild(hBtn);
-  wrap.appendChild(hRow);
+  panes.kitchen.appendChild(hRow);   // 🧰 주방 기물 탭 소속
 
-  // 🐱 고양이 코스튬 섹션 (구매 → 장착 토글, 1벌만 착용)
+  // 🐱 고양이 코스튬 섹션 → 🎪 특별 엔터 탭 소속
   const cHead = document.createElement('div');
   cHead.style.cssText = 'margin:12px 0 2px;font-weight:800;color:#b58a5a;font-size:13px;';
   cHead.textContent = '🐱 고양이 코스튬 — 장착 시 고유 버프!';
-  wrap.appendChild(cHead);
+  panes.ent.appendChild(cHead);
   const cWrap = document.createElement('div');
-  wrap.appendChild(cWrap);
+  panes.ent.appendChild(cWrap);
   function renderCostumes() {
     cWrap.innerHTML = '';
     CAT_COSTUMES.forEach(cos => {
@@ -3714,8 +4115,15 @@ document.getElementById('resetYes').addEventListener('click', () => {
         '<small>' + cos.desc + '</small></div>';
       const btn = document.createElement('button');
       const owned = state.catCostumes.includes(cos.id);
-      btn.textContent = state.catWearing === cos.id ? '✅ 장착 중' : (owned ? '장착' : cos.cost + 'G 구매');
+      const locked = !state.catHired;   // 🔒 고양이가 없으면 입힐 대상도 없음
+      btn.textContent = locked ? '🔒 고양이 고용 필요'
+        : (state.catWearing === cos.id ? '✅ 장착 중' : (owned ? '장착' : cos.cost + 'G 구매'));
+      applyCatLockStyle(btn, locked);
       btn.addEventListener('click', () => {
+        if (!state.catHired) {
+          toast('🙀 우선 고양이 알바생을 먼저 고용해 주세요! (우측 🐱 버튼)');
+          return;
+        }
         if (state.catWearing === cos.id) {          // 다시 누르면 벗기
           state.catWearing = null;
         } else if (owned) {
@@ -3736,6 +4144,8 @@ document.getElementById('resetYes').addEventListener('click', () => {
     });
   }
   renderCostumes();
+  catLockRefreshers.push(renderCostumes);   // 🔓 고양이 고용 순간 코스튬 잠금도 일괄 해제
+  selectTab('hall');   // 기본 탭
 })();
 
 let toastTimer = null;
@@ -3757,11 +4167,41 @@ function tick() {
   const dt = Math.min(clock.getDelta(), 0.05);
   const time = clock.elapsedTime;
 
+  // ☀️ 일일 영업 타이머 & 마감 흐름
+  if (state.opened) {
+    if (state.dayPhase === 'open') {
+      state.dayTimer -= dt;
+      if (state.dayTimer <= 0) {
+        state.dayPhase = 'closing';
+        toast('🌇 오늘 영업 종료! 홀에 남은 손님을 마무리하고 정산할게요');
+      }
+      // 🛵 배달 주문 수익 (배달 센터 설치 시 18초마다 50G 동전)
+      deliveryTimer -= dt;
+      if (deliveryTimer <= 0) {
+        deliveryTimer = 18;
+        const dv = tables.find(t => t.key === 'delivery');
+        if (dv) {
+          dropCoin(dv.group.position.x + 0.5, dv.group.position.z + 0.7, 50);
+          state.dayGold += 50;
+          showBubble(dv.group, '🛵 배달 주문!', 1.6, 1.6);
+        }
+      }
+    } else if (state.dayPhase === 'closing') {
+      // 잔여 손님·서빙이 모두 끝나면 마감 보고서
+      if (!customers.length && !cookWorker.job && !(helperWorker && helperWorker.job)) closeDay();
+    } else if (state.dayPhase === 'report' && dayPanel.style.display !== 'block') {
+      showDayReport();   // 세이브 로드 복원: 보고서 단계였다면 다시 표시
+    }
+  }
+  dayChip.textContent = '☀️ Day ' + state.day +
+    (state.dayPhase === 'open' ? ' · ' + Math.max(0, Math.ceil(state.dayTimer)) + 's'
+     : state.dayPhase === 'closing' ? ' · 마감 중…' : ' · 마감!');
+
   // 손님 스폰
   spawnTimer -= dt;
   if (spawnTimer <= 0) {
     spawnTimer = spawnInterval();   // 🪑 의자 수에 비례해 자동 조절 (+25% ~ +50%)
-    if (state.opened) {   // 창업(오픈하기) 후에만 손님이 옴
+    if (state.opened && state.dayPhase === 'open') {   // 창업 후 + 영업시간에만 손님이 옴
       // 🧑‍🤝‍🧑 의자 수에 비례한 단체 손님: 매장이 클수록 2~4명씩 몰려옴
       const groupSize = spawnGroupSize();
       for (let gi = 0; gi < groupSize; gi++) {
