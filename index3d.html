@@ -566,9 +566,32 @@ const state = {
   deliveryCount: 0,   // 🛵 누적 배달 완료 건수 (업적용)
   sGradeCount: 0,     // ⭐ S등급 이상 마감 횟수 (업적용)
   achClaimed: [],     // 📋 보상 수령한 업적 id 목록
+  menuStats: {},      // 🥬 메뉴 성장 { m0~m6·s0~s2: { lv: 1~5, evolved } } — 레벨당 정산 +20%, 진화 시 ×2.5
 };
 const GRADES = ['D', 'C', 'B', 'A', 'S', 'SS', 'SSS'];
 const DAY_LENGTH = 120;   // 하루 영업 120초
+
+/* ── 🥬 식재료 마켓: 메뉴 레벨업(+20%/Lv) & Lv.5 진화(×2.5) ── */
+const EVO_NAMES = {
+  m0: '눈꽃 치즈 떡볶이', m1: '트리플 치즈 퐁듀 떡볶이', m2: '리얼 크림 로제 떡볶이',
+  m3: '수타 짜장 떡볶이', m4: '한우 차돌 로제 떡볶이', m5: '사천 정통 마라 떡볶이',
+  m6: '블랙 트러플 로얄 떡볶이',
+  s0: '수제 청포도 쿨피스', s1: '명품 수제 모둠 튀김', s2: '트러플 순대 스페셜',
+};
+function menuStat(key) { return state.menuStats[key] || { lv: 1, evolved: false }; }
+function menuMult(key) {   // 정산 배율: 레벨 누적 +20% × 진화 2.5배
+  const s = menuStat(key);
+  return (1 + 0.2 * (s.lv - 1)) * (s.evolved ? 2.5 : 1);
+}
+// ✨ 진화 비주얼: 데이터 자체를 변신시켜 말풍선·도감·마켓 어디서나 새 이름/태그로 노출
+function applyEvolutionVisual(key) {
+  const arr = key[0] === 'm' ? MENU_LEVELS : SIDE_MENUS;
+  const m = arr[+key.slice(1)];
+  if (!m || m._evo) return;
+  m._evo = true;
+  m.name = EVO_NAMES[key] || ('프리미엄 ' + m.name);
+  m.tag = '✨' + m.tag;
+}
 
 // 🌶️ 맵기 단계 & 🥚 추가 토핑 커스텀 주문 (토핑은 정산 시 보너스 골드)
 const SPICES = ['🍼 순한맛', '🔥 매운맛', '😈 지옥맛'];
@@ -651,6 +674,7 @@ function saveGame() {
       dayGold: state.dayGold, dayServed: state.dayServed, dayVip: state.dayVip, dayFailed: state.dayFailed,
       bestGradeIdx: state.bestGradeIdx, dayHistory: state.dayHistory,
       tutorialStep: state.tutorialStep,
+      menuStats: state.menuStats,
       research: state.research,
       deliveryCount: state.deliveryCount, sGradeCount: state.sGradeCount,
       achClaimed: state.achClaimed,
@@ -2120,6 +2144,9 @@ function leavePath(seat, exitDir) {
     state.deliveryCount = saved.deliveryCount || 0;
     state.sGradeCount = saved.sGradeCount || 0;
     state.achClaimed = Array.isArray(saved.achClaimed) ? saved.achClaimed : [];
+    state.menuStats = saved.menuStats || {};
+    for (const k in state.menuStats)   // ✨ 진화 메뉴는 이름/태그 변신도 복원
+      if (state.menuStats[k].evolved) applyEvolutionVisual(k);
     // 🧰 주방 기물 위치 복원 — 가구보다 먼저 해야 점유 충돌 검사가 정확함
     if (saved.fixturesPos) {
       for (const id of ['pot', 'fridge', 'stand']) {
@@ -3314,11 +3341,14 @@ function updateCustomers(dt) {
           setSitPose(c.group, false);       // 자리에서 일어나기
           c.group.position.y = 0;
           // 자기가 주문한 메뉴 가격만큼 지불 (📸 인플루언서 5배 / 🔥 피버·📱 VIP피버 2배)
+          // 🥬 식재료 마켓: 메뉴 레벨(+20%/Lv)·진화(×2.5) 배율을 기본 단가에 먼저 곱연산
+          const mIncome = Math.round(c.menu.income * menuMult('m' + MENU_LEVELS.indexOf(c.menu)));
+          const sIncome = c.side ? Math.round(c.side.income * menuMult('s' + SIDE_MENUS.indexOf(c.side))) : 0;
           // 🍱 세트 완성 시: 사이드 가격 + 세트 프리미엄 20% 보너스 / 🥚 토핑 보너스 골드 추가!
           const sideGold = c.side && c.sideServed
-            ? c.side.income + Math.round((c.menu.income + c.side.income) * 0.2) : 0;
+            ? sIncome + Math.round((mIncome + sIncome) * 0.2) : 0;
           const toppingGold = c.topping ? c.topping.bonus : 0;
-          let income = ((c.influencer ? c.menu.income * 5 : c.menu.income) + sideGold + toppingGold)
+          let income = ((c.influencer ? mIncome * 5 : mIncome) + sideGold + toppingGold)
             * (feverT > 0 || vipFeverT > 0 ? 2 : 1);
           // 📰 오늘의 트렌드 보정: 짜장 대유행(해당 메뉴 1.5배) / 테라스 축제(테라스석 1.4배)
           if (state.newsId === 'jjajang' && c.menu.name.includes('짜장')) income = Math.round(income * 1.5);
@@ -3471,6 +3501,11 @@ function placeTableDish(c, kind) {
   if (kind === 'main') {
     const bowl = cyl(0.15, 0.11, 0.09, 0xfff4e0, 12); bowl.position.y = 0.045; g.add(bowl);
     const sauce = cyl(0.12, 0.12, 0.04, c.menu.sauce, 12); sauce.position.y = 0.1; g.add(sauce);
+    if (menuStat('m' + MENU_LEVELS.indexOf(c.menu)).evolved) {   // ✨ 진화 메뉴: 황금 고명 반짝
+      const flake = new THREE.Mesh(new THREE.SphereGeometry(0.035, 6, 6),
+        new THREE.MeshLambertMaterial({ color: 0xfff2b0, emissive: 0xffd764, emissiveIntensity: 0.85 }));
+      flake.position.set(0.05, 0.15, 0.04); flake.castShadow = false; g.add(flake);
+    }
     if (c.topping) {   // 🥚 계란 = 노란 구체 / 🥟 만두 = 미니 삼각뿔이 소스 위에 콕
       const top = c.topping.kind === 'egg'
         ? new THREE.Mesh(new THREE.SphereGeometry(0.05, 8, 8), mat(0xffe9a8))
@@ -3941,6 +3976,66 @@ function renderLab() {
     wrap.appendChild(row);
   });
 }
+/* ── 🥬 식재료 마켓: 해금 메뉴 레벨업(+20%/Lv) & Lv.5 진화(×2.5) ── */
+function upgradeMenuLevel(key, item) {
+  const s = state.menuStats[key] || (state.menuStats[key] = { lv: 1, evolved: false });
+  const cost = item.income * 5 * s.lv;   // 기본 비용 × 현재 레벨 스케일링
+  if (state.gold < cost) { toast('💸 골드가 부족해요! (' + cost + 'G 필요)'); return; }
+  state.gold -= cost;
+  s.lv++;
+  toast('🥬 「' + item.name + '」 Lv.' + s.lv + ' 달성! 정산 골드 영구 +' + (s.lv - 1) * 20 + '%');
+  updateUI(true);
+  renderMarket();
+}
+function evolveMenu(key, item) {
+  const s = state.menuStats[key] || (state.menuStats[key] = { lv: 1, evolved: false });
+  const cost = item.income * 40;
+  if (s.lv < 5 || s.evolved) return;
+  if (state.gold < cost) { toast('💸 골드가 부족해요! (' + cost + 'G 필요)'); return; }
+  state.gold -= cost;
+  s.evolved = true;
+  applyEvolutionVisual(key);   // ✨ 이름/태그 변신 → 말풍선·도감 전체 반영
+  const pw = potWorldPos(); spawnConfetti(pw.x, pw.z);
+  sfx('stamp');
+  toast('🎇 진화 성공! 「' + item.name + '」 — 기본 단가 영구 2.5배!');
+  updateUI(true);
+  renderMarket();
+}
+function renderMarket() {
+  const wrap = document.getElementById('marketList');
+  if (!wrap) return;
+  wrap.innerHTML = '';
+  const head = document.createElement('div');
+  head.style.cssText = 'margin:2px 0 4px;font-weight:800;color:#b58a5a;font-size:13px;';
+  head.textContent = '🥬 식재료 마켓 — 레벨당 정산 +20%, Lv.5 진화 시 ×2.5!';
+  wrap.appendChild(head);
+  const entries = [];
+  for (let i = 0; i <= state.menuLevel; i++) entries.push(['m' + i, MENU_LEVELS[i]]);
+  for (let i = 0; i <= state.sideLevel; i++) entries.push(['s' + i, SIDE_MENUS[i]]);
+  for (const [key, item] of entries) {
+    const s = menuStat(key);
+    const row = document.createElement('div');
+    row.className = 'shopItem';
+    row.innerHTML = '<div class="info">' + item.tag.split(' ')[0] + ' ' + item.name +
+      ' <span style="color:#e8a23d">Lv.' + s.lv + '</span>' +
+      '<small>현재 단가 ' + Math.round(item.income * menuMult(key)) + 'G (배율 ×' +
+      menuMult(key).toFixed(2) + ')</small></div>';
+    const btn = document.createElement('button');
+    if (s.evolved) {
+      btn.textContent = '✨ MAX';
+      btn.disabled = true;
+    } else if (s.lv >= 5) {
+      btn.textContent = '✨ 진화 ' + item.income * 40 + 'G';
+      btn.addEventListener('click', () => evolveMenu(key, item));
+    } else {
+      btn.textContent = item.income * 5 * s.lv + 'G';
+      btn.addEventListener('click', () => upgradeMenuLevel(key, item));
+    }
+    row.appendChild(btn);
+    wrap.appendChild(row);
+  }
+}
+
 function openLab() {
   if (editMode) exitEditMode();
   cancelPlacing(); closeShop(); closeMenuBook(); hideFurniPop();
@@ -4138,7 +4233,8 @@ document.getElementById('menuClose').addEventListener('click', closeMenuBook);
 const shopOverlay = document.getElementById('shopOverlay');
 function openShop() {
   if (editMode) exitEditMode();
-  renderLab();   // 🧪 연구 탭 내용 최신화
+  renderLab();      // 🧪 연구 탭 내용 최신화
+  renderMarket();   // 🥬 식재료 마켓 최신화
   shopPanel.style.display = 'block';
   shopOverlay.style.display = 'block';
 }
@@ -4225,7 +4321,7 @@ document.getElementById('resetYes').addEventListener('click', () => {
 (function buildShopUI() {
   const wrap = document.getElementById('shopItems');
   // 🗂️ 카테고리 탭: 홀 가구 / 주방 기물 / 특별 엔터
-  const TABS = [['hall', '🪑 홀 가구'], ['kitchen', '🧰 주방 기물'], ['ent', '🎪 알바/코스튬'], ['lab', '🧪 연구']];
+  const TABS = [['hall', '🪑 홀 가구'], ['kitchen', '🧰 주방 기물'], ['market', '🥬 식재료'], ['ent', '🎪 알바/코스튬'], ['lab', '🧪 연구']];
   const tabBar = document.createElement('div');
   tabBar.id = 'shopTabs';
   const panes = {};
@@ -4242,6 +4338,7 @@ document.getElementById('resetYes').addEventListener('click', () => {
   for (const [id] of TABS) wrap.appendChild(panes[id]);
   // 🧪 연구소(주방속도·자석·양념)를 상점 '연구' 탭으로 통째로 이주 (플로팅 버튼 대체)
   panes.lab.appendChild(document.getElementById('labList'));
+  panes.market.id = 'marketList';   // 🥬 식재료 마켓 렌더 타깃
   function selectTab(id) {
     TABS.forEach(([tid], i) => {
       panes[tid].style.display = tid === id ? 'block' : 'none';
@@ -4437,7 +4534,9 @@ function spawnDeliveryOrder(dv) {
   const items = [{ type: 'main', menu: MENU_LEVELS[Math.floor(Math.random() * (state.menuLevel + 1))] }];
   if (state.sideLevel >= 0 && Math.random() < 0.6)
     items.push({ type: 'side', side: SIDE_MENUS[Math.floor(Math.random() * (state.sideLevel + 1))] });
-  deliveryOrder = { need: items.length, done: 0, packs: [] };
+  // 🥬 배달 정산도 메인 메뉴의 레벨/진화 배율을 따라감
+  const mult = menuMult('m' + MENU_LEVELS.indexOf(items[0].menu));
+  deliveryOrder = { need: items.length, done: 0, packs: [], mult };
   for (const food of items) cookTasks.push({ kind: 'delivery', dv: deliveryOrder, food });
   showBubble(dv.group, '🛵 배달 주문 발생!', 1.8, 2.2);
   toast('🛵 배달 주문 접수! (' + items.length + '개 품목) 주방팀이 포장을 시작해요');
@@ -4475,14 +4574,15 @@ function dispatchScooter(dv, o) {
   scooters.push({ group: s, speed: 6,
     waypoints: [{ x: DOOR_X, z: wz(5) }, { x: DOOR_X, z: SIDEWALK_Z }, { x: DOOR_X, z: wz(9) + 0.5 },
                 { x: -EDGE_X, z: wz(9) + 0.5 }] });   // 🚪 문 → 도로 → 왼쪽 밖으로
+  const payout = Math.round(80 * (o.mult || 1));   // 🥬 메뉴 레벨/진화 배율 반영
   if (dv) {
-    dropCoin(dv.group.position.x + 0.5, dv.group.position.z + 1.1, 80, true);   // 💰 대형 정산!
-    state.dayGold += 80;
-    showBubble(dv.group, '💰 배달 출발! +80G', 1.8, 2.0);
+    dropCoin(dv.group.position.x + 0.5, dv.group.position.z + 1.1, payout, true);   // 💰 대형 정산!
+    state.dayGold += payout;
+    showBubble(dv.group, '💰 배달 출발! +' + payout + 'G', 1.8, 2.0);
   }
   state.deliveryCount++;   // 📋 업적: 폭풍 배달의 민족 카운트
   sfx('scooter');          // 🔊 부릉~
-  toast('🏍️ 부릉! 배달 출발 — 대형 정산 +80G');
+  toast('🏍️ 부릉! 배달 출발 — 대형 정산 +' + payout + 'G');
 }
 function updateScooters(dt) {
   for (let i = scooters.length - 1; i >= 0; i--) {
