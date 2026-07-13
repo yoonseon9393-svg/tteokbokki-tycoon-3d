@@ -638,6 +638,8 @@ const SKY_THEMES = {
   summer: 'linear-gradient(180deg, #d8f4f0 0%, #eafcf6 60%, #f2fbff 100%)',  // 🌊 청량한 민트 하늘
   autumn: 'linear-gradient(180deg, #ffd9b8 0%, #ffe9d2 55%, #fff2e2 100%)',  // 🍁 주황빛 노을
   winter: 'linear-gradient(180deg, #e4e8ee 0%, #f0f2f6 60%, #f8f9fb 100%)',  // ❄️ 연회색 겨울 하늘
+  rain:   'linear-gradient(180deg, #c3ccd8 0%, #d8e0e9 55%, #e6ebf1 100%)',  // 🌧️ 차분한 청회색 우천
+  night:  'linear-gradient(180deg, #3a4161 0%, #5a5f83 55%, #8e84a8 100%)',  // 🌙 딥한 감성 밤하늘
 };
 function setSkyTheme(season) {
   document.body.style.background = SKY_THEMES[season] || SKY_THEMES.spring;
@@ -746,7 +748,8 @@ if (window.visualViewport) window.visualViewport.addEventListener('resize', onRe
 /* 조명 */
 // 조명 합계가 1.0을 넘으면 바닥색이 흰색/형광색으로 타버리므로(클리핑),
 // 환경광 + 햇살(윗면 기준 0.55×0.79≈0.43)의 합이 약 0.95가 되도록 정밀 설정
-scene.add(new THREE.HemisphereLight(0xfffdf8, 0xcfd6e4, 0.52));   // 중성 백색 환경광
+const hemi = new THREE.HemisphereLight(0xfffdf8, 0xcfd6e4, 0.52);   // 중성 백색 환경광 (🌦️ 날씨가 색을 바꿈)
+scene.add(hemi);
 const sun = new THREE.DirectionalLight(0xfffcf5, 0.55);            // 은은한 중성톤 햇살
 sun.position.set(9, 15, 6);
 sun.castShadow = true;
@@ -3095,8 +3098,8 @@ function spawnCustomer() {
     spark.position.set(0.15, 1.42, 0); g.add(spark);
   }
 
-  // 🕶️ VIP 인플루언서 (7%): 선글라스 + 까다로운 최고급 세트 주문, 만족 시 대박 피버!
-  const vip = !influencer && Math.random() < 0.07;
+  // 🕶️ VIP 인플루언서 (7%, 🌙 야간 영업 땐 2배!): 선글라스 + 최고급 세트, 만족 시 대박 피버!
+  const vip = !influencer && Math.random() < (weatherPhase() === 'night' ? 0.14 : 0.07);
   if (vip) {
     const shades = box(0.36, 0.075, 0.03, 0x1c1c24);
     shades.position.set(0, 0.93, 0.165); shades.castShadow = false; g.add(shades);
@@ -3120,8 +3123,16 @@ function spawnCustomer() {
 }
 
 function updateCustomers(dt) {
+  const raining = weatherPhase() === 'rain';   // ☂️ 우천 여부는 프레임당 1회 판정
   for (let i = customers.length - 1; i >= 0; i--) {
     const c = customers[i];
+    // ☂️ 비 오는 날: 이동 중인 손님 머리 위에 파스텔 우산 (앉으면 접음)
+    if (raining) {
+      if (!c.umbrella) { c.umbrella = makeUmbrella(); c.group.add(c.umbrella); }
+      c.umbrella.visible = c.state !== 'eating';
+    } else if (c.umbrella) {
+      c.umbrella.visible = false;
+    }
     switch (c.state) {
       case 'toQueue': {   // 웨이팅 줄 자기 자리로 걸어가기
         if (walkStep(c, dt)) {
@@ -3186,7 +3197,9 @@ function updateCustomers(dt) {
       }
       case 'eating': {
         // 🍲 떡볶이가 테이블에 놓인 후부터 식사 시작 (🎸 무대 근처는 공연 보느라 50% 여유)
-        if (c.mainServed) c.timer -= dt * (feverT > 0 ? 2 : 1) * (c.nearStage ? 0.5 : 1);
+        // 🌧️ 우천 시 테라스(실외)석은 비 맞으며 1.5배 빨리 자리를 뜸
+        if (c.mainServed) c.timer -= dt * (feverT > 0 ? 2 : 1) * (c.nearStage ? 0.5 : 1)
+          * (raining && c.seat.terrace ? 1.5 : 1);
         if (c.nearStage && !c.group.userData.bubbleOn && Math.random() < dt * 0.12)
           showBubble(c.group, '🎵', 1.55, 1.2);   // 공연 감상 음표
         c.group.position.y = c.seat.terrace ? 0.29 : 0.2;   // 의자 높이 유지 (테라스는 데크 위)
@@ -3225,6 +3238,8 @@ function updateCustomers(dt) {
           // 📰 오늘의 트렌드 보정: 짜장 대유행(해당 메뉴 1.5배) / 테라스 축제(테라스석 1.4배)
           if (state.newsId === 'jjajang' && c.menu.name.includes('짜장')) income = Math.round(income * 1.5);
           if (state.newsId === 'terrace' && c.seat.terrace) income = Math.round(income * 1.4);
+          // 🌧️ 우천 전략 밸런스: 실내에서 따끈하게 먹은 손님은 1.3배 정산
+          if (raining && !c.seat.terrace) income = Math.round(income * 1.3);
           if (c.trait === 'glutton') income *= 2;   // 🐷 대식가: 2그릇 값을 통 크게 지불
           if (c.trait === 'gourmet') {              // 🐢 미식가: 두둑한 팁을 바닥에 흘리고 감
             dropCoin(c.seat.x - Math.sin(c.seat.ry) * 0.4, c.seat.z - Math.cos(c.seat.ry) * 0.4, 20);
@@ -4162,6 +4177,79 @@ if (!state.opened) showWelcome();   // 첫 창업이면 웰컴 팝업부터!
 
 /* ── 메인 루프 ───────────────────────────────────────────── */
 const clock = new THREE.Clock();
+/* ── 🌦️ 실시간 날씨 & 감성 야간 조명 시스템 ─────────────────
+   하루 120초: ☀️ 화창(120~80s) → 🌧️ 우천(80~40s) → 🌇 노을(40~25s) → 🌙 야간(25~0s) */
+function weatherPhase() {
+  const t = state.dayTimer;
+  if (t > 80) return 'sunny';
+  if (t > 40) return 'rain';
+  return 'night';   // 노을~밤 (야간 영업 단계)
+}
+// 🌙 야간 포인트 조명: 간판 근처 + 주방 조리대 (평소엔 강도 0으로 꺼둠)
+const nightSignLight = new THREE.PointLight(0xffb066, 0, 7.5);
+nightSignLight.position.set(DOOR_X, 2.7, wz(6) + 0.6);
+const nightPotLight = new THREE.PointLight(0xffc98a, 0, 6.5);
+scene.add(nightSignLight, nightPotLight);
+// 🌧️ 빗줄기 파티클 (가느다란 막대 70개가 매장 위로 쏟아짐)
+const rainGroup = new THREE.Group();
+rainGroup.visible = false;
+scene.add(rainGroup);
+const rainDrops = [];
+for (let i = 0; i < 70; i++) {
+  const d = box(0.02, 0.55, 0.02, 0xaac4dd);
+  d.castShadow = false; d.receiveShadow = false;
+  d.material.transparent = true; d.material.opacity = 0.55;
+  d.position.set(-12 + Math.random() * 24, Math.random() * 9, -13 + Math.random() * 19);
+  rainGroup.add(d);
+  rainDrops.push(d);
+}
+// ☂️ 손님용 파스텔 우산 (우천 시 이동 중에만 펼침)
+function makeUmbrella() {
+  const g = new THREE.Group();
+  const canopy = new THREE.Mesh(new THREE.ConeGeometry(0.32, 0.18, 8),
+    mat(pick([0xffadad, 0xa0c4ff, 0xfdffb6, 0xffc6ff, 0x9bf6ff])));
+  canopy.position.y = 1.66; canopy.castShadow = false; g.add(canopy);
+  const stick = cyl(0.016, 0.016, 0.55, 0x8a8f98);
+  stick.position.y = 1.38; stick.castShadow = false; g.add(stick);
+  g.visible = false;
+  return g;
+}
+let curSky = 'spring';
+const _wc = new THREE.Color();
+function updateWeather(dt) {
+  if (!state.opened) return;
+  const t = state.dayTimer;
+  // 시간대별 목표 조명값 (hemi 색/강도, sun 색/강도, 하늘 테마)
+  let tg;
+  if (t > 80)      tg = { h: 0xfffdf8, hi: 0.52, s: 0xfffcf5, si: 0.55, sky: 'spring' };  // ☀️ 화창
+  else if (t > 40) tg = { h: 0xd6dfe9, hi: 0.40, s: 0x9fb2c4, si: 0.28, sky: 'rain'   };  // 🌧️ 우천
+  else if (t > 25) tg = { h: 0xffd9b0, hi: 0.46, s: 0xff9a5e, si: 0.45, sky: 'autumn' };  // 🌇 노을
+  else             tg = { h: 0x8890b8, hi: 0.30, s: 0x6a74a8, si: 0.20, sky: 'night'  };  // 🌙 밤
+  const k = Math.min(1, dt * 1.6);   // 부드러운 색/강도 보간
+  hemi.color.lerp(_wc.setHex(tg.h), k);
+  hemi.intensity += (tg.hi - hemi.intensity) * k;
+  sun.color.lerp(_wc.setHex(tg.s), k);
+  sun.intensity += (tg.si - sun.intensity) * k;
+  if (curSky !== tg.sky) { curSky = tg.sky; setSkyTheme(tg.sky); }
+  // 🌙 야간(40초 이하): 간판·조리대 조명 탁! (켜짐/꺼짐도 부드럽게)
+  const night = t <= 40;
+  const li = night ? 1.15 : 0;
+  nightSignLight.intensity += (li - nightSignLight.intensity) * Math.min(1, dt * 3);
+  nightPotLight.intensity = nightSignLight.intensity;
+  if (night) { const p = potWorldPos(); nightPotLight.position.set(p.x, 1.9, p.z); }   // 솥이 이사해도 추적
+  // 🌧️ 빗줄기 낙하
+  const raining = weatherPhase() === 'rain';
+  rainGroup.visible = raining;
+  if (raining) {
+    for (const d of rainDrops) {
+      d.position.y -= dt * 11;
+      if (d.position.y < 0.2) {
+        d.position.set(-12 + Math.random() * 24, 8 + Math.random() * 2, -13 + Math.random() * 19);
+      }
+    }
+  }
+}
+
 function tick() {
   requestAnimationFrame(tick);
   const dt = Math.min(clock.getDelta(), 0.05);
@@ -4226,6 +4314,7 @@ function tick() {
   updateCoins(dt, time);
   updatePoppingCoins(dt);
   updatePetals(dt, time);   // 🌸 벚꽃잎 흩날림
+  updateWeather(dt);        // 🌦️ 날씨/조명 전환 + 빗줄기 + 야간 포인트 조명
   updateCat(dt, time);      // 🐱 고양이 알바 순찰/수거
   updateConfetti(dt);       // 🎉 폭죽 파티클
 
