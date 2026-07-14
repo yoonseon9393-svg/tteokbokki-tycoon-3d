@@ -291,6 +291,31 @@
     box-shadow: 0 4px 0 rgba(0,0,0,.15); touch-action: manipulation;
   }
   #endingBtn:active { transform: translateY(3px); box-shadow: none; }
+  /* ── 📖 에피소드 인트로 (블러 컷신) ─────────── */
+  #epOverlay { position: fixed; inset: 0; z-index: 70; display: none;
+    background: rgba(30,20,14,.55); backdrop-filter: blur(7px); -webkit-backdrop-filter: blur(7px); }
+  #epPanel { position: fixed; top: 50%; left: 50%; transform: translate(-50%,-50%); z-index: 71; display: none;
+    width: min(370px, 92vw); text-align: center; color: #fff8ec; }
+  #epKicker { font-size: 12px; font-weight: 800; letter-spacing: 3px; color: #ffd166; animation: epFade .8s both; }
+  #epTitle { font-size: 25px; font-weight: 800; margin: 10px 0 18px;
+    text-shadow: 0 4px 18px rgba(255,160,80,.45); animation: epFade .9s .25s both; }
+  .epLine { font-size: 14px; line-height: 1.65; margin: 9px 0; opacity: 0; animation: epRise .9s both; }
+  @keyframes epRise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+  @keyframes epFade { from { opacity: 0; } to { opacity: 1; } }
+  #epStartBtn { margin-top: 22px; border: none; cursor: pointer; border-radius: 18px; padding: 13px 28px;
+    font-size: 15px; font-weight: 800; color: #7a4a12; background: linear-gradient(135deg, #ffd166, #ff9f68);
+    box-shadow: 0 5px 0 rgba(0,0,0,.25); animation: epFade .8s 2.8s both; touch-action: manipulation; }
+  #epStartBtn:active { transform: translateY(3px); box-shadow: none; }
+  /* ── 💬 아침 스토리 컷신 카드 ─────────── */
+  #storyPanel { position: fixed; left: 50%; transform: translateX(-50%);
+    bottom: calc(96px + env(safe-area-inset-bottom)); z-index: 35; display: none;
+    width: min(420px, 92vw); background: linear-gradient(160deg, #fff8ec, #ffeddb);
+    border: 3px solid #ffd9b8; border-radius: 18px; padding: 12px 14px;
+    box-shadow: 0 10px 30px rgba(90,60,40,.35); animation: epRise .45s both; }
+  #storySpeaker { font-size: 12px; font-weight: 800; color: #b07a2a; margin-bottom: 4px; }
+  #storyText { font-size: 13px; color: #5a4a42; line-height: 1.55; }
+  #storyNext { margin-top: 8px; width: 100%; border: none; border-radius: 12px; padding: 9px; cursor: pointer;
+    font-weight: 800; font-size: 13px; color: #fff; background: #b3a6dd; touch-action: manipulation; }
   /* 📋 업적 보상 버튼 상태 */
   .achReward { border: none; border-radius: 12px; padding: 7px 12px; font-weight: 800; font-size: 12px; cursor: pointer; touch-action: manipulation; }
   .achReward.ready { background: #ffd166; color: #7a5c00; animation: rushBlink .6s infinite alternate; }
@@ -535,6 +560,18 @@
   <div id="bizIncome"></div>
   <div id="bizList"></div>
 </div>
+<div id="epOverlay"></div>
+<div id="epPanel">
+  <div id="epKicker"></div>
+  <div id="epTitle"></div>
+  <div id="epLines"></div>
+  <button id="epStartBtn">▶ 이야기 시작</button>
+</div>
+<div id="storyPanel">
+  <div id="storySpeaker"></div>
+  <div id="storyText"></div>
+  <button id="storyNext">▶ 계속</button>
+</div>
 <div id="endingOverlay"></div>
 <div id="endingPanel">
   <h2>🏆 요식업 제패!</h2>
@@ -651,6 +688,42 @@ const state = {
   dayEventId: '',     // 💡 오늘의 돌발 이벤트 id
   regularsMet: [],    // 👥 단골 도감: 조우한 특수 단골 id 목록
   realEstate: {},     // 🏢 부동산 투자 보유 { foodcourt, building, endingSeen } — 매초 방치 수익
+  episode: 1,         // 📖 진행 중 에피소드 (1~3) — Day·평판·부동산 조건으로 전환
+  storyIdx: 0,        // 📖 현재 에피소드에서 소비한 아침 스토리 컷신 수
+};
+
+/* ── 📖 3대 에피소드 스토리 모드 ─────────────────────────────
+   ep1(창업, Day1~10) → ep2(Day11+ & 평판 4.0: 떡볶이 마왕) → ep3(강남 빌딩 매입: 미슐랭 심사위원)
+   전환 판정은 매일 아침(nextDay)과 엔딩 팝업 닫는 순간에 수행 */
+const EPISODES = [
+  { name: '눈물의 골목길 노점', range: 'Day 1~10', lines: [
+      '물려받은 것은 낡은 솥 하나와 비법 소스뿐.',
+      '오늘, 골목 끝에서 가장 작은 포장마차가 문을 엽니다.',
+      '첫 손님의 첫 술이 — 모든 전설의 시작이 됩니다.'] },
+  { name: '프랜차이즈의 서막', range: 'Day 11~20 · 평판 4.0', lines: [
+      '소문은 골목을 넘었다. 그리고… 그들이 왔다.',
+      '전국 300개 체인 「떡볶이 마왕」이 길 건너에 간판을 올립니다.',
+      '방해 공작에는 카운터 마케팅으로. 진짜 맛은 배신하지 않습니다.'] },
+  { name: '강남 빌딩 요식업 제패', range: 'Day 21~30+ · 강남 입성', lines: [
+      '골목의 냄비가 강남의 마천루에 닿았습니다.',
+      '이제 남은 상대는 단 한 사람 — 전설의 미슐랭 심사위원.',
+      '최후의 한 접시로 요식업의 왕좌를 증명하세요.'] },
+];
+const EP_STORY = {   // 💬 아침마다 1장씩 흐르는 컷신 대사 (에피소드별)
+  2: [
+    { sp: '😈 떡볶이 마왕', txt: '이 골목 상권은 내가 접수한다! 꼬마 노점은 어서 물러나시지.' },
+    { sp: '🐱 알바냥', txt: '사장님! 마왕네가 길목마다 「반값 쿠폰」을 뿌리고 있어요…!' },
+    { sp: '📣 카운터 마케팅', txt: '우리는 정공법 — 「비법 소스 시식 이벤트」로 골목 인심을 되찾았어요. 평판이 곧 무기!' },
+    { sp: '😈 떡볶이 마왕', txt: '뭐, 뭐라고?! 우리 지점 단골들이 전부 그 노점으로 넘어갔다고…?' },
+    { sp: '🎥 먹방 유튜버', txt: '속보! 골목 떡볶이가 마왕 체인을 밀어냈습니다. 프랜차이즈의 서막이 오릅니다!' },
+  ],
+  3: [
+    { sp: '🎩 의문의 노신사', txt: '…소문을 듣고 왔소. 강남에서 가장 높은 빌딩의 떡볶이라 하던데.' },
+    { sp: '🐱 알바냥', txt: '사장님, 저 노신사… 수첩에 별을 그리고 있어요. 설마…!' },
+    { sp: '🎩 미슐랭 심사위원', txt: '정체를 밝히지. 나는 미슐랭의 마지막 심사위원 — 최후의 한 접시를 내오시게.' },
+    { sp: '🔥 주방', txt: '비법 소스, 최고급 고명, 그리고 매일 아침의 정성. 모든 것을 한 그릇에 담았습니다.' },
+    { sp: '🎩 미슐랭 심사위원', txt: '…완벽하군. 별 셋. 대한민국 요식업의 왕좌는 이 골목에 있소.' },
+  ],
 };
 
 /* ── 🏢 사업 확장: 프랜차이즈 부동산 투자처 (매초 방치 수익) ── */
@@ -795,6 +868,7 @@ function saveGame() {
       menuStats: state.menuStats,
       dayEventId: state.dayEventId, regularsMet: state.regularsMet,
       realEstate: state.realEstate,
+      episode: state.episode, storyIdx: state.storyIdx,
       research: state.research,
       deliveryCount: state.deliveryCount, sGradeCount: state.sGradeCount,
       achClaimed: state.achClaimed,
@@ -1879,22 +1953,117 @@ function buildDeliverySet() {
   return g;
 }
 
+/* ── 🌳/🌆 테마 가구 대확장: 클래식 나무 & 사이버 펑크 네온 ── */
+function neonMat(color, glow = 0.9) {   // 네온 발광 부품 공용 재질
+  return new THREE.MeshLambertMaterial({ color, emissive: color, emissiveIntensity: glow });
+}
+function buildBambooSet() {   // 🎋 대나무 1인석 (1칸): 대나무 다리 + 짚방석
+  const g = new THREE.Group();
+  for (const [lx, lz] of [[-0.2, -0.28], [0.2, -0.28], [-0.2, -0.04], [0.2, -0.04]]) {
+    const leg = cyl(0.035, 0.045, 0.52, 0x88b04b, 8); leg.position.set(lx, 0.26, lz); g.add(leg);
+    const node = cyl(0.048, 0.048, 0.03, 0x6f9440, 8); node.position.set(lx, 0.34, lz); g.add(node);
+  }
+  const top = box(0.62, 0.07, 0.5, 0xcfe3a8); top.position.set(0, 0.55, -0.16); g.add(top);
+  const stool = cyl(0.17, 0.19, 0.24, 0xd9c47f, 10); stool.position.set(0, 0.12, 0.33); g.add(stool);
+  const cushion = cyl(0.15, 0.15, 0.05, 0xf0e2b6, 10); cushion.position.set(0, 0.27, 0.33); g.add(cushion);
+  const leaf = box(0.16, 0.03, 0.09, 0x7fb069); leaf.position.set(0.2, 0.6, -0.3); leaf.rotation.y = 0.5; g.add(leaf);
+  return g;
+}
+function buildPyeongsangSet() {   // 🍉 레트로 감성 평상 (2×2): 낮은 원목 마루 + 방석 4개
+  const g = new THREE.Group();
+  const deck = box(1.7, 0.2, 1.7, 0xc99e6a); deck.position.set(0.5, 0.14, 0.5); g.add(deck);
+  for (let i = 0; i < 4; i++) {   // 마루 널빤지 결
+    const plank = box(0.38, 0.03, 1.66, 0xd9b078); plank.position.set(-0.13 + i * 0.42, 0.25, 0.5);
+    plank.castShadow = false; g.add(plank);
+  }
+  for (const [px, pz] of [[-0.3, 0.5], [1.3, 0.5], [0.5, -0.3], [0.5, 1.3]]) {
+    const leg = box(0.12, 0.14, 0.12, 0x9a7a5e); leg.position.set(Math.min(Math.max(px, 0), 1) * 0.8 + 0.1, 0.07, Math.min(Math.max(pz, 0), 1) * 0.8 + 0.1); g.add(leg);
+  }
+  const cushions = [0xffadad, 0xa0c4ff, 0xb5e2b8, 0xceb8f0];
+  [[-0.05, 0.5], [1.05, 0.5], [0.5, -0.05], [0.5, 1.05]].forEach(([cx, cz], i) => {
+    const cu = box(0.3, 0.06, 0.3, cushions[i]); cu.position.set(cx, 0.3, cz); cu.castShadow = false; g.add(cu);
+  });
+  const jug = cyl(0.09, 0.12, 0.18, 0xd9a066, 10); jug.position.set(0.5, 0.36, 0.5); g.add(jug);   // 보리차 주전자
+  return g;
+}
+function buildPalaceSet() {   // 👑 황금 궁궐 4인 테이블 (2×2): 금장 원탁 + 궁궐 처마 기둥
+  const g = new THREE.Group();
+  const legC = cyl(0.11, 0.16, 0.52, 0xb0862c); legC.position.set(0.5, 0.26, 0.5); g.add(legC);
+  const topC = cyl(0.6, 0.6, 0.09, 0xffd166, 22); topC.position.set(0.5, 0.56, 0.5); g.add(topC);
+  const rim = new THREE.Mesh(new THREE.TorusGeometry(0.6, 0.035, 8, 24), neonMat(0xffe08a, 0.35));
+  rim.rotation.x = Math.PI / 2; rim.position.set(0.5, 0.61, 0.5); g.add(rim);   // 금테 장식
+  const orb = new THREE.Mesh(new THREE.SphereGeometry(0.09, 10, 10), neonMat(0xffd764, 0.6));
+  orb.position.set(0.5, 0.72, 0.5); g.add(orb);   // 중앙 여의주
+  [[-0.18, 0.5, Math.PI / 2], [1.18, 0.5, -Math.PI / 2], [0.5, -0.18, 0], [0.5, 1.18, Math.PI]]
+    .forEach(([cx, cz, ry]) => addChair(g, cx, cz, ry, 0xc9302c));   // 홍색 궁궐 의자
+  const roofPole = cyl(0.04, 0.04, 1.5, 0x8a5a2c, 8); roofPole.position.set(-0.3, 0.75, -0.3); g.add(roofPole);
+  const roof = new THREE.Mesh(new THREE.ConeGeometry(0.5, 0.3, 4), mat(0x2e6e4e));
+  roof.position.set(-0.3, 1.62, -0.3); roof.rotation.y = Math.PI / 4; g.add(roof);   // 궁궐 처마 캐노피
+  return g;
+}
+function buildCapsuleSet() {   // 🛸 네온 캡슐 1인석 (1칸): 크롬 포드 + 시안 네온 링
+  const g = new THREE.Group();
+  const base = cyl(0.35, 0.42, 0.16, 0x3a3f4c, 14); base.position.set(0, 0.08, -0.05); g.add(base);
+  const shell = new THREE.Mesh(new THREE.SphereGeometry(0.4, 14, 12, 0, Math.PI * 2, 0, Math.PI * 0.55), mat(0x545b6e));
+  shell.position.set(0, 0.2, -0.05); g.add(shell);   // 반구 포드 쉘
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(0.4, 0.03, 8, 22), neonMat(0x53f5e0));
+  ring.rotation.x = Math.PI / 2; ring.position.set(0, 0.2, -0.05); g.add(ring);
+  const table = cyl(0.2, 0.05, 0.34, 0x2c2f3a, 10); table.position.set(0, 0.42, -0.2); g.add(table);
+  const stool = cyl(0.16, 0.16, 0.26, 0x2c2f3a, 10); stool.position.set(0, 0.13, 0.33); g.add(stool);
+  const pad = cyl(0.14, 0.14, 0.04, 0x53f5e0, 10); pad.position.set(0, 0.28, 0.33);
+  pad.material = neonMat(0x53f5e0, 0.5); g.add(pad);
+  return g;
+}
+function buildNeonBarSet() {   // 🍸 사이버 펑크 네온 바 (가로 2칸): 다크 카운터 + 마젠타/시안 스트립
+  const g = new THREE.Group();
+  const counter = box(1.9, 0.62, 0.5, 0x23262f); counter.position.set(0.5, 0.31, -0.18); g.add(counter);
+  const top = box(2.0, 0.07, 0.6, 0x3a3f4c); top.position.set(0.5, 0.66, -0.18); g.add(top);
+  const stripT = box(2.0, 0.035, 0.035, 0xff4fd8); stripT.position.set(0.5, 0.7, 0.12);
+  stripT.material = neonMat(0xff4fd8); stripT.castShadow = false; g.add(stripT);   // 마젠타 엣지
+  const stripB = box(1.92, 0.035, 0.035, 0x53f5e0); stripB.position.set(0.5, 0.06, 0.08);
+  stripB.material = neonMat(0x53f5e0); stripB.castShadow = false; g.add(stripB);   // 시안 언더글로우
+  const signPole = cyl(0.025, 0.025, 0.5, 0x8a8f98, 8); signPole.position.set(1.25, 0.9, -0.3); g.add(signPole);
+  const sign = box(0.5, 0.24, 0.05, 0xff4fd8); sign.position.set(1.25, 1.2, -0.3);
+  sign.material = neonMat(0xff4fd8, 0.7); g.add(sign);   // BAR 네온 간판
+  for (const bx of [0, 1]) {   // 바 스툴 2개
+    const st = cyl(0.05, 0.05, 0.3, 0x8a8f98, 8); st.position.set(bx, 0.15, 0.33); g.add(st);
+    const se = cyl(0.16, 0.16, 0.06, 0x2c2f3a, 12); se.position.set(bx, 0.33, 0.33); g.add(se);
+  }
+  return g;
+}
+function buildLimoSet() {   // 🚘 VIP 전용 리무진 시트 (가로 2칸): 프리미엄 가죽 소파 + 골드 언더글로우
+  const g = new THREE.Group();
+  const base = box(1.9, 0.24, 0.72, 0x1c1e26); base.position.set(0.5, 0.12, 0.02); g.add(base);
+  const seatC = box(1.8, 0.14, 0.56, 0x2c2f3a); seatC.position.set(0.5, 0.3, 0.06); g.add(seatC);
+  const backC = box(1.8, 0.42, 0.14, 0x2c2f3a); backC.position.set(0.5, 0.54, -0.26); g.add(backC);
+  for (const ax of [-0.42, 1.42]) {   // 양끝 팔걸이
+    const arm = box(0.16, 0.3, 0.6, 0x1c1e26); arm.position.set(ax, 0.36, 0.02); g.add(arm);
+  }
+  const glow = box(1.94, 0.03, 0.76, 0xffd166); glow.position.set(0.5, 0.015, 0.02);
+  glow.material = neonMat(0xffd166, 0.8); glow.castShadow = false; g.add(glow);   // 골드 언더글로우
+  const emblem = new THREE.Mesh(new THREE.SphereGeometry(0.07, 8, 8), neonMat(0xffe08a, 0.7));
+  emblem.position.set(0.5, 0.82, -0.26); g.add(emblem);   // ⭐ VIP 엠블럼
+  const trim = box(1.82, 0.03, 0.03, 0xffd166); trim.position.set(0.5, 0.76, -0.19);
+  trim.material = neonMat(0xffd166, 0.5); trim.castShadow = false; g.add(trim);
+  return g;
+}
+
 const SHOP_ITEMS = {
   terrace: {
-    name: '테라스 파라솔 테이블', emoji: '⛱️', price: 180,
+    name: '테라스 파라솔 테이블', emoji: '⛱️', price: 180, theme: 'classic',
     desc: '야외 우드 데크 전용! (Lv2 확장 후 데크 위 1칸)',
     build: buildTerraceSet, cells: [[0, 0]],
     seats: [{ x: 0, z: 0.33, ry: Math.PI }],
     terraceOnly: true,
   },
   solo: {
-    name: '1인 테이블', emoji: '🍚', price: 80,
+    name: '1인 테이블', emoji: '🍚', price: 80, theme: 'classic',
     desc: '미니 테이블 + 의자 1개 (1칸 차지)',
     build: buildSoloSet, cells: [[0, 0]],
     seats: [{ x: 0, z: 0.33, ry: Math.PI }],
   },
   couple: {
-    name: '2인 테이블', emoji: '💕', price: 150,
+    name: '2인 테이블', emoji: '💕', price: 150, theme: 'classic',
     desc: '테이블 + 마주보는 의자 2개 (가로 2칸)',
     build: buildCoupleSet, cells: [[0, 0], [1, 0]],
     seats: [
@@ -1903,7 +2072,7 @@ const SHOP_ITEMS = {
     ],
   },
   quad: {
-    name: '4인 테이블', emoji: '👨‍👩‍👧‍👦', price: 280,
+    name: '4인 테이블', emoji: '👨‍👩‍👧‍👦', price: 280, theme: 'classic',
     desc: '원형 테이블 + 의자 4개 (2×2칸)',
     build: buildQuadSet, cells: [[0, 0], [1, 0], [0, 1], [1, 1]],
     seats: [
@@ -1914,9 +2083,69 @@ const SHOP_ITEMS = {
     ],
   },
   bench: {
-    name: '대기석', emoji: '🛋️', price: 220,
+    name: '대기석', emoji: '🛋️', price: 220, theme: 'classic',
     desc: '주변 2.5칸 손님이 사이드를 40% 더 진득하게 기다려요',
     build: buildBenchSet, cells: [[0, 0]], seats: [],
+  },
+  // ── 🌳 클래식 나무 테마: 프리미엄 라인업 (가구 패시브: 인내심↑ · 팁 확률↑) ──
+  bamboo: {
+    name: '대나무 1인석', emoji: '🎋', price: 450, theme: 'classic',
+    desc: '시원한 대숲 감성 (1칸) · 🪑 인내심 +10% · 팁 확률 8% (+15G)',
+    build: buildBambooSet, cells: [[0, 0]],
+    seats: [{ x: 0, z: 0.33, ry: Math.PI }],
+    passive: { patience: 0.10, tip: 0.08, tipGold: 15 },
+  },
+  pyeongsang: {
+    name: '레트로 감성 평상', emoji: '🍉', price: 900, theme: 'classic',
+    desc: '온 가족 둘러앉는 원목 평상 (2×2칸) · 🪑 인내심 +15% · 팁 확률 12% (+20G)',
+    build: buildPyeongsangSet, cells: [[0, 0], [1, 0], [0, 1], [1, 1]],
+    seats: [
+      { x: -0.05, z: 0.5, ry: Math.PI / 2 },
+      { x: 1.05, z: 0.5, ry: -Math.PI / 2 },
+      { x: 0.5, z: -0.05, ry: 0 },
+      { x: 0.5, z: 1.05, ry: Math.PI },
+    ],
+    passive: { patience: 0.15, tip: 0.12, tipGold: 20 },
+  },
+  palace: {
+    name: '황금 궁궐 4인 테이블', emoji: '👑', price: 2400, theme: 'classic',
+    desc: '수랏상 대접받는 금장 원탁 (2×2칸) · 🪑 인내심 +20% · 팁 확률 20% (+30G)',
+    build: buildPalaceSet, cells: [[0, 0], [1, 0], [0, 1], [1, 1]],
+    seats: [
+      { x: -0.18, z: 0.5, ry: Math.PI / 2 },
+      { x: 1.18, z: 0.5, ry: -Math.PI / 2 },
+      { x: 0.5, z: -0.18, ry: 0 },
+      { x: 0.5, z: 1.18, ry: Math.PI },
+    ],
+    passive: { patience: 0.20, tip: 0.20, tipGold: 30 },
+  },
+  // ── 🌆 사이버 펑크 네온 테마: 하이엔드 라인업 ──
+  capsule: {
+    name: '네온 캡슐 1인석', emoji: '🛸', price: 1100, theme: 'cyber',
+    desc: '시안 링이 감도는 개인 포드 (1칸) · 🪑 인내심 +12% · 팁 확률 12% (+20G)',
+    build: buildCapsuleSet, cells: [[0, 0]],
+    seats: [{ x: 0, z: 0.33, ry: Math.PI }],
+    passive: { patience: 0.12, tip: 0.12, tipGold: 20 },
+  },
+  neonbar: {
+    name: '사이버 펑크 네온 바', emoji: '🍸', price: 1500, theme: 'cyber',
+    desc: '마젠타 엣지의 스탠딩 바 (가로 2칸) · 🪑 인내심 +15% · 팁 확률 15% (+25G)',
+    build: buildNeonBarSet, cells: [[0, 0], [1, 0]],
+    seats: [
+      { x: 0, z: 0.33, ry: Math.PI },
+      { x: 1, z: 0.33, ry: Math.PI },
+    ],
+    passive: { patience: 0.15, tip: 0.15, tipGold: 25 },
+  },
+  limo: {
+    name: 'VIP 전용 리무진 시트', emoji: '🚘', price: 3800, theme: 'cyber',
+    desc: '골드 언더글로우 프리미엄 소파 (가로 2칸) · 🪑 인내심 +25% · 팁 확률 30% (+40G)',
+    build: buildLimoSet, cells: [[0, 0], [1, 0]],
+    seats: [
+      { x: 0.1, z: 0.06, ry: 0 },
+      { x: 0.9, z: 0.06, ry: 0 },
+    ],
+    passive: { patience: 0.25, tip: 0.30, tipGold: 40 },
   },
   stage: {
     name: '고양이 버스킹 무대', emoji: '🎸', price: 1800,
@@ -1938,6 +2167,11 @@ for (const [fid, def] of Object.entries(FIXTURE_DEFS)) {
 }
 
 const tables = [];   // { group, seats: [{x, z, ry, taken}] }
+// 🪑 가구별 특수 패시브 조회: { patience(사이드 대기 인내 +), tip(팁 확률), tipGold }
+function furnPassive(seat) {
+  const it = seat && seat.pk && SHOP_ITEMS[seat.pk];
+  return (it && it.passive) || null;
+}
 
 /* ── 🚶 웨이팅 대기열 (만석이면 입구 옆 인도에 최대 4명 줄서기) ── */
 const waitingQueue = [];
@@ -2015,7 +2249,7 @@ function placeFurniture(key, gx, gz, rot, free = false) {
     key, rec,   // 🪑 이동/철거를 위해 저장 레코드와 연결
     seats: item.seats.map(s => {
       const [px, pz] = rotCell(s.x, s.z, rot);   // 좌표 회전 (실수도 동일 공식)
-      return { x: wx(gx) + px, z: wz(gz) + pz, ry: s.ry + rot * Math.PI / 2, taken: false, terrace: gx > 20 };
+      return { x: wx(gx) + px, z: wz(gz) + pz, ry: s.ry + rot * Math.PI / 2, taken: false, terrace: gx > 20, pk: key };   // 🪑 pk: 가구 패시브 참조용
     }),
   });
   if (!free) {
@@ -2347,6 +2581,8 @@ function leavePath(seat, exitDir) {
     state.realEstate = saved.realEstate || {};   // 🏢 부동산 투자 보유 복원
     for (const id of ['foodcourt', 'building'])  // 🏬🏢 매입한 기념 오브젝트도 월드에 재배치 (연출 없이 즉시)
       if (state.realEstate[id]) spawnEstateVisual(id, false);
+    state.episode = Math.min(Math.max(saved.episode || 1, 1), 3);   // 📖 에피소드 진행 복원
+    state.storyIdx = saved.storyIdx || 0;
     for (const k in state.menuStats)   // ✨ 진화 메뉴는 이름/태그 변신도 복원
       if (state.menuStats[k].evolved) applyEvolutionVisual(k);
     // 🧰 주방 기물 위치 복원 — 가구보다 먼저 해야 점유 충돌 검사가 정확함
@@ -3633,6 +3869,7 @@ function updateCustomers(dt) {
         // 🛋️ 벤치 근처 손님은 40% 더 진득하게 기다림
         if (c.timer <= 0 && c.side && !c.sideServed &&
             (c.sideWait = (c.sideWait || 0) + dt * (c.nearBench ? 0.6 : 1)
+              * (1 - ((furnPassive(c.seat) || {}).patience || 0))   // 🪑 프리미엄 가구: 인내심 최대 +25%
               * (dayEvent('exam') ? 1.5 : 1)) < (c.vip ? 4 : 8)) break;   // 💡 시험 기간: 인내심 1.5배 빨리 감소
         if (c.timer <= 0) {
           head.rotation.x = 0;
@@ -3664,6 +3901,12 @@ function updateCustomers(dt) {
           if (c.trait === 'gourmet' && !dayEvent('costup')) {   // 🐢 미식가 팁 (💡 공급가 폭등일엔 누락)
             dropCoin(c.seat.x - Math.sin(c.seat.ry) * 0.4, c.seat.z - Math.cos(c.seat.ry) * 0.4, 20);
             showBubble(c.group, '🐢 맛있었어요~ 팁이에요!', 1.55, 1.6);
+          }
+          const fp = furnPassive(c.seat);   // 🪑 프리미엄 가구 패시브: 팁 확률 최대 30% (폭등일엔 누락)
+          if (fp && !dayEvent('costup') && Math.random() < fp.tip) {
+            dropCoin(c.seat.x - Math.sin(c.seat.ry) * 0.5, c.seat.z - Math.cos(c.seat.ry) * 0.5,
+              fp.tipGold, fp.tipGold >= 40);
+            showBubble(c.group, '💸 자리가 정말 좋네요! 팁이에요~', 1.55, 1.6);
           }
           // 🕶️ VIP 판정: 주문한 세트를 시간 내에 전부 서빙받았다면 → 📱 대박 피버 타임!
           if (c.vip) {
@@ -4559,9 +4802,62 @@ document.getElementById('nextDayBtn').addEventListener('click', () => {
   rollDailyNews();   // 새 영업일 = 새 트렌드 확인 기회 (실제 날짜 기준 유지)
   rollDayEvent();    // 💡 새 아침 = 새 돌발 이벤트
   toast('🌅 Day ' + state.day + ' 영업 시작! 오늘도 대박 나세요!');
+  updateEpisode();   // 📖 아침마다 에피소드 전환 판정 (해금 시 블러 인트로)
+  morningStory();    // 💬 진행 중 에피소드의 오늘 컷신 1장
   updateUI(true);
 });
 document.getElementById('menuClose').addEventListener('click', closeMenuBook);
+
+/* ── 📖 에피소드 인트로 & 아침 스토리 컷신 연출 ─────────────── */
+let epIntroOn = false;   // 인트로 상영 중엔 영업 타이머가 흐르지 않음 (tick에서 참조)
+function showEpisodeIntro(epId) {
+  const ep = EPISODES[epId - 1];
+  epIntroOn = true;
+  document.getElementById('epKicker').textContent = '— 에피소드 ' + epId + ' · ' + ep.range + ' —';
+  document.getElementById('epTitle').textContent = ep.name;
+  const wrapL = document.getElementById('epLines');
+  wrapL.innerHTML = '';
+  ep.lines.forEach((ln, i) => {   // ✨ 한 줄씩 차오르는 인트로 텍스트
+    const d = document.createElement('div');
+    d.className = 'epLine';
+    d.style.animationDelay = (0.7 + i * 0.75) + 's';
+    d.textContent = ln;
+    wrapL.appendChild(d);
+  });
+  document.getElementById('epOverlay').style.display = 'block';
+  document.getElementById('epPanel').style.display = 'block';
+  sfx('skill');   // 🔊 장엄한 상승 신스
+}
+document.getElementById('epStartBtn').addEventListener('click', () => {
+  document.getElementById('epOverlay').style.display = 'none';
+  document.getElementById('epPanel').style.display = 'none';
+  epIntroOn = false;
+});
+// 📖 에피소드 전환 판정: 매일 아침 + 제패 엔딩 직후 (건너뛴 조건도 상위 우선으로 흡수)
+function updateEpisode() {
+  let next = null;
+  if (state.episode < 3 && state.realEstate.building) next = 3;
+  else if (state.episode === 1 && state.day >= 11 && state.reputation >= 4) next = 2;
+  if (!next) return;
+  state.episode = next;
+  state.storyIdx = 0;
+  saveGame();
+  showEpisodeIntro(next);
+}
+// 💬 아침 스토리: 에피소드별 대본을 하루 1장씩 소비
+function closeStory() { document.getElementById('storyPanel').style.display = 'none'; }
+function morningStory() {
+  const script = EP_STORY[state.episode];
+  if (!script || state.storyIdx >= script.length) return;
+  const cut = script[state.storyIdx++];
+  setTimeout(() => {   // 인트로/개시 토스트와 겹치지 않게 한 박자 늦게
+    document.getElementById('storySpeaker').textContent = cut.sp;
+    document.getElementById('storyText').textContent = cut.txt;
+    document.getElementById('storyPanel').style.display = 'block';
+  }, 1200);
+  saveGame();
+}
+document.getElementById('storyNext').addEventListener('click', closeStory);
 
 const shopOverlay = document.getElementById('shopOverlay');
 function openShop() {
@@ -4610,6 +4906,7 @@ document.getElementById('openShopBtn').addEventListener('click', () => {
   if (state.tutorialStep === 0) state.tutorialStep = 1;   // 🎓 실시간 튜토리얼 시작
   rollDayEvent();   // 💡 창업 첫날에도 돌발 이벤트 발동
   refreshTuto();
+  showEpisodeIntro(1);   // 📖 에피소드 1 「눈물의 골목길 노점」 개막 컷신
   saveGame();
 });
 
@@ -4716,6 +5013,7 @@ function showEnding() {
 document.getElementById('endingBtn').addEventListener('click', () => {
   document.getElementById('endingOverlay').style.display = 'none';
   document.getElementById('endingPanel').style.display = 'none';
+  updateEpisode();   // 📖 강남 빌딩 매입 → 곧바로 에피소드 3 「요식업 제패」 개막
 });
 
 // 상점 목록 생성
@@ -4740,6 +5038,17 @@ document.getElementById('endingBtn').addEventListener('click', () => {
   // 🧪 연구소(주방속도·자석·양념)를 상점 '연구' 탭으로 통째로 이주 (플로팅 버튼 대체)
   panes.lab.appendChild(document.getElementById('labList'));
   panes.market.id = 'marketList';   // 🥬 식재료 마켓 렌더 타깃
+  // 🌳/🌆 홀 가구 탭: 테마별 컬렉션 섹션 (클래식 나무 / 사이버 펑크 네온)
+  const themeSecs = {};
+  for (const [tid, tLabel] of [['classic', '🌳 클래식 나무 테마'], ['cyber', '🌆 사이버 펑크 네온 테마']]) {
+    const hd = document.createElement('div');
+    hd.style.cssText = 'margin:10px 0 2px;font-weight:800;color:#b58a5a;font-size:13px;';
+    hd.textContent = tLabel;
+    const sec = document.createElement('div');
+    panes.hall.appendChild(hd);
+    panes.hall.appendChild(sec);
+    themeSecs[tid] = sec;
+  }
   function selectTab(id) {
     TABS.forEach(([tid], i) => {
       panes[tid].style.display = tid === id ? 'block' : 'none';
@@ -4778,7 +5087,9 @@ document.getElementById('endingBtn').addEventListener('click', () => {
     refreshBuyBtn();
     if (item.needsCat || item.needsBiz) catLockRefreshers.push(refreshBuyBtn);
     row.appendChild(btn);
-    panes[item.cat || 'hall'].appendChild(row);
+    // 🌳/🌆 홀 가구는 테마 섹션으로, 나머지는 기존 카테고리 탭으로
+    ((item.cat || 'hall') === 'hall' && item.theme && themeSecs[item.theme]
+      ? themeSecs[item.theme] : panes[item.cat || 'hall']).appendChild(row);
   }
   // 🧰 주방 기물 탭: 보유 기물 안내 (이동/회전은 편집 모드에서)
   for (const def of Object.values(FIXTURE_DEFS)) {
@@ -5083,7 +5394,7 @@ function tick() {
   // ☀️ 일일 영업 타이머 & 마감 흐름
   if (state.opened) {
     if (state.dayPhase === 'open') {
-      state.dayTimer -= dt;
+      if (!epIntroOn) state.dayTimer -= dt;   // 📖 에피소드 인트로 상영 중엔 영업시간 정지
       if (state.dayTimer <= 0) {
         state.dayPhase = 'closing';
         toast('🌇 오늘 영업 종료! 홀에 남은 손님을 마무리하고 정산할게요');
