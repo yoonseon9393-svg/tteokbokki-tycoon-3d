@@ -254,6 +254,12 @@
   }
   #bizPanel h3 { color: #5a4a42; font-size: 17px; margin-bottom: 4px; text-align: center; }
   #bizIncome { text-align: center; font-size: 12px; font-weight: 800; color: #b07a2a; margin-bottom: 10px; }
+  @keyframes incomePop {   /* 💰 매초 적립 순간 황금빛 펄스 */
+    0% { transform: scale(1); }
+    30% { transform: scale(1.14); color: #e8890c; text-shadow: 0 0 9px rgba(255,209,102,.85); }
+    100% { transform: scale(1); }
+  }
+  #bizIncome.payPop { animation: incomePop .5s ease; }
   .bizCard {
     background: #fff; border: 2px solid #ffe3c8; border-radius: 16px;
     padding: 12px 14px; margin-top: 10px;
@@ -724,7 +730,16 @@ const ACHIEVEMENTS = [
     reward: '주방 팀 이동속도 영구 1.2배', check: () => state.deliveryCount >= 5, prog: () => Math.min(state.deliveryCount, 5) + '/5건' },
   { id: 'michelin', emoji: '⭐', name: '미슐랭 가이드', desc: 'S등급 이상 마감 3회 달성',
     reward: '기본 평판 별점 +0.5 보너스', check: () => state.sGradeCount >= 3, prog: () => Math.min(state.sGradeCount, 3) + '/3회' },
+  // 🏢 부동산 투자 전용 히든 업적 2종 (달성 전엔 ❓로 표시)
+  { id: 'dept', emoji: '🏬', name: '백화점 점령', hidden: true, desc: '백화점 푸드코트 입점 계약 체결',
+    reward: '평판 별점 한계 5.5성으로 영구 확장', check: () => !!state.realEstate.foodcourt,
+    prog: () => (state.realEstate.foodcourt ? 1 : 0) + '/1' },
+  { id: 'gangnam', emoji: '🏢', name: '강남의 지배자', hidden: true, desc: '강남 직영 빌딩 매입 완료',
+    reward: '배달 라이더 이동속도 영구 1.5배', check: () => !!state.realEstate.building,
+    prog: () => (state.realEstate.building ? 1 : 0) + '/1' },
 ];
+// ⭐ 평판 별점 한계: 기본 5.0 → 「백화점 점령」 업적 수령 시 5.5로 영구 확장
+function repCap() { return state.achClaimed.includes('dept') ? 5.5 : 5; }
 
 // 📰 일일 마케팅 트렌드 뉴스 (하루 1개 랜덤, 당일 장사에 실시간 적용)
 const NEWS_LIST = [
@@ -1459,6 +1474,75 @@ scene.add(villageGroup);
   buildCherryTree(-4.3, 8.35, 0.9);
   buildCherryTree(4.6, 8.4, 1.0);
 })();
+
+/* ── 🏢 부동산 투자 기념 오브젝트 (매입 시 월드에 부드럽게 스폰) ── */
+const estateVisuals = { foodcourt: null, building: null };
+const estatePops = [];   // 등장 스케일 팝 애니메이션 큐
+function estateSign(text, y, scale = 1.1) {   // 월드 고정 안내 스프라이트 (말풍선 텍스처 재사용)
+  const { tex, aspect } = getBubbleTexture(text);
+  const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true }));
+  sp.scale.set(scale * aspect, scale, 1);
+  sp.position.y = y;
+  return sp;
+}
+function spawnEstateVisual(id, animated = true) {
+  if (estateVisuals[id]) return;
+  const g = new THREE.Group();
+  if (id === 'foodcourt') {
+    // 🏬 도로변 축하 입간판 + 풍선 다발 (오른쪽 인도 곁 — 보행 동선·테라스 회피 외곽)
+    const legA = cyl(0.045, 0.045, 1.05, 0x8a6f52); legA.position.set(-0.34, 0.52, 0); legA.rotation.z = 0.16; g.add(legA);
+    const legB = cyl(0.045, 0.045, 1.05, 0x8a6f52); legB.position.set(0.34, 0.52, 0); legB.rotation.z = -0.16; g.add(legB);
+    const bd = box(1.2, 0.66, 0.09, 0xfff2dc); bd.position.y = 1.18; g.add(bd);         // 간판 보드
+    const trim = box(1.28, 0.1, 0.11, 0xff9f68); trim.position.y = 1.54; g.add(trim);   // 상단 띠 장식
+    const balloonCols = [0xffadad, 0xffd166, 0x9bf6ff];
+    balloonCols.forEach((col, i) => {   // 🎈 하늘하늘 풍선 3개
+      const bx = -0.42 + i * 0.42;
+      const str = cyl(0.008, 0.008, 0.5, 0xd9cbb8, 6); str.position.set(bx, 1.82, 0); g.add(str);
+      const bl = new THREE.Mesh(new THREE.SphereGeometry(0.16, 10, 10), mat(col));
+      bl.position.set(bx, 2.16 + (i % 2) * 0.08, 0); g.add(bl);
+    });
+    g.add(estateSign('🏬 백화점 입점 완료!', 2.85, 1.0));
+    g.position.set(13.6, 0, 2.6);
+    g.rotation.y = -0.35;
+    scene.add(g);
+  } else if (id === 'building') {
+    // 🏢 저 멀리 뒤편 스카이라인에 우뚝 솟은 메탈 타워 (매장 확장 시 마을과 함께 뒤로 이동)
+    const podium = box(2.5, 0.6, 2.5, 0x7e8ea0); podium.position.y = 0.3; g.add(podium);
+    const segs = [ [1.9, 3.4, 2.3, 0x9fb0c4], [1.5, 2.6, 5.3, 0xb2c1d8], [1.05, 2.0, 7.6, 0xc7d3e2] ];
+    for (const [w, h, y, col] of segs) {
+      const s = box(w, h, w, col); s.position.y = y; g.add(s);
+      for (let i = 0; i < 3; i++) {   // ✨ 은은히 빛나는 유리창 스트립 (정면)
+        const gx2 = (i - 1) * w * 0.3;
+        if (w < 1.2 && i !== 1) continue;   // 꼭대기 층은 중앙 1줄만
+        const glass = new THREE.Mesh(new THREE.BoxGeometry(0.2, h * 0.78, 0.05),
+          new THREE.MeshLambertMaterial({ color: 0xcfe8ff, emissive: 0x3a6a9a, emissiveIntensity: 0.6 }));
+        glass.position.set(gx2, y, w / 2 + 0.03); g.add(glass);
+      }
+    }
+    const spire = cyl(0.035, 0.09, 1.5, 0x8f9aa8, 8); spire.position.y = 9.3; g.add(spire);
+    const beacon = new THREE.Mesh(new THREE.SphereGeometry(0.09, 8, 8),
+      new THREE.MeshLambertMaterial({ color: 0xff6666, emissive: 0xff2222, emissiveIntensity: 1 }));
+    beacon.position.y = 10.1; g.add(beacon);   // 🔴 항공 장애등
+    g.add(estateSign('🏢 강남 직영 빌딩', 11.0, 2.0));
+    g.position.set(12.3, 0, -11.3);
+    villageBackGroup.add(g);
+  }
+  estateVisuals[id] = g;
+  if (animated) {   // 매입 순간엔 바닥에서 웅장하게 솟아오르는 팝 연출
+    g.scale.setScalar(0.01);
+    estatePops.push({ group: g, t: 0, dur: id === 'building' ? 1.6 : 1.0 });
+  }
+}
+function updateEstatePops(dt) {
+  for (let i = estatePops.length - 1; i >= 0; i--) {
+    const p = estatePops[i];
+    p.t += dt;
+    const k = Math.min(p.t / p.dur, 1);
+    const s = k < 0.75 ? (k / 0.75) * 1.07 : 1.07 - ((k - 0.75) / 0.25) * 0.07;   // 살짝 오버슈트 후 안착
+    p.group.scale.setScalar(Math.max(0.01, s));
+    if (k >= 1) { p.group.scale.setScalar(1); estatePops.splice(i, 1); }
+  }
+}
 
 /* ── 캐릭터(레고풍 미니피규어) ───────────────────────────── */
 const SKIN = 0xffd9b3;
@@ -2232,7 +2316,9 @@ function leavePath(seat, exitDir) {
     state.opened = saved.opened !== undefined ? !!saved.opened : true;
     state.shopLevel = Math.min(Math.max(saved.shopLevel || 1, 1), MAX_SHOP_LEVEL);
     state.catHired = !!saved.catHired;
-    state.reputation = Math.min(5, Math.max(1, saved.reputation || 3));
+    // ⭐ 로드 시점엔 achClaimed가 아직 안 실려서 saved에서 직접 한계 판정 (5.5성 세이브 보존)
+    const savedRepCap = Array.isArray(saved.achClaimed) && saved.achClaimed.includes('dept') ? 5.5 : 5;
+    state.reputation = Math.min(savedRepCap, Math.max(1, saved.reputation || 3));
     state.sideLevel = Math.min(saved.sideLevel !== undefined ? saved.sideLevel : -1, SIDE_MENUS.length - 1);
     state.labKitchen = Math.min(Math.max(saved.labKitchen || 0, 0), 5);
     state.labCat = Math.min(Math.max(saved.labCat || 0, 0), 5);
@@ -2259,6 +2345,8 @@ function leavePath(seat, exitDir) {
     state.dayEventId = saved.dayEventId || '';
     state.regularsMet = Array.isArray(saved.regularsMet) ? saved.regularsMet : [];
     state.realEstate = saved.realEstate || {};   // 🏢 부동산 투자 보유 복원
+    for (const id of ['foodcourt', 'building'])  // 🏬🏢 매입한 기념 오브젝트도 월드에 재배치 (연출 없이 즉시)
+      if (state.realEstate[id]) spawnEstateVisual(id, false);
     for (const k in state.menuStats)   // ✨ 진화 메뉴는 이름/태그 변신도 복원
       if (state.menuStats[k].evolved) applyEvolutionVisual(k);
     // 🧰 주방 기물 위치 복원 — 가구보다 먼저 해야 점유 충돌 검사가 정확함
@@ -3486,7 +3574,7 @@ function updateCustomers(dt) {
             showBubble(c.group, orderTxt, 1.55, c.influencer || c.vip || c.regular ? 2.6 : 1.6);
             if (c.regular) {
               if (c.regular === 'owner') {   // 👑 건물주: 착석 즉시 평판 +0.3
-                state.reputation = Math.min(5, state.reputation + 0.3);
+                state.reputation = Math.min(repCap(), state.reputation + 0.3);
                 updateUI();
               }
               if (!state.regularsMet.includes(c.regular)) {   // 👥 단골 도감 첫 조우 등록
@@ -3600,7 +3688,7 @@ function updateCustomers(dt) {
           state.dayServed++;
           if (!c.vip && c.side && !c.sideServed) state.dayFailed++;   // 사이드 못 받고 떠난 손님
           // ⭐ 만족한 손님이 평판을 올려줌 (인플루언서는 3배!) — 5.0 도달 시 피버타임
-          state.reputation = Math.min(5, state.reputation +
+          state.reputation = Math.min(repCap(), state.reputation +
             (c.influencer ? 0.15 : 0.05) * (dayEvent('snshot') ? 2 : 1));   // 💡 SNS 노출: 평판 상승 2배
           if (state.reputation >= 5 && feverT <= 0) startFever();
           updateUI();
@@ -4001,8 +4089,9 @@ const shopPanel = document.getElementById('shopPanel');
 
 function updateUI(pulse = false) {
   goldChip.textContent = '💰 ' + state.gold + ' G';
-  const stars = Math.round(state.reputation);
-  repChip.textContent = '★'.repeat(stars) + '☆'.repeat(5 - stars) + ' ' + state.reputation.toFixed(1);
+  const stars = Math.round(state.reputation);   // ⭐ 「백화점 점령」 이후 5.5성 → 6번째 별은 🌟
+  repChip.textContent = '★'.repeat(Math.min(stars, 5)) + '☆'.repeat(Math.max(0, 5 - stars)) +
+    (stars > 5 ? '🌟' : '') + ' ' + state.reputation.toFixed(1);
   researchBtn.textContent = '📖 메뉴 개발 (' + (state.menuLevel + 1) + '/' + MENU_LEVELS.length + ')';
   researchBtn.disabled = false;
   if (state.shopLevel < MAX_SHOP_LEVEL) {
@@ -4274,11 +4363,12 @@ function claimAchievement(a) {
   if (state.achClaimed.includes(a.id) || !a.check()) return;
   state.achClaimed.push(a.id);
   if (a.id === 'landlord') state.gold += 2000;                                     // 💰 즉시 지급
-  if (a.id === 'michelin') state.reputation = Math.min(5, state.reputation + 0.5); // ⭐ 즉시 +0.5 (기본선도 상향)
-  // 'rider' 속도 1.2배는 워커 job 생성 시 참조 지점에서 즉시 반영
+  if (a.id === 'michelin') state.reputation = Math.min(repCap(), state.reputation + 0.5); // ⭐ 즉시 +0.5 (기본선도 상향)
+  // 'rider' 1.2배·'dept' 별점 한계 5.5·'gangnam' 라이더 1.5배는 각 참조 지점(repCap/스폰)에서 즉시 반영
   spawnConfetti(wx(6.5), wz(3));
   toast('🏆 업적 달성! 「' + a.name + '」 — ' + a.reward);
   updateUI(true);
+  saveGame();   // 🏢 부동산 매입 ↔ 업적 수령 상태를 한 몸으로 즉시 기록 (누수 방지)
   renderAchv();
 }
 function renderAchv() {
@@ -4287,10 +4377,13 @@ function renderAchv() {
   ACHIEVEMENTS.forEach(a => {
     const claimed = state.achClaimed.includes(a.id);
     const ready = !claimed && a.check();
+    const veiled = a.hidden && !claimed && !ready;   // 🏢 히든 업적: 달성 전엔 실루엣만
     const row = document.createElement('div');
     row.className = 'shopItem' + (claimed || ready ? '' : ' locked');
-    row.innerHTML = '<div class="info">' + a.emoji + ' ' + a.name +
-      '<small>' + a.desc + ' (' + a.prog() + ')<br>🎁 ' + a.reward + '</small></div>';
+    row.innerHTML = veiled
+      ? '<div class="info">❓ 히든 업적<small>사업을 크게 확장하면 정체가 드러나요…<br>🎁 ???</small></div>'
+      : '<div class="info">' + a.emoji + ' ' + a.name +
+        '<small>' + a.desc + ' (' + a.prog() + ')<br>🎁 ' + a.reward + '</small></div>';
     const btn = document.createElement('button');
     btn.className = 'achReward ' + (claimed ? 'done' : ready ? 'ready' : 'locked');
     btn.textContent = claimed ? '✅ 수령 완료' : ready ? '🎁 보상 받기' : '⏳ 진행 중';
@@ -4566,7 +4659,7 @@ function closeBiz() { bizPanel.style.display = 'none'; bizOverlay.style.display 
 function renderBiz() {
   const inc = estateIncome();
   document.getElementById('bizIncome').textContent =
-    inc > 0 ? '💰 현재 방치 수익: 매초 +' + inc + 'G 자동 적립 중' : '본점 수익을 굴려 제2의 매출 파이프라인을 만드세요';
+    inc > 0 ? '💰 현재 자동 방치 수익: +' + inc + 'G/초' : '본점 수익을 굴려 제2의 매출 파이프라인을 만드세요';
   const list = document.getElementById('bizList');
   list.innerHTML = '';
   for (const e of REAL_ESTATE) {
@@ -4589,6 +4682,7 @@ function buyEstate(id) {
   if (state.gold < e.cost) { toast('💸 골드가 부족해요! (' + e.cost.toLocaleString() + 'G 필요)'); return; }
   state.gold -= e.cost;
   state.realEstate[id] = true;
+  spawnEstateVisual(id);   // 🏬🏢 월드에 기념 오브젝트가 웅장하게 솟아오름
   sfx('stamp');   // 🔊 쿵! 계약 도장
   toast(e.emoji + ' ' + e.name + ' 계약 완료! 이제 매초 +' + e.income + 'G가 자동으로 들어와요');
   updateUI(true);
@@ -4885,7 +4979,8 @@ function dispatchScooter(dv, o) {
   const carry = box(0.28, 0.26, 0.26, 0xffd166); carry.position.set(-0.26, 0.6, 0); s.add(carry);
   if (dv) s.position.set(dv.group.position.x + 0.5, 0, dv.group.position.z + 0.9);
   scene.add(s);
-  scooters.push({ group: s, speed: 6,
+  scooters.push({ group: s, speed: 6 * (state.achClaimed.includes('gangnam') ? 1.5 : 1),   // 🏢 「강남의 지배자」: 초광속 라이더
+
     waypoints: [{ x: DOOR_X, z: wz(5) }, { x: DOOR_X, z: SIDEWALK_Z }, { x: DOOR_X, z: wz(9) + 0.5 },
                 { x: -EDGE_X, z: wz(9) + 0.5 }] });   // 🚪 문 → 도로 → 왼쪽 밖으로
   const payout = Math.round(80 * (o.mult || 1));   // 🥬 메뉴 레벨/진화 배율 반영
@@ -5020,8 +5115,11 @@ function tick() {
         estatePayTimer += 1;
         state.gold += estInc;
         updateUI();
-        if (bizPanel.style.display === 'block')   // 패널 열려 있으면 수익 라벨만 갱신 (버튼 탭 보호)
-          document.getElementById('bizIncome').textContent = '💰 현재 방치 수익: 매초 +' + estInc + 'G 자동 적립 중';
+        if (bizPanel.style.display === 'block') {   // 패널 열려 있으면 수익 라벨만 갱신 + 적립 펄스 (버튼 탭 보호)
+          const lbl = document.getElementById('bizIncome');
+          lbl.textContent = '💰 현재 자동 방치 수익: +' + estInc + 'G/초';
+          lbl.classList.remove('payPop'); void lbl.offsetWidth; lbl.classList.add('payPop');
+        }
       }
     }
   }
@@ -5057,6 +5155,7 @@ function tick() {
   updatePetals(dt, time);   // 🌸 벚꽃잎 흩날림
   updateWeather(dt);        // 🌦️ 날씨/조명 전환 + 빗줄기 + 야간 포인트 조명
   updateScooters(dt);       // 🏍️ 배달 오토바이 출발 애니메이션
+  updateEstatePops(dt);     // 🏢 부동산 기념 오브젝트 솟아오르기 연출
   updateCat(dt, time);      // 🐱 고양이 알바 순찰/수거
   updateConfetti(dt);       // 🎉 폭죽 파티클
 
