@@ -363,6 +363,23 @@
     opacity: 0; transition: opacity .25s; pointer-events: none;
   }
   /* 🔥 피버타임 전용 폭풍 호객 연타 버튼 */
+  /* ── 🐱 고양이 액티브 스킬 버튼 (좌측 하단) ─────────── */
+  #catSkillBtn {
+    position: fixed; left: 16px; bottom: calc(96px + env(safe-area-inset-bottom));
+    width: 58px; height: 58px; border-radius: 50%;
+    border: 3px solid #e8ddd0; cursor: pointer; z-index: 15; display: none;
+    background: rgba(255,255,255,.92); font-size: 20px; font-weight: 800;
+    flex-direction: column; align-items: center; justify-content: center; gap: 1px;
+    box-shadow: 0 4px 0 rgba(0,0,0,.13); touch-action: manipulation; color: #8a745c;
+  }
+  #catSkillBtn small { font-size: 9px; font-weight: 800; }
+  #catSkillBtn.skillReady {
+    border-color: #ffd166; background: linear-gradient(160deg, #fff3cf, #ffe08a);
+    animation: rushBlink .5s infinite alternate;
+  }
+  #catSkillBtn.skillActive { border-color: #ff7043; background: linear-gradient(160deg, #ffd9b0, #ffb56b); }
+  #catSkillBtn.skillLocked { opacity: .55; }
+  #catSkillBtn:active { transform: scale(.92); }
   #rushBtn {
     position: fixed; bottom: calc(96px + env(safe-area-inset-bottom)); left: 50%;
     transform: translateX(-50%);
@@ -468,6 +485,7 @@
   <div id="achvList"></div>
 </div>
 <button id="rushBtn">🔥 폭풍 호객 (클릭!!)</button>
+<button id="catSkillBtn"></button>
 <div id="newsOverlay"></div>
 <div id="newsPanel">
   <button id="newsClose">✕</button>
@@ -901,6 +919,12 @@ const workers = [];              // 🧑‍🍳 서빙 인력 목록 (주방장 
 let helperWorker = null;         // 👩‍🍳 주방 보조 알바생 워커
 let vipFeverT = 0;               // 📱 VIP 인플루언서 대박 피버 남은 시간
 let rushBuffT = 0;               // 🔥 폭풍 호객 연타 버프 남은 시간 (일꾼 1.4배 가속)
+// 🐱 고양이 액티브 필살기 (코스튬별 3종)
+const CAT_SKILL_CD = 35;         // 게이지 만충 시간(초)
+let catSkillGauge = 0;           // 0~35 자동 충전
+let catSkillActiveT = 0;         // 발동 잔여 시간
+let catSkillId = null;           // 발동 중인 스킬 (= 장착 코스튬 id)
+let catWarpCharges = 0;          // 🌌 워프 소환: 강제 VIP/단골 변환 잔여 횟수
 let deliveryTimer = 18;          // 🛵 배달 주문 주기 타이머
 
 function addTile(gx, gz, color, interior = false) {
@@ -3044,6 +3068,58 @@ let feverT = 0;
 function updateRushBtn() {
   document.getElementById('rushBtn').style.display = (feverT > 0 || vipFeverT > 0) ? 'block' : 'none';
 }
+/* ── 🐱 고양이 액티브 필살기: 코스튬별 3종 (게이지 35초 만충 → 터치 발동) ── */
+const catSkillBtn = document.getElementById('catSkillBtn');
+function activateCatSkill() {
+  if (!state.catHired) { toast('🙀 고양이 알바생을 먼저 고용해 주세요! (상점 🎪 알바/코스튬 탭)'); return; }
+  if (!state.catWearing) { toast('🎽 코스튬을 장착해야 필살기를 쓸 수 있어요!'); return; }
+  if (catSkillActiveT > 0 || catSkillGauge < CAT_SKILL_CD) return;
+  catSkillGauge = 0;
+  catSkillId = state.catWearing;
+  sfx('skill');   // 🔊 청아한 상승 신스
+  const p = catWorker ? catWorker.group.position : { x: 0, z: 0 };
+  spawnConfetti(p.x, p.z);
+  spawnConfetti(wx(6.5), wz(3));   // 홀 중앙에도 화려하게
+  if (catSkillId === 'chef') {          // 👨‍🍳 초고속 버닝: 8초간 주방팀 빛의 속도
+    catSkillActiveT = 8;
+    toast('🔥 필살기 「초고속 버닝」! 8초간 주방팀이 빛의 속도로 나릅니다!');
+  } else if (catSkillId === 'bee') {    // 🐝 자석 꿀스톰: 바닥 동전 일괄 흡수
+    catSkillActiveT = 1.5;
+    let n = 0;
+    for (const cn of coins) if (cn.magnetV === undefined) { cn.magnetV = 8; n++; }
+    toast('🍯 필살기 「자석 꿀스톰」! 바닥의 동전 ' + n + '개가 웅장하게 빨려옵니다!');
+  } else {                              // 🚀 워프 소환: 다음 2팀 VIP/단골 확정
+    catSkillActiveT = 1.5;
+    catWarpCharges = 2;
+    spawnTimer = Math.min(spawnTimer, 0.6);
+    toast('🌌 필살기 「워프 소환」! 은하수 너머에서 VIP·단골 2팀이 소환됩니다!');
+  }
+  updateCatSkillBtn();
+}
+function updateCatSkillBtn() {
+  let cls, html;
+  const emoji = { chef: '👨‍🍳', bee: '🐝', astro: '🚀' }[state.catWearing] || '🐱';
+  if (!state.opened) { catSkillBtn.style.display = 'none'; return; }
+  catSkillBtn.style.display = 'flex';
+  if (!state.catHired || !state.catWearing) {
+    cls = 'skillLocked';
+    html = '🔒<small>' + (!state.catHired ? '고양이' : '코스튬') + '</small>';
+  } else if (catSkillActiveT > 0) {
+    cls = 'skillActive'; html = emoji + '<small>발동!</small>';
+  } else if (catSkillGauge >= CAT_SKILL_CD) {
+    cls = 'skillReady'; html = emoji + '<small>READY</small>';
+  } else {
+    cls = ''; html = emoji + '<small>' + Math.floor(catSkillGauge / CAT_SKILL_CD * 100) + '%</small>';
+  }
+  const sig = cls + '|' + html;
+  if (catSkillBtn._sig !== sig) {   // 변화 있을 때만 DOM 갱신
+    catSkillBtn._sig = sig;
+    catSkillBtn.className = cls;
+    catSkillBtn.innerHTML = html;
+  }
+}
+catSkillBtn.addEventListener('click', activateCatSkill);
+
 document.getElementById('rushBtn').addEventListener('click', () => {
   if (feverT <= 0 && vipFeverT <= 0) return;
   rushBuffT = 3;               // 🏃 주방장+보조 이동 1.4배 (3초, 연타로 갱신)
@@ -3217,9 +3293,12 @@ function spawnCustomer() {
     spark.position.set(0.15, 1.42, 0); g.add(spark);
   }
 
+  // 🌌 워프 소환 차지: 다음 착석 손님을 VIP 또는 단골로 강제 변환
+  let warped = null;
+  if (catWarpCharges > 0) { catWarpCharges--; warped = Math.random() < 0.5 ? 'vip' : 'regular'; }
   // 🕶️ VIP 인플루언서 (7%, 🌙 야간 2배 + 🥇 황금 짜장 가루 연구 시 +10%p!)
-  const vip = !influencer && Math.random() <
-    (weatherPhase() === 'night' ? 0.14 + (state.research.goldjjajang ? 0.10 : 0) : 0.07);
+  const vip = warped === 'vip' || (!influencer && Math.random() <
+    (weatherPhase() === 'night' ? 0.14 + (state.research.goldjjajang ? 0.10 : 0) : 0.07));
   if (vip) {
     const shades = box(0.36, 0.075, 0.03, 0x1c1c24);
     shades.position.set(0, 0.93, 0.165); shades.castShadow = false; g.add(shades);
@@ -3239,8 +3318,8 @@ function spawnCustomer() {
   decorateOrder(c);   // 🌶️ 맵기/토핑/특성 커스텀
   if (vip && !c.topping) c.topping = TOPPINGS[Math.floor(Math.random() * TOPPINGS.length)];   // VIP는 까다롭게 토핑 필수
   if (vip || influencer) c.trait = null;   // 특수 손님은 고유 특성과 중복 금지
-  // 👥 특수 단골손님 3종 (9%): 👑 건물주는 우천/야간에 가중 등장
-  if (!vip && !influencer && Math.random() < 0.09) {
+  // 👥 특수 단골손님 3종 (9%, 🌌 워프 시 확정): 👑 건물주는 우천/야간에 가중 등장
+  if (warped === 'regular' || (!vip && !influencer && Math.random() < 0.09)) {
     const wp = weatherPhase();
     const pool = (wp === 'rain' || wp === 'night')
       ? ['youtuber', 'worker', 'owner', 'owner'] : ['youtuber', 'worker', 'owner'];
@@ -3692,6 +3771,7 @@ function startNextDelivery(w) {
 // 🙌 워커 한 명의 양손 멀티 서빙 루프 (kinds = 이 워커가 담당하는 태스크 종류)
 function updateWorkerServing(w, dt, kinds) {
   if (rushBuffT > 0) dt *= 1.4;   // 🔥 폭풍 호객 연타 버프: 걸음·픽업 전부 1.4배 가속
+  if (catSkillActiveT > 0 && catSkillId === 'chef') dt *= 6;   // 👨‍🍳 초고속 버닝: 빛의 속도 조리·서빙
   if (!w.job) {
     const picked = [];
     for (let i = 0; i < cookTasks.length && picked.length < 4;) {   // 🍱 인당 최대 4개 픽업
@@ -4602,6 +4682,13 @@ function sfx(type) {
       g.gain.setValueAtTime(0.09, t0);
       g.gain.exponentialRampToValueAtTime(0.001, t0 + 0.6);
       o.start(t0); o.stop(t0 + 0.62);
+    } else if (type === 'skill') {   // 🐱 필살기 발동! 청아한 상승 신스 톤
+      o.type = 'sine';
+      o.frequency.setValueAtTime(660, t0);
+      o.frequency.exponentialRampToValueAtTime(1568, t0 + 0.3);
+      g.gain.setValueAtTime(0.12, t0);
+      g.gain.exponentialRampToValueAtTime(0.001, t0 + 0.45);
+      o.start(t0); o.stop(t0 + 0.5);
     } else if (type === 'stamp') {   // 📋 쿵! 도장 타격 톤
       o.type = 'square';
       o.frequency.setValueAtTime(150, t0);
@@ -4826,6 +4913,16 @@ function tick() {
     if (vipFeverT <= 0) endVipFever();
   }
   if (rushBuffT > 0) rushBuffT -= dt;   // 🔥 폭풍 호객 가속 버프 소진
+  // 🐱 필살기 게이지 충전 & 발동 시간 소진
+  if (state.opened && state.catHired && state.dayPhase === 'open') {
+    if (catSkillActiveT > 0) {
+      catSkillActiveT -= dt;
+      if (catSkillActiveT <= 0) { catSkillActiveT = 0; catSkillId = null; }
+    } else if (state.catWearing) {
+      catSkillGauge = Math.min(CAT_SKILL_CD, catSkillGauge + dt);
+    }
+  }
+  updateCatSkillBtn();
   // 🔥 피버타임 진행 (황금 솥이 반짝반짝)
   if (feverT > 0) {
     feverT -= dt;
