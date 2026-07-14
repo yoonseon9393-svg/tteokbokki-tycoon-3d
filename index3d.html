@@ -86,7 +86,7 @@
     width: min(340px, 90vw); max-height: 70vh; overflow-y: auto;
   }
   #shopPanel h3, #menuPanel h3, #labPanel h3, #newsPanel h3, #achvPanel h3 { color: #5a4a42; font-size: 17px; margin-bottom: 12px; text-align: center; }
-  #shopClose, #menuClose, #labClose, #newsClose, #achvClose, #setClose {
+  #shopClose, #menuClose, #labClose, #newsClose, #achvClose, #setClose, #bizClose {
     position: absolute; top: 12px; right: 14px;
     border: none; background: #ffd9b8; color: #7a5c3a;
     width: 32px; height: 32px; border-radius: 50%;
@@ -242,6 +242,49 @@
   }
   .setBtn.danger { background: #e05a5a; }
   .setBtn:active { transform: translateY(3px); box-shadow: none; }
+  /* ── 🏢 사업 확장 패널 ─────────── */
+  #bizBtn { background: #d9a24a; }
+  #bizOverlay { position: fixed; inset: 0; background: rgba(70,55,45,.45); z-index: 40; display: none; }
+  #bizPanel {
+    position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    background: linear-gradient(160deg, #fff8ec, #ffeddb);
+    border: 3px solid #ffd9b8; border-radius: 24px;
+    padding: 18px 20px 20px; z-index: 41; display: none;
+    box-shadow: 0 14px 40px rgba(90,60,40,.4); width: min(340px, 90vw);
+  }
+  #bizPanel h3 { color: #5a4a42; font-size: 17px; margin-bottom: 4px; text-align: center; }
+  #bizIncome { text-align: center; font-size: 12px; font-weight: 800; color: #b07a2a; margin-bottom: 10px; }
+  .bizCard {
+    background: #fff; border: 2px solid #ffe3c8; border-radius: 16px;
+    padding: 12px 14px; margin-top: 10px;
+  }
+  .bizCard .bizName { font-size: 14px; font-weight: 800; color: #5a4a42; }
+  .bizCard .bizDesc { font-size: 12px; color: #8a7a6c; margin: 4px 0 8px; line-height: 1.45; }
+  .bizBuy {
+    width: 100%; border: none; cursor: pointer; border-radius: 12px;
+    padding: 10px; font-size: 13px; font-weight: 800; color: #fff;
+    background: #d9a24a; box-shadow: 0 3px 0 rgba(0,0,0,.13); touch-action: manipulation;
+  }
+  .bizBuy:active { transform: translateY(2px); box-shadow: none; }
+  .bizBuy.owned { background: #7ec8a9; cursor: default; }
+  .bizBuy.poor { background: #c9c2bc; }
+  /* ── 🏆 요식업 제패 엔딩 팝업 ─────────── */
+  #endingOverlay { position: fixed; inset: 0; background: rgba(40,25,15,.62); z-index: 60; display: none; }
+  #endingPanel {
+    position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    background: linear-gradient(160deg, #fff9e8, #ffe9c2);
+    border: 3px solid #ffd166; border-radius: 26px;
+    padding: 24px 24px 22px; z-index: 61; display: none; text-align: center;
+    box-shadow: 0 18px 50px rgba(60,35,15,.5); width: min(330px, 90vw);
+  }
+  #endingPanel h2 { color: #b07a2a; font-size: 21px; margin-bottom: 10px; }
+  #endingBody { font-size: 13px; color: #6a584a; line-height: 1.7; margin-bottom: 14px; }
+  #endingBtn {
+    border: none; cursor: pointer; border-radius: 16px; padding: 13px 22px;
+    font-size: 14px; font-weight: 800; color: #fff; background: #ff9f68;
+    box-shadow: 0 4px 0 rgba(0,0,0,.15); touch-action: manipulation;
+  }
+  #endingBtn:active { transform: translateY(3px); box-shadow: none; }
   /* 📋 업적 보상 버튼 상태 */
   .achReward { border: none; border-radius: 12px; padding: 7px 12px; font-weight: 800; font-size: 12px; cursor: pointer; touch-action: manipulation; }
   .achReward.ready { background: #ffd166; color: #7a5c00; animation: rushBlink .6s infinite alternate; }
@@ -436,6 +479,7 @@
   <button class="bigbtn" id="editBtn">🪑 가구 편집</button>
   <button class="bigbtn" id="researchBtn">🔬 메뉴 연구</button>
   <button class="bigbtn" id="expandBtn">🏗️ 확장</button>
+  <button class="bigbtn" id="bizBtn">🏢 사업 확장</button>
   <button class="bigbtn" id="setBtn">⚙️ 설정</button>
 </div>
 <div id="editHint">🪑 가구를 클릭하여 이동, 회전, 철거할 수 있습니다 <button id="editDoneBtn">✅ 편집 완료</button></div>
@@ -477,6 +521,19 @@
   <button class="setBtn alt" id="setAchvBtn">📋 시즌 수첩 (장기 업적)</button>
   <button class="setBtn" id="manualSaveBtn">💾 현재 진행상황 저장</button>
   <button class="setBtn danger" id="fullResetBtn">🔄 처음부터 다시 시작</button>
+</div>
+<div id="bizOverlay"></div>
+<div id="bizPanel">
+  <button id="bizClose">✕</button>
+  <h3>🏢 사업 확장 — 부동산 투자</h3>
+  <div id="bizIncome"></div>
+  <div id="bizList"></div>
+</div>
+<div id="endingOverlay"></div>
+<div id="endingPanel">
+  <h2>🏆 요식업 제패!</h2>
+  <div id="endingBody"></div>
+  <button id="endingBtn">🎉 전설의 경영 계속하기</button>
 </div>
 <div id="achvOverlay"></div>
 <div id="achvPanel">
@@ -587,7 +644,19 @@ const state = {
   menuStats: {},      // 🥬 메뉴 성장 { m0~m6·s0~s2: { lv: 1~5, evolved } } — 레벨당 정산 +20%, 진화 시 ×2.5
   dayEventId: '',     // 💡 오늘의 돌발 이벤트 id
   regularsMet: [],    // 👥 단골 도감: 조우한 특수 단골 id 목록
+  realEstate: {},     // 🏢 부동산 투자 보유 { foodcourt, building, endingSeen } — 매초 방치 수익
 };
+
+/* ── 🏢 사업 확장: 프랜차이즈 부동산 투자처 (매초 방치 수익) ── */
+const REAL_ESTATE = [
+  { id: 'foodcourt', emoji: '🏬', name: '백화점 푸드코트 입점', cost: 30000, income: 150,
+    desc: '본점의 맛 그대로! 백화점 지하 푸드코트 분점이 알아서 벌어다 줘요.' },
+  { id: 'building',  emoji: '🏢', name: '강남 직영 빌딩 매입', cost: 80000, income: 350,
+    desc: '강남 한복판 직영 사옥. 매입 즉시 대한민국 요식업 제패를 선언합니다!' },
+];
+function estateIncome() {   // 보유 투자처의 초당 수익 합계
+  return REAL_ESTATE.reduce((sum, e) => sum + (state.realEstate[e.id] ? e.income : 0), 0);
+}
 
 /* ── 💡 일일 돌발 이벤트 & 👥 특수 단골손님 데이터 ── */
 const DAY_EVENTS = [
@@ -710,6 +779,7 @@ function saveGame() {
       tutorialStep: state.tutorialStep,
       menuStats: state.menuStats,
       dayEventId: state.dayEventId, regularsMet: state.regularsMet,
+      realEstate: state.realEstate,
       research: state.research,
       deliveryCount: state.deliveryCount, sGradeCount: state.sGradeCount,
       achClaimed: state.achClaimed,
@@ -2188,6 +2258,7 @@ function leavePath(seat, exitDir) {
     state.menuStats = saved.menuStats || {};
     state.dayEventId = saved.dayEventId || '';
     state.regularsMet = Array.isArray(saved.regularsMet) ? saved.regularsMet : [];
+    state.realEstate = saved.realEstate || {};   // 🏢 부동산 투자 보유 복원
     for (const k in state.menuStats)   // ✨ 진화 메뉴는 이름/태그 변신도 복원
       if (state.menuStats[k].evolved) applyEvolutionVisual(k);
     // 🧰 주방 기물 위치 복원 — 가구보다 먼저 해야 점유 충돌 검사가 정확함
@@ -3323,7 +3394,8 @@ function spawnCustomer() {
     const wp = weatherPhase();
     const pool = (wp === 'rain' || wp === 'night')
       ? ['youtuber', 'worker', 'owner', 'owner'] : ['youtuber', 'worker', 'owner'];
-    const reg = REGULARS.find(r => r.id === pick(pool));
+    const regId = pick(pool);   // 🐛 find 콜백 안에서 pick하면 원소마다 재추첨돼 미매칭 크래시
+    const reg = REGULARS.find(r => r.id === regId);
     c.regular = reg.id;
     c.regularData = reg;
     c.trait = null;   // 특성과 중복 금지
@@ -4486,6 +4558,72 @@ document.getElementById('resetYes').addEventListener('click', () => {
   window.location.reload();   // 세이브 삭제 → 웰컴 팝업부터 새 게임
 });
 
+/* ── 🏢 사업 확장 패널: 부동산 투자 & 방치 수익 ─────────────── */
+const bizPanel = document.getElementById('bizPanel');
+const bizOverlay = document.getElementById('bizOverlay');
+let estatePayTimer = 1;   // 방치 수익 적립 주기 (매초 1회, tick의 dt로 감산)
+function closeBiz() { bizPanel.style.display = 'none'; bizOverlay.style.display = 'none'; }
+function renderBiz() {
+  const inc = estateIncome();
+  document.getElementById('bizIncome').textContent =
+    inc > 0 ? '💰 현재 방치 수익: 매초 +' + inc + 'G 자동 적립 중' : '본점 수익을 굴려 제2의 매출 파이프라인을 만드세요';
+  const list = document.getElementById('bizList');
+  list.innerHTML = '';
+  for (const e of REAL_ESTATE) {
+    const owned = !!state.realEstate[e.id];
+    const card = document.createElement('div');
+    card.className = 'bizCard';
+    card.innerHTML = '<div class="bizName">' + e.emoji + ' ' + e.name + '</div>' +
+      '<div class="bizDesc">' + e.desc + '<br>📈 해금 시 매초 <b>+' + e.income + 'G</b> 자동 수익</div>';
+    const btn = document.createElement('button');
+    btn.className = 'bizBuy' + (owned ? ' owned' : state.gold < e.cost ? ' poor' : '');
+    btn.textContent = owned ? '✅ 운영 중 (매초 +' + e.income + 'G)' : e.cost.toLocaleString() + 'G';
+    if (!owned) btn.addEventListener('click', () => buyEstate(e.id));
+    card.appendChild(btn);
+    list.appendChild(card);
+  }
+}
+function buyEstate(id) {
+  const e = REAL_ESTATE.find(r => r.id === id);
+  if (!e || state.realEstate[id]) return;
+  if (state.gold < e.cost) { toast('💸 골드가 부족해요! (' + e.cost.toLocaleString() + 'G 필요)'); return; }
+  state.gold -= e.cost;
+  state.realEstate[id] = true;
+  sfx('stamp');   // 🔊 쿵! 계약 도장
+  toast(e.emoji + ' ' + e.name + ' 계약 완료! 이제 매초 +' + e.income + 'G가 자동으로 들어와요');
+  updateUI(true);
+  saveGame();
+  renderBiz();
+  if (id === 'building' && !state.realEstate.endingSeen) showEnding();   // 🏆 최종 엔딩
+}
+document.getElementById('bizBtn').addEventListener('click', () => {
+  cancelPlacing(); closeShop(); closeMenuBook(); closeNews(); closeAchv(); closeSettings();
+  if (editMode) exitEditMode();
+  renderBiz();
+  bizPanel.style.display = 'block';
+  bizOverlay.style.display = 'block';
+});
+document.getElementById('bizClose').addEventListener('click', closeBiz);
+bizOverlay.addEventListener('click', closeBiz);
+/* ── 🏆 요식업 제패 엔딩 팝업 (강남 빌딩 매입 시 1회) ── */
+function showEnding() {
+  state.realEstate.endingSeen = true;
+  saveGame();
+  closeBiz();
+  document.getElementById('endingBody').innerHTML =
+    '골목길 포장마차 「' + state.shopName + '」이<br>백화점을 지나 강남 빌딩의 주인이 되었습니다.<br><br>' +
+    '🗓️ 영업 ' + state.day + '일차 · 🍢 누적 서빙 ' + state.served + '그릇<br>' +
+    '💰 매초 +' + estateIncome() + 'G 자동 수익 제국 완성<br><br>' +
+    '사장님은 대한민국 요식업을 제패했습니다!';
+  document.getElementById('endingOverlay').style.display = 'block';
+  document.getElementById('endingPanel').style.display = 'block';
+  sfx('skill');   // 🔊 청아한 팡파레 톤
+}
+document.getElementById('endingBtn').addEventListener('click', () => {
+  document.getElementById('endingOverlay').style.display = 'none';
+  document.getElementById('endingPanel').style.display = 'none';
+});
+
 // 상점 목록 생성
 (function buildShopUI() {
   const wrap = document.getElementById('shopItems');
@@ -4872,6 +5010,21 @@ function tick() {
   dayChip.textContent = '☀️ Day ' + state.day +
     (state.dayPhase === 'open' ? ' · ' + Math.max(0, Math.ceil(state.dayTimer)) + 's'
      : state.dayPhase === 'closing' ? ' · 마감 중…' : ' · 마감!');
+
+  // 🏢 부동산 방치 수익: 보유 투자처가 매초 골드 자동 적립 (dt 타이머, 마감 중에도 흐름)
+  if (state.opened) {
+    const estInc = estateIncome();
+    if (estInc > 0) {
+      estatePayTimer -= dt;
+      if (estatePayTimer <= 0) {
+        estatePayTimer += 1;
+        state.gold += estInc;
+        updateUI();
+        if (bizPanel.style.display === 'block')   // 패널 열려 있으면 수익 라벨만 갱신 (버튼 탭 보호)
+          document.getElementById('bizIncome').textContent = '💰 현재 방치 수익: 매초 +' + estInc + 'G 자동 적립 중';
+      }
+    }
+  }
 
   // 손님 스폰
   spawnTimer -= dt;
