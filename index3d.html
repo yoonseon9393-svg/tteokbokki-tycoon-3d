@@ -242,6 +242,27 @@
   }
   .setBtn.danger { background: #e05a5a; }
   .setBtn:active { transform: translateY(3px); box-shadow: none; }
+  /* ── 🏗️ 매장 영토 확장 패널 ─────────── */
+  #expandOverlay { position: fixed; inset: 0; background: rgba(70,55,45,.45); z-index: 40; display: none; }
+  #expandPanel {
+    position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    background: linear-gradient(160deg, #fff8ec, #ffeddb);
+    border: 3px solid #ffd9b8; border-radius: 24px;
+    padding: 18px 20px 20px; z-index: 41; display: none;
+    box-shadow: 0 14px 40px rgba(90,60,40,.4); width: min(350px, 90vw);
+    max-height: 74vh; overflow-y: auto;
+  }
+  #expandPanel h3 { color: #5a4a42; font-size: 17px; margin-bottom: 10px; text-align: center; }
+  .expRow { background: #fff; border: 2px solid #ffe3c8; border-radius: 14px; padding: 10px 12px; margin-top: 8px; }
+  .expRow.now { border-color: #7ec8a9; background: #f2fbf6; }
+  .expRow .expName { font-size: 13px; font-weight: 800; color: #5a4a42; }
+  .expRow .expDesc { font-size: 11.5px; color: #8a7a6c; margin-top: 3px; line-height: 1.5; }
+  .expBuy {
+    width: 100%; margin-top: 7px; border: none; cursor: pointer; border-radius: 11px;
+    padding: 9px; font-size: 13px; font-weight: 800; color: #fff; background: #ff8fab;
+    box-shadow: 0 3px 0 rgba(0,0,0,.13); touch-action: manipulation;
+  }
+  .expBuy:active { transform: translateY(2px); box-shadow: none; }
   /* ── 🏢 사업 확장 패널 ─────────── */
   #bizBtn { background: #d9a24a; }
   #bizOverlay { position: fixed; inset: 0; background: rgba(70,55,45,.45); z-index: 40; display: none; }
@@ -529,12 +550,13 @@
 
 <div id="feverFx"></div>
 
+<!-- 🎛️ 하단 6대 탭: 상점 · 편집 · 메뉴 · 확장 · 사업 · 설정 (openPanel로 일원화) -->
 <div id="bottombar">
   <button class="bigbtn" id="shopBtn">🛒 상점</button>
-  <button class="bigbtn" id="editBtn">🪑 가구 편집</button>
-  <button class="bigbtn" id="researchBtn">🔬 메뉴 연구</button>
+  <button class="bigbtn" id="editBtn">🪑 편집</button>
+  <button class="bigbtn" id="researchBtn">📖 메뉴</button>
   <button class="bigbtn" id="expandBtn">🏗️ 확장</button>
-  <button class="bigbtn" id="bizBtn">🏢 사업 확장</button>
+  <button class="bigbtn" id="bizBtn">🏢 사업</button>
   <button class="bigbtn" id="setBtn">⚙️ 설정</button>
 </div>
 <div id="editHint">🪑 가구를 클릭하여 이동, 회전, 철거할 수 있습니다 <button id="editDoneBtn">✅ 편집 완료</button></div>
@@ -585,6 +607,12 @@
   <button class="setBtn alt" id="setAchvBtn">📋 시즌 수첩 (장기 업적)</button>
   <button class="setBtn" id="manualSaveBtn">💾 현재 진행상황 저장</button>
   <button class="setBtn danger" id="fullResetBtn">🔄 처음부터 다시 시작</button>
+</div>
+<div id="expandOverlay"></div>
+<div id="expandPanel">
+  <button id="expandClose">✕</button>
+  <h3>🏗️ 매장 영토 확장 — 5단계</h3>
+  <div id="expandList"></div>
 </div>
 <div id="bizOverlay"></div>
 <div id="bizPanel">
@@ -3103,7 +3131,7 @@ function exitEditMode() {
   hideFurniPop();
   cancelPlacing();   // 이동 중이던 가구가 있으면 원래 자리로 자동 복원
 }
-document.getElementById('editBtn').addEventListener('click', () => editMode ? exitEditMode() : enterEditMode());
+document.getElementById('editBtn').addEventListener('click', () => openPanel('edit'));   // 🪑 편집 모드 토글
 document.getElementById('editDoneBtn').addEventListener('click', exitEditMode);
 
 /* ── 🪑 배치 가구 이동/회전/철거 미니 팝업 ─────────────────── */
@@ -3740,6 +3768,20 @@ function rollSide() {
   if (state.sideLevel < 0 || Math.random() > 0.45) return null;
   return SIDE_MENUS[Math.floor(Math.random() * (state.sideLevel + 1))];
 }
+// 🕊️ 대기 중 힐링 일상 대사 풀 — 날씨/시간대에 맞는 문장이 섞여 골목의 평화를 연출
+function peaceLines() {
+  const l = [
+    '🌸 인테리어가 정말 아기자기하네요!',
+    '😋 어떤 떡볶이를 먹어볼까~',
+    '🎶 골목 냄새부터 벌써 맛집이야~',
+    '📸 여기 감성 사진 맛집인데?',
+    '☕ 기다리는 시간도 왠지 설렌다~',
+  ];
+  const wp = weatherPhase();   // (raining은 updateCustomers 지역 변수라 직접 판정)
+  if (wp === 'rain') l.push('☔ 비 오는 날엔 역시 뜨끈한 튀김이지!');
+  if (wp === 'night') l.push('🌙 밤 골목 포장마차 감성 미쳤다…');
+  return l;
+}
 // 🌶️ 커스텀 주문: 맵기 단계(35%) / 추가 토핑(35%) / 고유 특성(15%: 🐷대식가·🐢미식가)
 function decorateOrder(c) {
   c.spice = Math.random() < 0.35 ? SPICES[Math.floor(Math.random() * SPICES.length)] : null;
@@ -3991,10 +4033,13 @@ function updateCustomers(dt) {
           if (state.research.gochujang) lines.push('🌶️ 이 집 소스 마법 가루 썼나? 중독성 쩔어!');
           if (lines.length) showBubble(c.group, pick(lines), 1.55, 2.2);
         }
-        // 💢 떡볶이가 6초 넘게 안 나오면 배고픔 호소
-        if (!c.mainServed && (c.hungerT = (c.hungerT || 0) + dt) > 6 &&
-            !c.group.userData.bubbleOn && Math.random() < dt * 0.5)
-          showBubble(c.group, '💢 꼬르륵.. 배고파요 사장님 빨리요!', 1.55, 1.8);
+        // 🕊️ 대기 무드 밸런싱: 보챔은 아주 드물게(기존의 16%), 힐링 일상 대사가 주인공
+        if (!c.mainServed && (c.hungerT = (c.hungerT || 0) + dt) > 6 && !c.group.userData.bubbleOn) {
+          if (Math.random() < dt * 0.08)
+            showBubble(c.group, '💢 꼬르륵.. 배고파요 사장님 빨리요!', 1.55, 1.8);
+          else if (Math.random() < dt * 0.34)
+            showBubble(c.group, pick(peaceLines()), 1.55, 2.2);
+        }
         c.group.position.y = c.seat.terrace ? 0.29 : 0.2;   // 의자 높이 유지 (테라스는 데크 위)
         // 식사 중엔 말풍선 없이 고개 까딱까딱 애니메이션만 (화면 깔끔하게)
         const head = c.group.userData.anim.head;
@@ -4476,7 +4521,7 @@ const goldChip = document.getElementById('goldChip');
 const repChip = document.getElementById('repChip');
 const researchBtn = document.getElementById('researchBtn');
 const expandBtn = document.getElementById('expandBtn');
-expandBtn.addEventListener('click', () => { cancelPlacing(); closeShop(); closeMenuBook(); upgradeShop(); });
+expandBtn.addEventListener('click', () => openPanel('expand'));   // 🏗️ 5단계 영토 현황판
 const shopPanel = document.getElementById('shopPanel');
 
 function updateUI(pulse = false) {
@@ -4484,15 +4529,10 @@ function updateUI(pulse = false) {
   const stars = Math.round(state.reputation);   // ⭐ 「백화점 점령」 이후 5.5성 → 6번째 별은 🌟
   repChip.textContent = '★'.repeat(Math.min(stars, 5)) + '☆'.repeat(Math.max(0, 5 - stars)) +
     (stars > 5 ? '🌟' : '') + ' ' + state.reputation.toFixed(1);
-  researchBtn.textContent = '📖 메뉴 개발 (' + (state.menuLevel + 1) + '/' + MENU_LEVELS.length + ')';
+  researchBtn.textContent = '📖 메뉴';   // 🎛️ 고정 라벨 — 개발/마켓 현황은 패널 안에서
   researchBtn.disabled = false;
-  if (state.shopLevel < MAX_SHOP_LEVEL) {
-    expandBtn.textContent = '🏗️ ' + SHOP_LEVEL_NAMES[state.shopLevel + 1] + ' (' + SHOP_LEVEL_COST[state.shopLevel] + 'G)';
-    expandBtn.disabled = false;
-  } else {
-    expandBtn.textContent = '👑 제국 완성';
-    expandBtn.disabled = true;
-  }
+  expandBtn.textContent = state.shopLevel < MAX_SHOP_LEVEL ? '🏗️ 확장' : '👑 확장';
+  expandBtn.disabled = false;   // 최대 레벨에서도 영토 현황판은 열람 가능
   refreshTuto();   // 🎓 자금 변동에 따라 Step3(1000G 돌파) 가이드 갱신
   if (pulse) {
     goldChip.classList.remove('pulse');
@@ -4605,7 +4645,7 @@ function closeMenuBook() {
   menuPanel.style.display = 'none';
   menuOverlay.style.display = 'none';
 }
-researchBtn.addEventListener('click', openMenuBook);
+researchBtn.addEventListener('click', () => openPanel('menu'));   // 📖 식재료 마켓/요리 진화 (연구소는 마켓 상단 버튼)
 menuOverlay.addEventListener('click', closeMenuBook);
 
 /* ── 🧪 가게 연구 센터 ──────────────────────────────────── */
@@ -4707,6 +4747,13 @@ function renderMarket() {
   head.style.cssText = 'margin:2px 0 4px;font-weight:800;color:#b58a5a;font-size:13px;';
   head.textContent = '🥬 식재료 마켓 — 레벨당 정산 +20%, Lv.5 진화 시 ×2.5!';
   wrap.appendChild(head);
+  // 📖 신메뉴 개발 연구소 진입 (하단 [📖 메뉴] 탭이 마켓 직행으로 바뀌면서 이쪽에 상주)
+  const devBtn = document.createElement('button');
+  devBtn.className = 'setBtn alt';
+  devBtn.style.marginTop = '2px';
+  devBtn.textContent = '📖 신메뉴 개발 연구소 (' + (state.menuLevel + 1) + '/' + MENU_LEVELS.length + ')';
+  devBtn.addEventListener('click', () => { closeShop(); openMenuBook(); });
+  wrap.appendChild(devBtn);
   const entries = [];
   for (let i = 0; i <= state.menuLevel; i++) entries.push(['m' + i, MENU_LEVELS[i]]);
   for (let i = 0; i <= state.sideLevel; i++) entries.push(['s' + i, SIDE_MENUS[i]]);
@@ -4853,9 +4900,9 @@ newsOverlay.addEventListener('click', closeNews);
    Step1 구매 배치 → Step2 동전 수집 → Step3 (1000G 돌파 시) 확장 → Step4 (편집 첫 진입 시) 동선 설계 */
 let tutoEditSeen = false;   // 이번 세션에서 편집 모드에 들어와 봤는지 (Step4 노출 조건)
 const TUTO_MSGS = {
-  1: '💡 첫 손님을 맞이하기 위해 하단 [🛒 가구 상점]에서 테이블 세트를 구매해 배치해 보세요!',
+  1: "💡 첫 손님을 맞이하기 위해 하단 '상점' 버튼에서 테이블 세트를 구매해 배치해 보세요!",
   2: '💡 일꾼들이 서빙을 시작합니다! 바닥의 동전을 터치하거나 고양이 알바생을 고용하면 자동으로 수집됩니다!',
-  3: '💡 가게를 확장할 준비가 되었습니다! 하단 [🏗️ 확장] 버튼을 눌러 매장 면적을 넓혀보세요!',
+  3: "💡 가게를 확장할 준비가 되었습니다! 하단의 '확장' 버튼을 눌러 면적을 넓혀보세요.",
   4: '💡 가구를 클릭하면 즉시 들립니다! 주방 기물들의 위치를 조절해 일꾼들의 최적 서빙 동선을 설계해 보세요!',
 };
 function refreshTuto() {
@@ -5025,8 +5072,7 @@ function closeShop() {
   shopOverlay.style.display = 'none';
 }
 document.getElementById('shopBtn').addEventListener('click', () => {
-  cancelPlacing();
-  shopPanel.style.display === 'block' ? closeShop() : openShop();
+  shopPanel.style.display === 'block' ? (cancelPlacing(), closeShop()) : openPanel('shop');
 });
 shopOverlay.addEventListener('click', closeShop);
 document.getElementById('shopClose').addEventListener('click', closeShop);
@@ -5101,12 +5147,7 @@ function closeReset() {
 const setPanel = document.getElementById('setPanel');
 const setOverlay = document.getElementById('setOverlay');
 function closeSettings() { setPanel.style.display = 'none'; setOverlay.style.display = 'none'; }
-document.getElementById('setBtn').addEventListener('click', () => {   // 🎯 하단 ⚙️ 설정 메뉴
-  cancelPlacing(); closeShop(); closeMenuBook(); closeNews(); closeAchv();
-  if (editMode) exitEditMode();
-  setPanel.style.display = 'block';
-  setOverlay.style.display = 'block';
-});
+document.getElementById('setBtn').addEventListener('click', () => openPanel('set'));   // ⚙️ 설정 허브
 document.getElementById('setClose').addEventListener('click', closeSettings);
 setOverlay.addEventListener('click', closeSettings);
 // 📰/📋 설정 허브에서 뉴스·수첩 진입 (우측 플로팅 버튼 대체)
@@ -5167,15 +5208,52 @@ function buyEstate(id) {
   renderBiz();
   if (id === 'building' && !state.realEstate.endingSeen) showEnding();   // 🏆 최종 엔딩
 }
-document.getElementById('bizBtn').addEventListener('click', () => {
-  cancelPlacing(); closeShop(); closeMenuBook(); closeNews(); closeAchv(); closeSettings();
-  if (editMode) exitEditMode();
-  renderBiz();
-  bizPanel.style.display = 'block';
-  bizOverlay.style.display = 'block';
-});
+document.getElementById('bizBtn').addEventListener('click', () => openPanel('biz'));   // 🏢 부동산 투자
 document.getElementById('bizClose').addEventListener('click', closeBiz);
 bizOverlay.addEventListener('click', closeBiz);
+
+/* ── 🏗️ 매장 영토 확장 패널 (5단계 현황판 + 업그레이드) ── */
+const expandPanel = document.getElementById('expandPanel');
+const expandOverlay = document.getElementById('expandOverlay');
+function closeExpand() { expandPanel.style.display = 'none'; expandOverlay.style.display = 'none'; }
+const EXP_PERKS = ['', '아담한 시작', '테라스 데크 오픈', '목재 펜스 + 알전구', '가로등 자동 배치', '황금 네온 + 웰컴 벌룬'];
+const EXP_AREA = ['', '×1.0', '×1.3', '×1.8', '×2.5', '×3.5'];
+function renderExpand() {
+  const wrap = document.getElementById('expandList');
+  wrap.innerHTML = '';
+  for (let lv = 1; lv <= MAX_SHOP_LEVEL; lv++) {
+    const row = document.createElement('div');
+    row.className = 'expRow' + (lv === state.shopLevel ? ' now' : '');
+    const status = lv < state.shopLevel ? '✅' : lv === state.shopLevel ? '📍 현재' : '🔒';
+    row.innerHTML = '<div class="expName">' + status + ' Lv' + lv + ' · ' + SHOP_LEVEL_NAMES[lv] + '</div>' +
+      '<div class="expDesc">바닥 ' + EXP_AREA[lv] + ' · 가구 한도 ' + FURN_CAP[lv] + '개 · ' + EXP_PERKS[lv] +
+      (lv > 1 ? ' · 워커 가속 +' + Math.round((Math.pow(1.15, lv - 1) - 1) * 100) + '%' : '') + '</div>';
+    if (lv === state.shopLevel + 1) {   // ▶ 다음 단계만 구매 버튼 노출
+      const btn = document.createElement('button');
+      btn.className = 'expBuy';
+      btn.textContent = '🏗️ 확장하기 — ' + SHOP_LEVEL_COST[state.shopLevel].toLocaleString() + 'G';
+      btn.addEventListener('click', () => { upgradeShop(); renderExpand(); });   // 비용/토스트는 upgradeShop이 처리
+      row.appendChild(btn);
+    }
+    wrap.appendChild(row);
+  }
+}
+document.getElementById('expandClose').addEventListener('click', closeExpand);
+expandOverlay.addEventListener('click', closeExpand);
+
+/* ── 🎛️ 하단 6대 탭 공용 패널 라우터: 열려 있는 모든 패널을 정리하고 목적지만 오픈 ── */
+let shopSelectTab = null;   // buildShopUI가 내부 selectTab을 여기로 노출
+function openPanel(id) {
+  cancelPlacing(); closeShop(); closeMenuBook(); closeNews(); closeAchv();
+  closeSettings(); closeBiz(); closeExpand();
+  if (editMode && id !== 'edit') exitEditMode();
+  if (id === 'shop') { openShop(); if (shopSelectTab) shopSelectTab('hall'); }
+  else if (id === 'edit') { editMode ? exitEditMode() : enterEditMode(); }
+  else if (id === 'menu') { openShop(); if (shopSelectTab) shopSelectTab('market'); }   // 🥬 식재료 마켓/요리 진화
+  else if (id === 'expand') { renderExpand(); expandPanel.style.display = 'block'; expandOverlay.style.display = 'block'; }
+  else if (id === 'biz') { renderBiz(); bizPanel.style.display = 'block'; bizOverlay.style.display = 'block'; }
+  else if (id === 'set') { setPanel.style.display = 'block'; setOverlay.style.display = 'block'; }
+}
 /* ── 🏆 요식업 제패 엔딩 팝업 (강남 빌딩 매입 시 1회) ── */
 function showEnding() {
   state.realEstate.endingSeen = true;
@@ -5371,6 +5449,7 @@ document.getElementById('endingBtn').addEventListener('click', () => {
   renderCostumes();
   catLockRefreshers.push(renderCostumes);   // 🔓 고양이 고용 순간 코스튬 잠금도 일괄 해제
   selectTab('hall');   // 기본 탭
+  shopSelectTab = selectTab;   // 🎛️ openPanel('menu' 등)에서 탭 직행할 수 있게 노출
 })();
 
 let toastTimer = null;
