@@ -900,10 +900,16 @@ const DOOR_X = wx(6.5);              // 출입문 중앙 x (문 칸 gx6~7은 고
 const EDGE_X = 14;                   // 화면 밖 스폰 x (넓어진 매장+테라스 바깥)
 
 // 🏗️ 다단계 확장: Lv1~3 가로 성장 → Lv4~6 세로(뒤쪽) 성장으로 균형 잡힌 대형 매장
-const MAX_SHOP_LEVEL = 6;
-const SHOP_LEVEL_COST = [0, 1000, 3000, 6000, 12000, 24000];   // [n→n+1 비용]
-const SHOP_X1 = [0, 16, 18, 20, 20, 20, 20];   // 레벨별 내부 오른쪽 끝 칸
-const SHOP_Z0 = [0, -1, -1, -1, -3, -5, -7];   // 레벨별 내부 '뒤쪽 끝' 행 — 시작부터 깊이 7칸, Lv4+ 9→11→13칸
+/* ── 🏗️ 영토 5단계 초광활 스케일링 ──────────────────────────
+   면적: Lv1 16×7=112 → Lv2 18×8=144(×1.3) → Lv3 20×10=200(×1.8)
+       → Lv4 20×14=280(×2.5) → Lv5 20×20=400(×3.5 초대형 영토) */
+const MAX_SHOP_LEVEL = 5;
+const SHOP_LEVEL_COST = [0, 2000, 8000, 25000, 75000];   // [n→n+1 비용]
+const SHOP_X1 = [0, 16, 18, 20, 20, 20];    // 레벨별 내부 오른쪽 끝 칸
+const SHOP_Z0 = [0, -1, -2, -4, -8, -14];   // 레벨별 내부 '뒤쪽 끝' 행 — 깊이 7→8→10→14→20칸
+const SHOP_LEVEL_NAMES = ['', '골목 노점', '동네 핫플', '가맹 1호점', '강남 직영점', '떡볶이 제국 랜드'];
+const FURN_CAP = [0, 4, 8, 14, 22, 35];     // 레벨별 가구 배치 한도
+function territoryHaste() { return Math.pow(1.15, state.shopLevel - 1); }   // 🏃 영토 단계별 워커/라이더 +15% 복리 가속
 function shopZ0() { return SHOP_Z0[state.shopLevel]; }
 function shopExtraZ() { return 1 - SHOP_Z0[state.shopLevel]; }   // 뒤로 늘어난 행 수 (0~6)
 
@@ -948,6 +954,7 @@ const camCtl = {
   tilt: 0                            // 상하 틸트 (fitCamera에서 33°~60°로 엄격 클램프 — 절대 안 눕음!)
 };
 const camera = new THREE.OrthographicCamera();
+let exZView = 2;   // 🏗️ 줌아웃 보간용 깊이 (Lv1 기본 2 — 업그레이드 시 tick에서 목표치로 스르륵)
 function fitCamera() {
   const a = window.innerWidth / window.innerHeight;
   let halfH, px, py, pz, tx, tz;
@@ -966,7 +973,7 @@ function fitCamera() {
   // 매장이 오른쪽으로 확장되면 카메라 중심도 살짝 따라가 테라스까지 한눈에
   tx += (Math.min(state.shopLevel, 3) - 1) * 1.0;
   // 🏗️ Lv4+ 세로 확장: 늘어난 깊이만큼 초점을 뒤로 밀고 줌아웃해서 전체가 한눈에
-  const exZ = shopExtraZ();
+  const exZ = exZView;   // 🏗️ 영토 확장 시 tick이 이 값을 목표 깊이로 보간 → 부드러운 줌아웃
   pz -= exZ * 0.5; tz -= exZ * 0.5;
   halfH *= 1 + exZ * 0.055;
   camera.left = -halfH * a; camera.right = halfH * a;
@@ -2173,6 +2180,35 @@ function furnPassive(seat) {
   return (it && it.passive) || null;
 }
 
+/* ── 🎀 매장 데코 등급 (최대 ★6): 가구 합산 코스트 + 테마 믹스 보너스 ──
+   별점이 오를수록 매초 방치형 추가 팁 골드가 눈덩이처럼 불어남 */
+const DECO_THRESHOLDS = [0, 500, 1500, 4000, 9000, 18000];   // ★n 달성 누적 점수
+const DECO_TIP = [0, 0, 2, 6, 15, 35, 75];                    // [★] 매초 방치 팁 골드
+function decoInfo() {
+  let score = 0;
+  const themes = new Set();
+  for (const f of placedFurniture) {
+    const it = SHOP_ITEMS[f.key];
+    if (!it || it.fixture) continue;
+    score += it.price;
+    if (it.theme) themes.add(it.theme);
+  }
+  if (themes.size >= 2) score = Math.round(score * 1.2);   // 🌳+🌆 두 테마 인테리어 믹스 +20%
+  let stars = 1;
+  while (stars < 6 && score >= DECO_THRESHOLDS[stars]) stars++;
+  return { score, stars, tip: DECO_TIP[stars] };
+}
+let lastDecoStars = -1;   // 등급 변동 감지 (초기화는 initGame에서 무음 세팅)
+function updateDecoRating(announce = true) {
+  const d = decoInfo();
+  if (d.stars !== lastDecoStars) {
+    if (announce && lastDecoStars >= 0 && d.stars > lastDecoStars)
+      toast('🎀 매장 데코 등급 상승! ' + '★'.repeat(d.stars) + '☆'.repeat(6 - d.stars) +
+        (d.tip ? ' — 매초 +' + d.tip + 'G 방치 팁!' : ''));
+    lastDecoStars = d.stars;
+  }
+}
+
 /* ── 🚶 웨이팅 대기열 (만석이면 입구 옆 인도에 최대 4명 줄서기) ── */
 const waitingQueue = [];
 function queueSpot(i) {
@@ -2252,6 +2288,7 @@ function placeFurniture(key, gx, gz, rot, free = false) {
       return { x: wx(gx) + px, z: wz(gz) + pz, ry: s.ry + rot * Math.PI / 2, taken: false, terrace: gx > 20, pk: key };   // 🪑 pk: 가구 패시브 참조용
     }),
   });
+  updateDecoRating(!free);   // 🎀 배치 즉시 데코 등급 갱신 (로드 복원 중엔 무음)
   if (!free) {
     state.gold -= item.price;
     tutoAdvance(1);   // 🎓 Step1 완료: 첫 가구 구매 배치
@@ -2270,6 +2307,7 @@ function removeFurniture(table) {
   tables.splice(tables.indexOf(table), 1);
   const pi = placedFurniture.indexOf(rec);
   if (pi >= 0) placedFurniture.splice(pi, 1);
+  updateDecoRating(false);   // 🎀 철거 시 등급 하향도 즉시 반영 (무음)
   saveGame();
 }
 
@@ -2422,6 +2460,59 @@ function buildTerrace() {
   }
 }
 
+/* ── 🏗️ 영토 티어별 자동 배치 데코 (expansionGroup 소속 → 재구성 시 자동 정리) ── */
+let glowMeshes = [];   // 은은히 맥동하는 발광 부품 (가로등·네온 테두리)
+let empireFx = [];     // 둥실거리는 웰컴 벌룬 { mesh, baseY, ph }
+function buildPerimeterFence() {   // 🚧 Lv3 가맹 1호점: 뒷벽 바깥 목재 펜스
+  const zTop = shopZ0() - 1, R = SHOP_X1[state.shopLevel] + 1;
+  const fz = wz(zTop) - 0.72;
+  for (let gx = 0; gx <= R; gx += 2) {
+    const p = box(0.09, 0.5, 0.09, 0xb08a5e); p.position.set(wx(gx), 0.25, fz); expansionGroup.add(p);
+  }
+  const railT = box(wx(R) - wx(0), 0.06, 0.06, 0xc99e6a); railT.position.set((wx(0) + wx(R)) / 2, 0.42, fz);
+  railT.castShadow = false; expansionGroup.add(railT);
+  const railB = box(wx(R) - wx(0), 0.06, 0.06, 0xc99e6a); railB.position.set((wx(0) + wx(R)) / 2, 0.2, fz);
+  railB.castShadow = false; expansionGroup.add(railB);
+}
+function buildStreetLamps() {   // 💡 Lv4 강남 직영점: 뒷벽을 따라 가로등 자동 배치
+  const zTop = shopZ0() - 1, x1 = SHOP_X1[state.shopLevel];
+  for (const gx of [2, Math.round(x1 / 2), x1 - 1]) {
+    const lx = wx(gx), lz = wz(zTop) + 0.55;   // 벽선 안쪽 — 동선 칸을 막지 않음
+    const pole = cyl(0.05, 0.07, 1.9, 0x5a5f6e, 8); pole.position.set(lx, 0.95, lz); expansionGroup.add(pole);
+    const arm = box(0.4, 0.05, 0.05, 0x5a5f6e); arm.position.set(lx + 0.17, 1.86, lz); expansionGroup.add(arm);
+    const lamp = new THREE.Mesh(new THREE.SphereGeometry(0.11, 10, 10),
+      new THREE.MeshLambertMaterial({ color: 0xfff2b0, emissive: 0xffd764, emissiveIntensity: 0.8 }));
+    lamp.position.set(lx + 0.35, 1.8, lz); lamp.castShadow = false;
+    expansionGroup.add(lamp); glowMeshes.push(lamp);
+  }
+}
+function buildEmpireGlow() {   // 👑 Lv5 제국 랜드: 바닥 테두리 황금 네온 + 웰컴 에어 벌룬
+  const zTop = shopZ0() - 1, x1 = SHOP_X1[state.shopLevel];
+  const gold = () => new THREE.MeshLambertMaterial({ color: 0xffd166, emissive: 0xffb830, emissiveIntensity: 0.85 });
+  const edges = [   // [cx, cz, w, d] — 내부 바닥 사각 테두리
+    [(wx(1) + wx(x1)) / 2, wz(zTop) + 0.53, wx(x1) - wx(1), 0.07],
+    [(wx(1) + wx(x1)) / 2, wz(5) + 0.47, wx(x1) - wx(1), 0.07],
+    [wx(1) - 0.47, (wz(zTop) + wz(5)) / 2 + 0.5, 0.07, wz(5) - wz(zTop) - 1],
+    [wx(x1) + 0.47, (wz(zTop) + wz(5)) / 2 + 0.5, 0.07, wz(5) - wz(zTop) - 1],
+  ];
+  for (const [cx, cz, w, d] of edges) {
+    const strip = new THREE.Mesh(new THREE.BoxGeometry(w, 0.04, d), gold());
+    strip.position.set(cx, 0.06, cz); strip.castShadow = false;
+    expansionGroup.add(strip); glowMeshes.push(strip);
+  }
+  const cols = [0xffd166, 0xff9ecb, 0xa8e6ff];   // 🎈 출입문 양옆 축하 웰컴 벌룬 다발
+  for (const bx of [DOOR_X - 1.4, DOOR_X + 1.4]) {
+    for (let i = 0; i < 3; i++) {
+      const str = cyl(0.008, 0.008, 1.3 + i * 0.25, 0xd9cbb8, 6);
+      str.position.set(bx + (i - 1) * 0.22, 0.7, wz(6) + 0.4); str.castShadow = false; expansionGroup.add(str);
+      const bl = new THREE.Mesh(new THREE.SphereGeometry(0.17, 10, 10), mat(cols[i]));
+      const baseY = 1.45 + i * 0.28;
+      bl.position.set(bx + (i - 1) * 0.22, baseY, wz(6) + 0.4);
+      expansionGroup.add(bl); empireFx.push({ mesh: bl, baseY, ph: bx + i * 2.1 });
+    }
+  }
+}
+
 // 오른쪽 벽이 이동하면 기존 테라스 가구(gx>12)도 같은 거리만큼 함께 이동
 function shiftTerraceFurniture(dx) {
   placedFurniture.forEach((f, i) => {
@@ -2454,6 +2545,7 @@ function applyShopLevelVisuals() {
   camCtl.panLimitZ = 7 + shopExtraZ();           // 카메라 팬 한계도 깊이에 맞춰 확장
   fitCamera();            // 확장된 매장+테라스가 화면에 들어오게 카메라 보정
   stringBulbs = [];
+  glowMeshes = []; empireFx = [];   // 🏗️ 티어 데코 발광/벌룬 목록도 재구성
   while (expansionGroup.children.length) {   // 기존 확장 오브젝트 정리 후 재구성
     const o = expansionGroup.children[0];
     expansionGroup.remove(o);
@@ -2467,6 +2559,9 @@ function applyShopLevelVisuals() {
     });
   }
   if (state.shopLevel >= 2) buildTerrace();   // 🌿 감성 테라스 (오른쪽 벽에 붙어 함께 이동)
+  if (state.shopLevel >= 3) buildPerimeterFence();   // 🚧 가맹 1호점: 목재 펜스
+  if (state.shopLevel >= 4) buildStreetLamps();      // 💡 강남 직영점: 가로등 자동 배치
+  if (state.shopLevel >= 5) buildEmpireGlow();       // 👑 제국 랜드: 황금 네온 테두리 + 웰컴 벌룬
   if (state.shopLevel >= 3) {
     // ✨ 매장 상단을 가로지르는 알전구 스트링 (반짝반짝)
     const colors = [0xffd166, 0xff9ecb, 0xa8e6ff, 0xfff2b0];
@@ -2496,13 +2591,13 @@ function upgradeShop() {
   tutoAdvance(3);   // 🎓 Step3 완료: 첫 매장 확장
   if (widthGrew > 0 && state.shopLevel >= 3) shiftTerraceFurniture(widthGrew);   // 벽 이동 시 테라스 가구 동반 이사
   const msgs = {
-    2: '🎉 가게 확장 Lv2! 테라스 데크 오픈 — 상점에서 ⛱️ 파라솔 세트를 배치하세요!',
-    3: '✨ 확장 Lv3! 풀와이드 매장 + 알전구 — 이제부터는 뒤쪽으로 깊어져요!',
-    4: '🏗️ 확장 Lv4! 뒷벽을 허물고 매장이 2칸 깊어졌어요 (깊이 9칸)',
-    5: '🏗️ 확장 Lv5! 더 깊숙한 안쪽 홀 오픈 (깊이 11칸)',
-    6: '🏆 최종 확장 Lv6! 가로 20 × 세로 13칸 초대형 플래그십 매장 완성!!',
+    2: '🎉 영토 확장! 「동네 핫플」 — 바닥 1.3배 + 테라스 데크 오픈 (가구 한도 8개)',
+    3: '🚧 영토 확장! 「가맹 1호점」 — 바닥 1.8배 + 목재 펜스·알전구 (가구 한도 14개)',
+    4: '💡 영토 확장! 「강남 직영점」 — 바닥 2.5배 + 가로등 자동 배치 (가구 한도 22개)',
+    5: '👑 최종 확장! 「떡볶이 제국 랜드」 — 3.5배 초대형 영토 + 황금 네온·웰컴 벌룬 (가구 한도 35개)!!',
   };
   toast(msgs[state.shopLevel]);
+  setTimeout(() => toast('🏃 영토가 넓어져 워커·라이더가 +' + Math.round((territoryHaste() - 1) * 100) + '% 초광속 서빙 모드!'), 2200);
   applyShopLevelVisuals();
   showBubble(cook, '🎉');
   updateUI(true);
@@ -2609,6 +2704,7 @@ function leavePath(seat, exitDir) {
   }
   updateSignText(state.shopName);   // 간판에 가게 이름 반영
   updateKitchenVisual();            // 솥 소스/고명도 해금 메뉴에 맞춰 반영
+  exZView = shopExtraZ();           // 🏗️ 로드 복원은 줌아웃 연출 없이 제 깊이로 즉시
   applyShopLevelVisuals();          // 확장 레벨(테라스/알전구) 비주얼 반영
   if (state.catHired) spawnCat();   // 🐱 고용된 고양이 알바 복원
 })();
@@ -2624,6 +2720,10 @@ function startPlacing(key, isMove = false) {
   cancelPlacing();
   const item = SHOP_ITEMS[key];
   if (!isMove && state.gold < item.price) { toast('💸 골드가 부족해요!'); return; }   // 이동은 무료
+  if (!isMove && !item.fixture && placedFurniture.length >= FURN_CAP[state.shopLevel]) {   // 🏗️ 레벨별 가구 한도
+    toast('🪑 가구 한도 도달! (' + FURN_CAP[state.shopLevel] + '개) — 🏗️ 영토를 확장해 자리를 넓혀주세요');
+    return;
+  }
   if (item.terraceOnly && state.shopLevel < 2) {
     toast('⛱️ 테라스 가구는 가게 확장 Lv2부터 배치할 수 있어요!');
     return;
@@ -4189,7 +4289,8 @@ function updateWorkerServing(w, dt, kinds) {
     // 주문이 밀릴수록 종종걸음 (기본 2.4 → 최대 4.6) × 🧪 주방 속도 연구 보너스(+15%/Lv)
     w.job = { tasks: picked, idx: 0, order: null, di: 0, phase: 'go', timer: 0,
       speed: (2.4 + Math.min(2.2, cookTasks.length * 0.4)) * (1 + 0.15 * state.labKitchen)
-        * (state.achClaimed.includes('rider') ? 1.2 : 1),   // 🛵 업적: 폭풍 배달의 민족
+        * (state.achClaimed.includes('rider') ? 1.2 : 1)   // 🛵 업적: 폭풍 배달의 민족
+        * territoryHaste(),   // 🏗️ 영토 단계별 +15% 복리 — 넓어진 동선 자동 보정
       group: w.group,
       waypoints: routeToPickup(w, pickupSpot(picked[0])) };
   }
@@ -4338,10 +4439,10 @@ function updateUI(pulse = false) {
   researchBtn.textContent = '📖 메뉴 개발 (' + (state.menuLevel + 1) + '/' + MENU_LEVELS.length + ')';
   researchBtn.disabled = false;
   if (state.shopLevel < MAX_SHOP_LEVEL) {
-    expandBtn.textContent = '🏗️ 확장 Lv' + (state.shopLevel + 1) + ' (' + SHOP_LEVEL_COST[state.shopLevel] + 'G)';
+    expandBtn.textContent = '🏗️ ' + SHOP_LEVEL_NAMES[state.shopLevel + 1] + ' (' + SHOP_LEVEL_COST[state.shopLevel] + 'G)';
     expandBtn.disabled = false;
   } else {
-    expandBtn.textContent = '🏆 확장 완료';
+    expandBtn.textContent = '👑 제국 완성';
     expandBtn.disabled = true;
   }
   refreshTuto();   // 🎓 자금 변동에 따라 Step3(1000G 돌파) 가이드 갱신
@@ -4864,6 +4965,10 @@ function openShop() {
   if (editMode) exitEditMode();
   renderLab();      // 🧪 연구 탭 내용 최신화
   renderMarket();   // 🥬 식재료 마켓 최신화
+  const d = decoInfo();   // 🎀 실시간 데코 등급 (가구 합산 코스트 + 테마 믹스)
+  document.getElementById('decoLine').textContent =
+    '🎀 매장 데코 등급 ' + '★'.repeat(d.stars) + '☆'.repeat(6 - d.stars) +
+    (d.tip ? ' · 매초 +' + d.tip + 'G 방치 팁' : ' · 가구를 채워 등급을 올려보세요');
   shopPanel.style.display = 'block';
   shopOverlay.style.display = 'block';
 }
@@ -4954,7 +5059,7 @@ const bizOverlay = document.getElementById('bizOverlay');
 let estatePayTimer = 1;   // 방치 수익 적립 주기 (매초 1회, tick의 dt로 감산)
 function closeBiz() { bizPanel.style.display = 'none'; bizOverlay.style.display = 'none'; }
 function renderBiz() {
-  const inc = estateIncome();
+  const inc = estateIncome() + decoInfo().tip;   // 🎀 데코 등급 방치 팁 합산
   document.getElementById('bizIncome').textContent =
     inc > 0 ? '💰 현재 자동 방치 수익: +' + inc + 'G/초' : '본점 수익을 굴려 제2의 매출 파이프라인을 만드세요';
   const list = document.getElementById('bizList');
@@ -5038,6 +5143,11 @@ document.getElementById('endingBtn').addEventListener('click', () => {
   // 🧪 연구소(주방속도·자석·양념)를 상점 '연구' 탭으로 통째로 이주 (플로팅 버튼 대체)
   panes.lab.appendChild(document.getElementById('labList'));
   panes.market.id = 'marketList';   // 🥬 식재료 마켓 렌더 타깃
+  // 🎀 홀 가구 탭 상단: 실시간 매장 데코 등급 라벨 (openShop마다 갱신)
+  const decoLine = document.createElement('div');
+  decoLine.id = 'decoLine';
+  decoLine.style.cssText = 'text-align:center;font-weight:800;font-size:12px;color:#b07a2a;margin:2px 0 4px;';
+  panes.hall.appendChild(decoLine);
   // 🌳/🌆 홀 가구 탭: 테마별 컬렉션 섹션 (클래식 나무 / 사이버 펑크 네온)
   const themeSecs = {};
   for (const [tid, tLabel] of [['classic', '🌳 클래식 나무 테마'], ['cyber', '🌆 사이버 펑크 네온 테마']]) {
@@ -5290,7 +5400,8 @@ function dispatchScooter(dv, o) {
   const carry = box(0.28, 0.26, 0.26, 0xffd166); carry.position.set(-0.26, 0.6, 0); s.add(carry);
   if (dv) s.position.set(dv.group.position.x + 0.5, 0, dv.group.position.z + 0.9);
   scene.add(s);
-  scooters.push({ group: s, speed: 6 * (state.achClaimed.includes('gangnam') ? 1.5 : 1),   // 🏢 「강남의 지배자」: 초광속 라이더
+  scooters.push({ group: s, speed: 6 * (state.achClaimed.includes('gangnam') ? 1.5 : 1)   // 🏢 「강남의 지배자」: 초광속 라이더
+    * territoryHaste(),   // 🏗️ 영토 단계별 +15% 복리 가속
 
     waypoints: [{ x: DOOR_X, z: wz(5) }, { x: DOOR_X, z: SIDEWALK_Z }, { x: DOOR_X, z: wz(9) + 0.5 },
                 { x: -EDGE_X, z: wz(9) + 0.5 }] });   // 🚪 문 → 도로 → 왼쪽 밖으로
@@ -5391,6 +5502,14 @@ function tick() {
   const dt = Math.min(clock.getDelta(), 0.05);
   const time = clock.elapsedTime;
 
+  // 🏗️ 영토 확장 줌아웃: 카메라 깊이를 목표치로 부드럽게 보간 (업그레이드 순간 스르륵 빠짐)
+  const exTgt = shopExtraZ();
+  if (Math.abs(exZView - exTgt) > 0.01) {
+    exZView += (exTgt - exZView) * Math.min(1, dt * 2.2);
+    if (Math.abs(exZView - exTgt) <= 0.01) exZView = exTgt;
+    fitCamera();
+  }
+
   // ☀️ 일일 영업 타이머 & 마감 흐름
   if (state.opened) {
     if (state.dayPhase === 'open') {
@@ -5417,9 +5536,9 @@ function tick() {
     (state.dayPhase === 'open' ? ' · ' + Math.max(0, Math.ceil(state.dayTimer)) + 's'
      : state.dayPhase === 'closing' ? ' · 마감 중…' : ' · 마감!');
 
-  // 🏢 부동산 방치 수익: 보유 투자처가 매초 골드 자동 적립 (dt 타이머, 마감 중에도 흐름)
+  // 🏢🎀 방치 수익: 부동산 투자 + 데코 등급 방치 팁이 매초 골드 자동 적립 (마감 중에도 흐름)
   if (state.opened) {
-    const estInc = estateIncome();
+    const estInc = estateIncome() + decoInfo().tip;
     if (estInc > 0) {
       estatePayTimer -= dt;
       if (estatePayTimer <= 0) {
@@ -5497,6 +5616,9 @@ function tick() {
   for (const b of stringBulbs) {
     b.material.emissiveIntensity = 0.65 + Math.sin(time * 3 + b.userData.ph) * 0.4;
   }
+  // 💡👑 가로등·황금 네온 은은한 맥동 + 🎈 웰컴 벌룬 둥실둥실
+  for (const m of glowMeshes) m.material.emissiveIntensity = 0.7 + Math.sin(time * 1.6) * 0.22;
+  for (const b of empireFx) b.mesh.position.y = b.baseY + Math.sin(time * 1.3 + b.ph) * 0.12;
 
   // 배치 고스트가 목표 각도로 부드럽게 회전
   if (ghost) {
