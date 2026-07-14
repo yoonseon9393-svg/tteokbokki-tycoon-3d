@@ -291,6 +291,30 @@
     box-shadow: 0 4px 0 rgba(0,0,0,.15); touch-action: manipulation;
   }
   #endingBtn:active { transform: translateY(3px); box-shadow: none; }
+  /* ── 🎮 가구 배치 가상 컨트롤러 ─────────── */
+  #padCtl {
+    position: fixed; right: 14px; bottom: calc(118px + env(safe-area-inset-bottom));
+    z-index: 30; display: none;
+    grid-template-areas: '. up rot' 'left down right' 'no . yes';
+    grid-template-columns: 48px 48px 48px; grid-template-rows: 48px 48px 48px; gap: 7px;
+    background: linear-gradient(160deg, rgba(255,248,236,.92), rgba(255,237,219,.92));
+    border: 3px solid #ffd9b8; border-radius: 22px; padding: 12px;
+    box-shadow: 0 10px 28px rgba(90,60,40,.35);
+  }
+  .padBtn {
+    border: none; cursor: pointer; border-radius: 14px;
+    font-size: 19px; font-weight: 800; color: #fff; background: #b3a6dd;
+    box-shadow: 0 3px 0 rgba(0,0,0,.15); touch-action: manipulation;
+  }
+  .padBtn:active { transform: translateY(2px); box-shadow: none; }
+  #padUp { grid-area: up; } #padDown { grid-area: down; }
+  #padLeft { grid-area: left; } #padRight { grid-area: right; }
+  #padRot { grid-area: rot; background: #8fa8c4; }
+  #padYes { grid-area: yes; background: #7ec8a9; font-size: 22px; }
+  #padNo { grid-area: no; background: #e05a5a; font-size: 20px; }
+  @media (max-width: 620px) {
+    #padCtl { grid-template-columns: 44px 44px 44px; grid-template-rows: 44px 44px 44px; right: 8px; }
+  }
   /* ── 📖 에피소드 인트로 (블러 컷신) ─────────── */
   #epOverlay { position: fixed; inset: 0; z-index: 70; display: none;
     background: rgba(30,20,14,.55); backdrop-filter: blur(7px); -webkit-backdrop-filter: blur(7px); }
@@ -532,6 +556,15 @@
 
 <div id="placeHint">🧱 초록 칸을 터치해서 배치! <button id="cancelPlaceBtn">✕ 취소</button></div>
 <button id="rotateBtn">🔄 회전</button>
+<div id="padCtl">
+  <button class="padBtn" id="padUp">▲</button>
+  <button class="padBtn" id="padLeft">◀</button>
+  <button class="padBtn" id="padDown">▼</button>
+  <button class="padBtn" id="padRight">▶</button>
+  <button class="padBtn" id="padRot">🔄</button>
+  <button class="padBtn" id="padYes">✔</button>
+  <button class="padBtn" id="padNo">✕</button>
+</div>
 <button id="discardBtn">🗑️ 철거</button>
 
 <div id="welcomeOverlay"></div>
@@ -2742,21 +2775,26 @@ function startPlacing(key, isMove = false) {
   ghost.visible = false;
   scene.add(ghost);
   showPlacementGrid();                                   // 격자 가이드 표시
-  // 세트가 차지할 칸마다 하나씩, 커서를 따라다니는 가이드 타일 생성
+  // 세트가 차지할 칸마다 하나씩, 커서를 따라다니는 반투명 3D 가이드 박스 생성
   cursorGroup = new THREE.Group();
   for (let i = 0; i < item.cells.length; i++) {
-    const plane = new THREE.Mesh(
-      new THREE.PlaneGeometry(0.98, 0.98),
-      new THREE.MeshBasicMaterial({ color: 0x2fae6e, transparent: true, opacity: 0.5, depthWrite: false })
+    const guide = new THREE.Mesh(
+      new THREE.BoxGeometry(0.96, 0.5, 0.96),
+      new THREE.MeshBasicMaterial({ color: 0x2fae6e, transparent: true, opacity: 0.3, depthWrite: false })
     );
-    plane.rotation.x = -Math.PI / 2;
-    cursorGroup.add(plane);
+    guide.castShadow = false;
+    cursorGroup.add(guide);
   }
   cursorGroup.visible = false;
   scene.add(cursorGroup);
   document.getElementById('placeHint').style.display = 'flex';
   document.getElementById('rotateBtn').style.display = 'block';
+  document.getElementById('padCtl').style.display = 'grid';   // 🎮 가상 컨트롤러 온
   closeShop();
+  // 🎯 포인터를 대기 전에도 패드만으로 조작할 수 있게 매장 중앙 기본 스폿에서 시작
+  updatePlacementPreview(
+    item.terraceOnly ? SHOP_X1[state.shopLevel] + 3 : Math.min(4, SHOP_X1[state.shopLevel]),
+    3);
 }
 function cancelPlacing() {
   if (ghost) {
@@ -2775,6 +2813,7 @@ function cancelPlacing() {
   document.getElementById('placeHint').style.display = 'none';
   document.getElementById('rotateBtn').style.display = 'none';
   document.getElementById('discardBtn').style.display = 'none';   // 🗑️ 들림 해제 시 함께 숨김
+  document.getElementById('padCtl').style.display = 'none';       // 🎮 가상 컨트롤러 오프
   if (moveInfo) {   // 🪑 이동이 완료되지 않고 취소됨 → 원래 자리로 복원
     const m = moveInfo; moveInfo = null;
     if (m.fixture) {
@@ -2793,17 +2832,18 @@ function updatePlacementPreview(gx, gz) {
   state.hoverTile = { gx, gz };
   const item = SHOP_ITEMS[state.placing];
   ghost.visible = true;
-  ghost.position.set(wx(gx), item.terraceOnly ? 0.09 : 0, wz(gz));   // 테라스 고스트는 데크 위
+  // 🪶 고스트를 살짝 공중에 띄워 아래 가이드 박스·바닥 격자가 훤히 보이게
+  ghost.position.set(wx(gx), (item.terraceOnly ? 0.09 : 0) + 0.18, wz(gz));
   let allOk = true;
   item.cells.forEach((cell, i) => {
     const [rx, rz] = rotCell(cell[0], cell[1], state.placeRot);
     const cgx = gx + rx, cgz = gz + rz;
     const ok = cellOkFor(item, cgx, cgz);
     if (!ok) allOk = false;
-    const plane = cursorGroup.children[i];
-    plane.position.set(wx(cgx), item.terraceOnly ? 0.14 : 0.085, wz(cgz));
-    plane.material.color.setHex(ok ? 0x2fae6e : 0xe03434);
-    plane.material.opacity = ok ? 0.5 : 0.65;
+    const guide = cursorGroup.children[i];   // 🧊 타겟 타일 위 반투명 3D 가이드 박스
+    guide.position.set(wx(cgx), (item.terraceOnly ? 0.14 : 0.085) + 0.25, wz(cgz));
+    guide.material.color.setHex(ok ? 0x2fae6e : 0xe03434);
+    guide.material.opacity = ok ? 0.3 : 0.42;
   });
   cursorGroup.visible = true;
   ghost.traverse(o => {
@@ -2826,6 +2866,37 @@ function tileUnderPointer() {
   raycaster.setFromCamera(pointer, camera);
   const hits = raycaster.intersectObjects(allTileMeshes, false);
   return hits.length ? hits[0].object.userData.tile : null;
+}
+// 📱 터치 오프셋: 손가락에 가구가 가리지 않게 교차점 기준 1칸 위(-gz)로 띄움
+// (마우스는 정밀 포인터라 오프셋 없음 · 테라스 열은 세로 1열이라 제외 · 최하단 줄은 패드 ▼로 정밀 보정)
+const PLACE_LIFT = 1;
+function applyTouchLift(tile, e) {
+  if (!e || e.pointerType !== 'touch' || tile.terrace) return tile;
+  return { gx: tile.gx, gz: Math.max(shopZ0(), tile.gz - PLACE_LIFT) };
+}
+// ✔ 배치 최종 확정 (탭·가상 패드 공용): 초록 상태에서만 설치/이사 완료
+function confirmPlacement(gx, gz) {
+  if (!state.placing) return false;
+  if (!updatePlacementPreview(gx, gz)) return false;
+  const key = state.placing;
+  if (moveInfo) {   // 🪑 이동 모드: 무료로 새 자리에 설치 → 조작 완료 시 일반 모드 복귀
+    const m = moveInfo; moveInfo = null;   // 복원 방지 후 취소 루틴으로 마무리
+    if (m.fixture) {   // 🧰 주방 기물: 새 위치 반영 → 픽업 좌표는 fixtureSpot이 자동 추종
+      placeFixture(m.fixture, gx, gz, state.placeRot);
+      fixtures[m.fixture].group.visible = true;
+    } else {
+      placeFurniture(key, gx, gz, state.placeRot, true);
+    }
+    toast('🪑 ' + SHOP_ITEMS[key].name + ' 이사 완료!');
+    cancelPlacing();
+    exitEditMode();
+    return true;
+  }
+  if (state.gold < SHOP_ITEMS[key].price) { toast('💸 골드가 부족해요!'); cancelPlacing(); return false; }
+  placeFurniture(key, gx, gz, state.placeRot);
+  toast('✨ ' + SHOP_ITEMS[key].name + ' 배치 완료!');
+  cancelPlacing();
+  return true;
 }
 
 // 배치 모드 동안 가게 안 바닥에 표시되는 격자 가이드
@@ -2876,12 +2947,9 @@ canvas.addEventListener('pointermove', e => {
   pointer.y = -(e.clientY / window.innerHeight) * 2 + 1;
   if (!state.placing || !ghost) return;
   const tile = tileUnderPointer();
-  if (!tile) {
-    ghost.visible = false;
-    if (cursorGroup) cursorGroup.visible = false;
-    return;
-  }
-  updatePlacementPreview(tile.gx, tile.gz);
+  if (!tile) return;   // 바닥 밖은 마지막 스폿 유지 → 🎮 패드 미세조정과 자연 연결
+  const t = applyTouchLift(tile, e);   // 📱 터치는 1칸 위로 오프셋
+  updatePlacementPreview(t.gx, t.gz);
 });
 
 /* ── 📱 터치 조작: 한 손가락 드래그=화면 이동, 두 손가락=핀치 줌,
@@ -2903,28 +2971,8 @@ function handleTap(e) {
   if (state.placing) {
     const tile = tileUnderPointer();
     if (!tile) return;
-    // 문구 대신 시각적 피드백: 세트가 차지할 칸들에 초록/빨강 가이드 표시
-    const ok = updatePlacementPreview(tile.gx, tile.gz);
-    if (!ok) return;
-    const key = state.placing;
-    if (moveInfo) {   // 🪑 이동 모드: 무료로 새 자리에 설치 → 조작 완료 시 일반 모드 복귀
-      const m = moveInfo; moveInfo = null;   // 복원 방지 후 취소 루틴으로 마무리
-      if (m.fixture) {   // 🧰 주방 기물: 새 위치 반영 → 픽업 좌표는 fixtureSpot이 자동 추종
-        placeFixture(m.fixture, tile.gx, tile.gz, state.placeRot);
-        fixtures[m.fixture].group.visible = true;
-      } else {
-        placeFurniture(key, tile.gx, tile.gz, state.placeRot, true);
-      }
-      toast('🪑 ' + SHOP_ITEMS[key].name + ' 이사 완료!');
-      cancelPlacing();
-      exitEditMode();
-      return;
-    } else {
-      if (state.gold < SHOP_ITEMS[key].price) { toast('💸 골드가 부족해요!'); cancelPlacing(); return; }
-      placeFurniture(key, tile.gx, tile.gz, state.placeRot);
-      toast('✨ ' + SHOP_ITEMS[key].name + ' 배치 완료!');
-    }
-    cancelPlacing();
+    const t = applyTouchLift(tile, e);   // 📱 프리뷰와 동일한 터치 오프셋으로 착지 좌표 일치
+    confirmPlacement(t.gx, t.gz);        // 초록 상태에서만 확정 (빨강이면 가이드만 갱신)
     return;
   }
 
@@ -4984,6 +5032,33 @@ shopOverlay.addEventListener('click', closeShop);
 document.getElementById('shopClose').addEventListener('click', closeShop);
 document.getElementById('cancelPlaceBtn').addEventListener('click', () => cancelPlacing());
 document.getElementById('rotateBtn').addEventListener('click', () => rotatePlacing());
+
+/* ── 🎮 가구 배치 가상 컨트롤러: 드래그 없이 버튼만으로 줄 맞춰 정밀 배치 ── */
+function nudgeTarget(dx, dz) {
+  if (!state.placing || !ghost) return;
+  const item = SHOP_ITEMS[state.placing];
+  const cur = state.hoverTile || { gx: 4, gz: 3 };
+  let gx, gz;
+  if (item.terraceOnly) {   // ⛱️ 테라스는 데크 세로 1열 안에서만 이동
+    gx = SHOP_X1[state.shopLevel] + 3;
+    gz = Math.min(5, Math.max(1, cur.gz + dz));
+  } else {                  // 실내: 확장된 영토 경계(가로 1~x1 · 세로 z0~5)로 클램프
+    gx = Math.min(SHOP_X1[state.shopLevel], Math.max(1, cur.gx + dx));
+    gz = Math.min(5, Math.max(shopZ0(), cur.gz + dz));
+  }
+  updatePlacementPreview(gx, gz);
+}
+document.getElementById('padUp').addEventListener('click', () => nudgeTarget(0, -1));
+document.getElementById('padDown').addEventListener('click', () => nudgeTarget(0, 1));
+document.getElementById('padLeft').addEventListener('click', () => nudgeTarget(-1, 0));
+document.getElementById('padRight').addEventListener('click', () => nudgeTarget(1, 0));
+document.getElementById('padRot').addEventListener('click', () => rotatePlacing());
+document.getElementById('padYes').addEventListener('click', () => {
+  if (!state.placing || !state.hoverTile) return;
+  if (!confirmPlacement(state.hoverTile.gx, state.hoverTile.gz) && state.placing)
+    toast('🚫 빨간 칸과 겹쳐요 — 화살표로 초록 자리를 찾아 ✔ 해주세요');   // (골드 부족 취소 시엔 전용 안내만)
+});
+document.getElementById('padNo').addEventListener('click', () => cancelPlacing());
 
 /* ── 🎉 창업 웰컴 팝업 ─────────────────────── */
 const welcomePanel = document.getElementById('welcomePanel');
