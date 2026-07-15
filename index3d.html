@@ -86,6 +86,7 @@
     width: min(340px, 90vw); max-height: 70vh; overflow-y: auto;
   }
   #shopPanel h3, #menuPanel h3, #labPanel h3, #newsPanel h3, #achvPanel h3 { color: #5a4a42; font-size: 17px; margin-bottom: 12px; text-align: center; }
+  .cookHead { margin: 10px 0 4px; font-weight: 800; color: #b58a5a; font-size: 13px; }   /* 🍳 요리 연구소 섹션 라벨 */
   #shopClose, #menuClose, #labClose, #newsClose, #achvClose, #setClose, #bizClose {
     position: absolute; top: 12px; right: 14px;
     border: none; background: #ffd9b8; color: #7a5c3a;
@@ -569,7 +570,7 @@
 <div id="bottombar">
   <button class="bigbtn" id="shopBtn">🛒 상점</button>
   <button class="bigbtn" id="editBtn">🪑 편집</button>
-  <button class="bigbtn" id="researchBtn">📖 메뉴</button>
+  <button class="bigbtn" id="researchBtn">🍳 요리</button>
   <button class="bigbtn" id="expandBtn">🏗️ 확장</button>
   <button class="bigbtn" id="bizBtn">🏢 사업</button>
   <button class="bigbtn" id="setBtn">⚙️ 설정</button>
@@ -585,10 +586,14 @@
 </div>
 
 <div id="menuOverlay"></div>
+<!-- 🍳 요리 연구소 전용 패널: 신메뉴 개발 + 메뉴 업그레이드만 (상점 요소 완전 분리) -->
 <div id="menuPanel">
   <button id="menuClose">✕</button>
-  <h3>📖 메뉴 개발 연구소</h3>
+  <h3>🍳 요리 연구소</h3>
+  <div class="cookHead">📖 신메뉴 개발 — 새로운 떡볶이를 해금하세요</div>
   <div id="menuList"></div>
+  <div class="cookHead">🥬 메뉴 업그레이드 — 레벨당 정산 +20% · Lv.5 진화 ×2.5</div>
+  <div id="marketList"></div>
 </div>
 
 <div id="placeHint">🧱 초록 칸을 터치해서 배치! <button id="cancelPlaceBtn">✕ 취소</button></div>
@@ -672,7 +677,7 @@
 </div>
 <div id="dayOverlay"></div>
 <div id="dayPanel">
-  <h3>📋 오늘의 장사 마감 보고서</h3>
+  <h3>📋 오늘의 영업</h3>
   <div id="dayBody"></div>
   <button id="nextDayBtn">🌅 다음 날 영업 시작!</button>
 </div>
@@ -4592,7 +4597,7 @@ function updateUI(pulse = false) {
   const stars = Math.round(state.reputation);   // ⭐ 「백화점 점령」 이후 5.5성 → 6번째 별은 🌟
   repChip.textContent = '★'.repeat(Math.min(stars, 5)) + '☆'.repeat(Math.max(0, 5 - stars)) +
     (stars > 5 ? '🌟' : '') + ' ' + state.reputation.toFixed(1);
-  researchBtn.textContent = '📖 메뉴';   // 🎛️ 고정 라벨 — 개발/마켓 현황은 패널 안에서
+  researchBtn.textContent = '🍳 요리';   // 🎛️ 고정 라벨 — 개발/업그레이드 현황은 패널 안에서
   researchBtn.disabled = false;
   expandBtn.textContent = !expandUnlocked() ? '🔒 확장'
     : state.shopLevel < MAX_SHOP_LEVEL ? '🏗️ 확장' : '👑 확장';
@@ -4698,10 +4703,11 @@ function developMenu(i) {
   updateUI(true);
   renderMenuBook();
 }
-function openMenuBook() {
+function openMenuBook() {   // 🍳 요리 연구소: 신메뉴 개발 + 메뉴 업그레이드 전용
   if (editMode) exitEditMode();
   cancelPlacing(); closeShop();
-  renderMenuBook();
+  renderMenuBook();   // 📖 신메뉴 개발 리스트
+  renderMarket();     // 🥬 메뉴 업그레이드(레벨업/진화) 리스트
   menuPanel.style.display = 'block';
   menuOverlay.style.display = 'block';
 }
@@ -4803,24 +4809,13 @@ function evolveMenu(key, item) {
   updateUI(true);
   renderMarket();
 }
-function renderMarket() {
-  const wrap = document.getElementById('marketList');
+// 📣 홍보 마케팅 렌더 (상점 [📣 홍보] 탭 전용 — 요리 요소와 완전 분리)
+function renderPromo() {
+  const wrap = document.getElementById('promoList');
   if (!wrap) return;
   wrap.innerHTML = '';
-  const head = document.createElement('div');
-  head.style.cssText = 'margin:2px 0 4px;font-weight:800;color:#b58a5a;font-size:13px;';
-  head.textContent = '🥬 식재료 마켓 — 레벨당 정산 +20%, Lv.5 진화 시 ×2.5!';
-  wrap.appendChild(head);
-  // 📖 신메뉴 개발 연구소 진입 (하단 [📖 메뉴] 탭이 마켓 직행으로 바뀌면서 이쪽에 상주)
-  const devBtn = document.createElement('button');
-  devBtn.className = 'setBtn alt';
-  devBtn.style.marginTop = '2px';
-  devBtn.textContent = '📖 신메뉴 개발 연구소 (' + (state.menuLevel + 1) + '/' + MENU_LEVELS.length + ')';
-  devBtn.addEventListener('click', () => { closeShop(); openMenuBook(); });
-  wrap.appendChild(devBtn);
-  // 📣 홍보 마케팅: 마켓 하단 상주 (전단지/SNS 체험단은 당일권, 라디오는 영구)
   const mkHead = document.createElement('div');
-  mkHead.style.cssText = 'margin:12px 0 2px;font-weight:800;color:#b58a5a;font-size:13px;';
+  mkHead.style.cssText = 'margin:2px 0 4px;font-weight:800;color:#b58a5a;font-size:13px;';
   mkHead.textContent = '📣 홍보 마케팅 — 골목을 넘어 도시로!';
   wrap.appendChild(mkHead);
   for (const mk of MARKETING) {
@@ -4842,11 +4837,17 @@ function renderMarket() {
       toast(mk.emoji + ' ' + mk.name + ' 개시! ' + mk.desc);
       updateUI(true);
       saveGame();
-      renderMarket();   // 버튼 상태 즉시 갱신
+      renderPromo();   // 버튼 상태 즉시 갱신
     });
     row.appendChild(btn);
     wrap.appendChild(row);
   }
+}
+// 🥬 메뉴 업그레이드 렌더 (🍳 요리 연구소 하단 섹션 — 레벨업/진화 전용, 상점 요소 없음)
+function renderMarket() {
+  const wrap = document.getElementById('marketList');
+  if (!wrap) return;
+  wrap.innerHTML = '';
   const entries = [];
   for (let i = 0; i <= state.menuLevel; i++) entries.push(['m' + i, MENU_LEVELS[i]]);
   for (let i = 0; i <= state.sideLevel; i++) entries.push(['s' + i, SIDE_MENUS[i]]);
@@ -4994,8 +4995,8 @@ newsOverlay.addEventListener('click', closeNews);
 let tutoEditSeen = false;   // 이번 세션에서 편집 모드에 들어와 봤는지 (Step4 노출 조건)
 const TUTO_MSGS = {
   1: "💡 첫 손님을 맞이하기 위해 하단 '상점' 버튼에서 테이블 세트를 구매해 배치해 보세요!",
-  2: '💡 동전은 잠시 후 자동 수집돼요. 🐱 고양이 알바생이 먼저 주우면 +20% 보너스 골드!',
-  3: '💡 이제 가볍게 첫 영업을 즐겨보세요! 손님을 맞이하고 Day 1 마감 정산까지 완료하면 기본기가 끝나요.',
+  2: '💡 손님이 놓고 간 동전은 자동 수집돼요! 🐱 고양이 알바생을 고용하면 +20% 보너스!',
+  3: '💡 이제 첫 날 영업을 시작해보세요! 마감 후 영업 보고서를 확인할 수 있어요.',
   4: '💡 가구를 클릭하면 즉시 들립니다! 주방 기물들의 위치를 조절해 일꾼들의 최적 서빙 동선을 설계해 보세요!',
 };
 function refreshTuto() {
@@ -5167,7 +5168,7 @@ const shopOverlay = document.getElementById('shopOverlay');
 function openShop() {
   if (editMode) exitEditMode();
   renderLab();      // 🧪 연구 탭 내용 최신화
-  renderMarket();   // 🥬 식재료 마켓 최신화
+  renderPromo();    // 📣 홍보 마케팅 탭 최신화
   const d = decoInfo();   // 🎀 실시간 데코 등급 (가구 합산 코스트 + 테마 믹스)
   document.getElementById('decoLine').textContent =
     '🎀 매장 데코 등급 ' + '★'.repeat(d.stars) + '☆'.repeat(6 - d.stars) +
@@ -5378,7 +5379,7 @@ function openPanel(id) {
   if (editMode && id !== 'edit') exitEditMode();
   if (id === 'shop') { openShop(); if (shopSelectTab) shopSelectTab('hall'); }
   else if (id === 'edit') { editMode ? exitEditMode() : enterEditMode(); }
-  else if (id === 'menu') { openShop(); if (shopSelectTab) shopSelectTab('market'); }   // 🥬 식재료 마켓/요리 진화
+  else if (id === 'menu') openMenuBook();   // 🍳 요리 연구소 독립 패널 (상점과 완전 분리)
   else if (id === 'expand') {
     if (!expandUnlocked()) { toast('🔒 가게 확장은 Day 3 이상, 평판 ★3.5 달성 후 해금됩니다!'); return; }
     renderExpand(); expandPanel.style.display = 'block'; expandOverlay.style.display = 'block';
@@ -5410,7 +5411,7 @@ document.getElementById('endingBtn').addEventListener('click', () => {
 (function buildShopUI() {
   const wrap = document.getElementById('shopItems');
   // 🗂️ 카테고리 탭: 홀 가구 / 주방 기물 / 특별 엔터
-  const TABS = [['hall', '🪑 홀 가구'], ['kitchen', '🧰 주방 기물'], ['market', '🥬 식재료'], ['ent', '🎪 알바/코스튬'], ['lab', '🧪 연구']];
+  const TABS = [['hall', '🪑 홀 가구'], ['kitchen', '🧰 주방 기물'], ['promo', '📣 홍보'], ['ent', '🎪 알바/코스튬'], ['lab', '🧪 연구']];   // 🍳 메뉴 육성은 [요리] 탭으로 독립
   const tabBar = document.createElement('div');
   tabBar.id = 'shopTabs';
   const panes = {};
@@ -5427,7 +5428,7 @@ document.getElementById('endingBtn').addEventListener('click', () => {
   for (const [id] of TABS) wrap.appendChild(panes[id]);
   // 🧪 연구소(주방속도·자석·양념)를 상점 '연구' 탭으로 통째로 이주 (플로팅 버튼 대체)
   panes.lab.appendChild(document.getElementById('labList'));
-  panes.market.id = 'marketList';   // 🥬 식재료 마켓 렌더 타깃
+  panes.promo.id = 'promoList';   // 📣 홍보 마케팅 렌더 타깃 (식재료 마켓은 요리 연구소로 이사)
   // 🎀 홀 가구 탭 상단: 실시간 매장 데코 등급 라벨 (openShop마다 갱신)
   const decoLine = document.createElement('div');
   decoLine.id = 'decoLine';
