@@ -561,7 +561,7 @@
 <div id="topbar">
   <div class="chip" id="goldChip">💰 0 G</div>
   <div class="chip" id="repChip">★★★☆☆ 3.0</div>
-  <div class="chip" id="dayChip" title="오늘의 영업시간">☀️ Day 1 · 120s</div>
+  <div class="chip" id="dayChip" title="오늘의 영업시간 (9 AM ~ 9 PM)">☀️ Day 1 · 9 AM</div>
 </div>
 
 <div id="feverFx"></div>
@@ -851,7 +851,14 @@ const REGULARS = [
   { id: 'owner',    emoji: '👑', name: '동네 건물주', line: '👑 허허, 우리 골목 최고 맛집이구먼~ 별점 후하게 주지!' },
 ];
 const GRADES = ['D', 'C', 'B', 'A', 'S', 'SS', 'SSS'];
-const DAY_LENGTH = 120;   // 하루 영업 120초
+const DAY_LENGTH = 120;   // 하루 영업 120초 (실시간) — 화면엔 9 AM ~ 9 PM 영업시간계로 표시
+// 🕘 영업 시간계: 남은 영업시간 비율을 12시간(9AM→9PM)에 분할 맵핑
+function dayClock() {
+  const prog = Math.min(1, Math.max(0, 1 - state.dayTimer / DAY_LENGTH));
+  const h24 = 9 + Math.min(12, Math.floor(prog * 12));   // 9시~21시
+  const h12 = ((h24 + 11) % 12) + 1;
+  return h12 + ' ' + (h24 >= 12 ? 'PM' : 'AM');
+}
 
 /* ── 🥬 식재료 마켓: 메뉴 레벨업(+20%/Lv) & Lv.5 진화(×2.5) ── */
 const EVO_NAMES = {
@@ -4999,14 +5006,28 @@ const TUTO_MSGS = {
   3: '💡 이제 첫 날 영업을 시작해보세요! 마감 후 영업 보고서를 확인할 수 있어요.',
   4: '💡 가구를 클릭하면 즉시 들립니다! 주방 기물들의 위치를 조절해 일꾼들의 최적 서빙 동선을 설계해 보세요!',
 };
+let tuto3Timer = null, tuto3Gone = false;   // ⏳ 3단계 안내는 5.5초 후 스스로 퇴장
 function refreshTuto() {
   const el = document.getElementById('tutoGuide');
   const s = state.tutorialStep;
   let show = state.opened && s >= 1 && s <= 4;
-  // (구 3단계 '1000G 돌파 시 확장 유도' 게이트 제거 — 3단계는 첫 영업 안내로 항상 표시)
+  if (s === 3 && tuto3Gone) show = false;                 // 이미 자동 소멸했으면 재등장 금지
   if (s === 4 && !tutoEditSeen) show = false;             // 가구 편집 첫 진입 시 등장
   el.style.display = show ? 'flex' : 'none';
   if (show) document.getElementById('tutoText').textContent = TUTO_MSGS[s];
+  // ⏳ 3단계 시간제 자동 소멸: 표시 5.5초 뒤 0.8초 페이드아웃 (한 번만 예약)
+  if (show && s === 3 && !tuto3Timer) {
+    tuto3Timer = setTimeout(() => {
+      if (state.tutorialStep !== 3) return;   // 그 사이 단계가 넘어갔으면 패스
+      el.style.transition = 'opacity .8s';
+      el.style.opacity = '0';
+      setTimeout(() => {
+        tuto3Gone = true;
+        el.style.transition = ''; el.style.opacity = '';   // 다른 단계를 위해 원복
+        refreshTuto();
+      }, 820);
+    }, 5500);
+  }
 }
 function tutoAdvance(from) {
   if (state.tutorialStep !== from) return;
@@ -5077,10 +5098,11 @@ function showDayReport() {
   sfx('stamp');   // 🔊 쿵! 등급 도장
 }
 // 💡 아침마다 오늘의 판도를 흔드는 돌발 이벤트 1종 무작위 발동 + 고지
-function rollDayEvent() {
+function rollDayEvent(announce = true) {
   const ev = DAY_EVENTS[Math.floor(Math.random() * DAY_EVENTS.length)];
   state.dayEventId = ev.id;
-  setTimeout(() => toast('💡 오늘의 돌발: ' + ev.emoji + ' ' + ev.title + ' — ' + ev.desc), 1600);
+  // 📖 창업 첫날(에피소드 1 인트로)엔 문구 노출 없이 조용히 적용 — 초반 정보 과부하 방지
+  if (announce) setTimeout(() => toast('💡 오늘의 돌발: ' + ev.emoji + ' ' + ev.title + ' — ' + ev.desc), 1600);
 }
 document.getElementById('nextDayBtn').addEventListener('click', () => {
   state.day++;
@@ -5115,6 +5137,7 @@ document.getElementById('menuClose').addEventListener('click', closeMenuBook);
 
 /* ── 📖 에피소드 인트로 & 아침 스토리 컷신 연출 ─────────────── */
 let epIntroOn = false;   // 인트로 상영 중엔 영업 타이머가 흐르지 않음 (tick에서 참조)
+let pendingWelcomeToast = false;   // 💰 초기 자금 안내: 에피소드 1 인트로를 닫은 뒤 노출
 function showEpisodeIntro(epId) {
   const ep = EPISODES[epId - 1];
   epIntroOn = true;
@@ -5137,6 +5160,10 @@ document.getElementById('epStartBtn').addEventListener('click', () => {
   document.getElementById('epOverlay').style.display = 'none';
   document.getElementById('epPanel').style.display = 'none';
   epIntroOn = false;
+  if (pendingWelcomeToast) {   // 💰 인트로를 다 본 뒤에야 자금 안내가 자연스럽게 등장
+    pendingWelcomeToast = false;
+    setTimeout(() => toast('💰 초기 운영자금 3,000G 지급 — 요식업 왕국의 첫걸음을 내디뎌 보세요!'), 700);
+  }
 });
 // 📖 에피소드 전환 판정: 매일 아침 + 제패 엔딩 직후 (건너뛴 조건도 상위 우선으로 흡수)
 function updateEpisode() {
@@ -5237,10 +5264,10 @@ document.getElementById('openShopBtn').addEventListener('click', () => {
   welcomePanel.style.display = 'none';
   welcomeOverlay.style.display = 'none';
   toast('🎊 「' + name + '」 그랜드 오픈!');
-  setTimeout(() => toast('💰 초기 운영자금 3,000G 지급 — 요식업 왕국의 첫걸음을 내디뎌 보세요!'), 2500);
   if (state.tutorialStep === 0) state.tutorialStep = 1;   // 🎓 실시간 튜토리얼 시작
-  rollDayEvent();   // 💡 창업 첫날에도 돌발 이벤트 발동
+  rollDayEvent(false);   // 💡 첫날 돌발 이벤트는 조용히 적용 (문구 제거)
   refreshTuto();
+  pendingWelcomeToast = true;   // 💰 자금 안내는 인트로의 [▶ 이야기 시작]을 누른 뒤에
   showEpisodeIntro(1);   // 📖 에피소드 1 「눈물의 골목길 노점」 개막 컷신
   saveGame();
 });
@@ -5915,8 +5942,8 @@ function tick() {
     }
   }
   dayChip.textContent = '☀️ Day ' + state.day +
-    (state.dayPhase === 'open' ? ' · ' + Math.max(0, Math.ceil(state.dayTimer)) + 's'
-     : state.dayPhase === 'closing' ? ' · 마감 중…' : ' · 마감!');
+    (state.dayPhase === 'open' ? ' · ' + dayClock()   // 🕘 9 AM → 9 PM 영업시간계
+     : state.dayPhase === 'closing' ? ' · 9 PM 마감 중…' : ' · 마감!');
 
   // 🏢🎀 방치 수익: 부동산 투자 + 데코 등급 방치 팁이 매초 골드 자동 적립 (마감 중에도 흐름)
   if (state.opened) {
