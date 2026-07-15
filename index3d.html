@@ -345,22 +345,9 @@
   @media (max-width: 620px) {
     #padCtl { grid-template-columns: 44px 44px 44px; grid-template-rows: 44px 44px 44px; right: 8px; }
   }
-  /* ── 📖 에피소드 인트로 (블러 컷신) ─────────── */
-  #epOverlay { position: fixed; inset: 0; z-index: 70; display: none;
-    background: rgba(30,20,14,.55); backdrop-filter: blur(7px); -webkit-backdrop-filter: blur(7px); }
-  #epPanel { position: fixed; top: 50%; left: 50%; transform: translate(-50%,-50%); z-index: 71; display: none;
-    width: min(370px, 92vw); text-align: center; color: #fff8ec; }
-  #epKicker { font-size: 12px; font-weight: 800; letter-spacing: 3px; color: #ffd166; animation: epFade .8s both; }
-  #epTitle { font-size: 25px; font-weight: 800; margin: 10px 0 18px;
-    text-shadow: 0 4px 18px rgba(255,160,80,.45); animation: epFade .9s .25s both; }
-  .epLine { font-size: 14px; line-height: 1.65; margin: 9px 0; opacity: 0; animation: epRise .9s both; }
+  /* (📖 에피소드 인트로 CSS 삭제 — epRise는 안내 카드 등장 연출용으로 유지) */
   @keyframes epRise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
-  @keyframes epFade { from { opacity: 0; } to { opacity: 1; } }
-  #epStartBtn { margin-top: 22px; border: none; cursor: pointer; border-radius: 18px; padding: 13px 28px;
-    font-size: 15px; font-weight: 800; color: #7a4a12; background: linear-gradient(135deg, #ffd166, #ff9f68);
-    box-shadow: 0 5px 0 rgba(0,0,0,.25); animation: epFade .8s 2.8s both; touch-action: manipulation; }
-  #epStartBtn:active { transform: translateY(3px); box-shadow: none; }
-  /* ── 💬 아침 스토리 컷신 카드 ─────────── */
+  /* ── 💬 안내 카드 (부동산 중개인 알림 등) ─────────── */
   #storyPanel { position: fixed; left: 50%; transform: translateX(-50%);
     bottom: calc(96px + env(safe-area-inset-bottom)); z-index: 35; display: none;
     width: min(420px, 92vw); background: linear-gradient(160deg, #fff8ec, #ffeddb);
@@ -639,13 +626,7 @@
   <div id="bizIncome"></div>
   <div id="bizList"></div>
 </div>
-<div id="epOverlay"></div>
-<div id="epPanel">
-  <div id="epKicker"></div>
-  <div id="epTitle"></div>
-  <div id="epLines"></div>
-  <button id="epStartBtn">▶ 이야기 시작</button>
-</div>
+<!-- (📖 에피소드 인트로 팝업 삭제 — 아래 카드는 🏗️ 확장 해금 중개인 알림 전용) -->
 <div id="storyPanel">
   <div id="storySpeaker"></div>
   <div id="storyText"></div>
@@ -768,8 +749,6 @@ const state = {
   dayEventId: '',     // 💡 오늘의 돌발 이벤트 id
   regularsMet: [],    // 👥 단골 도감: 조우한 특수 단골 id 목록
   realEstate: {},     // 🏢 부동산 투자 보유 { foodcourt, building, endingSeen } — 매초 방치 수익
-  episode: 1,         // 📖 진행 중 에피소드 (1~3) — Day·평판·부동산 조건으로 전환
-  storyIdx: 0,        // 📖 현재 에피소드에서 소비한 아침 스토리 컷신 수
   settings: { bgm: true, sfx: true, bgmVol: 1, sfxVol: 1 },   // 🎵 오디오 설정 (토글+볼륨 0~1, 세이브 유지)
   marketing: { flyerDay: 0, snsDay: 0, radio: false },   // 📣 홍보 (당일권 2종 + 영구 라디오)
   expandNoticed: false,   // 🔓 영토 확장 권한 (Day 3+ & 평판 3.5성 아침에 영구 해금)
@@ -798,39 +777,8 @@ const MARKETING = [
 function mkFlyerOn() { return state.marketing.flyerDay === state.day; }
 function mkSnsOn() { return state.marketing.snsDay === state.day; }
 
-/* ── 📖 3대 에피소드 스토리 모드 ─────────────────────────────
-   ep1(창업, Day1~10) → ep2(Day11+ & 평판 4.0: 떡볶이 마왕) → ep3(강남 빌딩 매입: 미슐랭 심사위원)
-   전환 판정은 매일 아침(nextDay)과 엔딩 팝업 닫는 순간에 수행 */
-const EPISODES = [
-  { name: '눈물의 골목길 노점', range: 'Day 1~10', lines: [
-      '물려받은 것은 낡은 솥 하나와 비법 소스뿐.',
-      '오늘, 골목 끝에서 가장 작은 포장마차가 문을 엽니다.',
-      '첫 손님의 첫 술이 — 모든 전설의 시작이 됩니다.'] },
-  { name: '프랜차이즈의 서막', range: 'Day 11~20 · 평판 4.0', lines: [
-      '소문은 골목을 넘었다. 그리고… 그들이 왔다.',
-      '전국 300개 체인 「떡볶이 마왕」이 길 건너에 간판을 올립니다.',
-      '방해 공작에는 카운터 마케팅으로. 진짜 맛은 배신하지 않습니다.'] },
-  { name: '강남 빌딩 요식업 제패', range: 'Day 21~30+ · 강남 입성', lines: [
-      '골목의 냄비가 강남의 마천루에 닿았습니다.',
-      '이제 남은 상대는 단 한 사람 — 전설의 미슐랭 심사위원.',
-      '최후의 한 접시로 요식업의 왕좌를 증명하세요.'] },
-];
-const EP_STORY = {   // 💬 아침마다 1장씩 흐르는 컷신 대사 (에피소드별)
-  2: [
-    { sp: '😈 떡볶이 마왕', txt: '이 골목 상권은 내가 접수한다! 꼬마 노점은 어서 물러나시지.' },
-    { sp: '🐱 알바냥', txt: '사장님! 마왕네가 길목마다 「반값 쿠폰」을 뿌리고 있어요…!' },
-    { sp: '📣 카운터 마케팅', txt: '우리는 정공법 — 「비법 소스 시식 이벤트」로 골목 인심을 되찾았어요. 평판이 곧 무기!' },
-    { sp: '😈 떡볶이 마왕', txt: '뭐, 뭐라고?! 우리 지점 단골들이 전부 그 노점으로 넘어갔다고…?' },
-    { sp: '🎥 먹방 유튜버', txt: '속보! 골목 떡볶이가 마왕 체인을 밀어냈습니다. 프랜차이즈의 서막이 오릅니다!' },
-  ],
-  3: [
-    { sp: '🎩 의문의 노신사', txt: '…소문을 듣고 왔소. 강남에서 가장 높은 빌딩의 떡볶이라 하던데.' },
-    { sp: '🐱 알바냥', txt: '사장님, 저 노신사… 수첩에 별을 그리고 있어요. 설마…!' },
-    { sp: '🎩 미슐랭 심사위원', txt: '정체를 밝히지. 나는 미슐랭의 마지막 심사위원 — 최후의 한 접시를 내오시게.' },
-    { sp: '🔥 주방', txt: '비법 소스, 최고급 고명, 그리고 매일 아침의 정성. 모든 것을 한 그릇에 담았습니다.' },
-    { sp: '🎩 미슐랭 심사위원', txt: '…완벽하군. 별 셋. 대한민국 요식업의 왕좌는 이 골목에 있소.' },
-  ],
-};
+/* (📖 3대 에피소드 스토리 시스템 전면 삭제 — 순수 경영 타이쿤 루프로 최적화.
+    체계적 성장은 🔓 확장 해금(Day 3+ & 평판 ★3.5)과 부동산·업적 트리가 담당) */
 
 /* ── 🏢 사업 확장: 프랜차이즈 부동산 투자처 (매초 방치 수익) ── */
 const REAL_ESTATE = [
@@ -981,7 +929,6 @@ function saveGame() {
       menuStats: state.menuStats,
       dayEventId: state.dayEventId, regularsMet: state.regularsMet,
       realEstate: state.realEstate,
-      episode: state.episode, storyIdx: state.storyIdx,
       settings: state.settings,
       marketing: state.marketing,
       expandNoticed: state.expandNoticed,
@@ -2794,8 +2741,6 @@ function leavePath(seat, exitDir) {
     state.realEstate = saved.realEstate || {};   // 🏢 부동산 투자 보유 복원
     for (const id of ['foodcourt', 'building'])  // 🏬🏢 매입한 기념 오브젝트도 월드에 재배치 (연출 없이 즉시)
       if (state.realEstate[id]) spawnEstateVisual(id, false);
-    state.episode = Math.min(Math.max(saved.episode || 1, 1), 3);   // 📖 에피소드 진행 복원
-    state.storyIdx = saved.storyIdx || 0;
     state.settings = Object.assign({ bgm: true, sfx: true, bgmVol: 1, sfxVol: 1 }, saved.settings || {});   // 🎵 오디오 설정 복원
     state.marketing = Object.assign({ flyerDay: 0, snsDay: 0, radio: false }, saved.marketing || {});   // 📣 홍보 복원
     // 🔓 확장 권한 복원 — 구 세이브는 이미 확장했거나 조건 충족 상태면 소급 인정 (팝업 없이 조용히)
@@ -5095,8 +5040,6 @@ document.getElementById('nextDayBtn').addEventListener('click', () => {
   rollDailyNews();   // 새 영업일 = 새 트렌드 확인 기회 (실제 날짜 기준 유지)
   rollDayEvent();    // 💡 새 아침 = 새 돌발 이벤트
   toast('🌅 Day ' + state.day + ' 영업 시작! 오늘도 대박 나세요!');
-  updateEpisode();   // 📖 아침마다 에피소드 전환 판정 (해금 시 블러 인트로)
-  morningStory();    // 💬 진행 중 에피소드의 오늘 컷신 1장
   // 🔓 영토 확장 권한 판정: Day 3+ & 평판 ★3.5 동시 달성한 아침에 1회 해금 (영구)
   if (!state.expandNoticed && state.day >= 3 && state.reputation >= 3.5) {
     state.expandNoticed = true;
@@ -5115,60 +5058,8 @@ document.getElementById('nextDayBtn').addEventListener('click', () => {
 });
 document.getElementById('menuClose').addEventListener('click', closeMenuBook);
 
-/* ── 📖 에피소드 인트로 & 아침 스토리 컷신 연출 ─────────────── */
-let epIntroOn = false;   // 인트로 상영 중엔 영업 타이머가 흐르지 않음 (tick에서 참조)
-let pendingWelcomeToast = false;   // 💰 초기 자금 안내: 에피소드 1 인트로를 닫은 뒤 노출
-function showEpisodeIntro(epId) {
-  const ep = EPISODES[epId - 1];
-  epIntroOn = true;
-  document.getElementById('epKicker').textContent = '— 에피소드 ' + epId + ' · ' + ep.range + ' —';
-  document.getElementById('epTitle').textContent = ep.name;
-  const wrapL = document.getElementById('epLines');
-  wrapL.innerHTML = '';
-  ep.lines.forEach((ln, i) => {   // ✨ 한 줄씩 차오르는 인트로 텍스트
-    const d = document.createElement('div');
-    d.className = 'epLine';
-    d.style.animationDelay = (0.7 + i * 0.75) + 's';
-    d.textContent = ln;
-    wrapL.appendChild(d);
-  });
-  document.getElementById('epOverlay').style.display = 'block';
-  document.getElementById('epPanel').style.display = 'block';
-  sfx('skill');   // 🔊 장엄한 상승 신스
-}
-document.getElementById('epStartBtn').addEventListener('click', () => {
-  document.getElementById('epOverlay').style.display = 'none';
-  document.getElementById('epPanel').style.display = 'none';
-  epIntroOn = false;
-  if (pendingWelcomeToast) {   // 💰 인트로를 다 본 뒤에야 자금 안내가 자연스럽게 등장
-    pendingWelcomeToast = false;
-    setTimeout(() => toast('💰 초기 운영자금 3,000G 지급 — 요식업 왕국의 첫걸음을 내디뎌 보세요!'), 700);
-  }
-});
-// 📖 에피소드 전환 판정: 매일 아침 + 제패 엔딩 직후 (건너뛴 조건도 상위 우선으로 흡수)
-function updateEpisode() {
-  let next = null;
-  if (state.episode < 3 && state.realEstate.building) next = 3;
-  else if (state.episode === 1 && state.day >= 11 && state.reputation >= 4) next = 2;
-  if (!next) return;
-  state.episode = next;
-  state.storyIdx = 0;
-  saveGame();
-  showEpisodeIntro(next);
-}
-// 💬 아침 스토리: 에피소드별 대본을 하루 1장씩 소비
+/* ── 💬 안내 카드 (🏗️ 부동산 중개인 알림 등 — 📖 에피소드 컷신 시스템은 전면 삭제) ── */
 function closeStory() { document.getElementById('storyPanel').style.display = 'none'; }
-function morningStory() {
-  const script = EP_STORY[state.episode];
-  if (!script || state.storyIdx >= script.length) return;
-  const cut = script[state.storyIdx++];
-  setTimeout(() => {   // 인트로/개시 토스트와 겹치지 않게 한 박자 늦게
-    document.getElementById('storySpeaker').textContent = cut.sp;
-    document.getElementById('storyText').textContent = cut.txt;
-    document.getElementById('storyPanel').style.display = 'block';
-  }, 1200);
-  saveGame();
-}
 document.getElementById('storyNext').addEventListener('click', closeStory);
 
 const shopOverlay = document.getElementById('shopOverlay');
@@ -5245,10 +5136,10 @@ document.getElementById('openShopBtn').addEventListener('click', () => {
   welcomeOverlay.style.display = 'none';
   toast('🎊 「' + name + '」 그랜드 오픈!');
   if (state.tutorialStep === 0) state.tutorialStep = 1;   // 🎓 실시간 튜토리얼 시작
-  rollDayEvent(false);   // 💡 첫날 돌발 이벤트는 조용히 적용 (문구 제거)
+  rollDayEvent(false);   // 💡 첫날 돌발 이벤트는 조용히 적용 (문구 없음)
   refreshTuto();
-  pendingWelcomeToast = true;   // 💰 자금 안내는 인트로의 [▶ 이야기 시작]을 누른 뒤에
-  showEpisodeIntro(1);   // 📖 에피소드 1 「눈물의 골목길 노점」 개막 컷신
+  // 📖 에피소드 인트로 삭제 — 자금 안내는 개시 토스트 뒤에 바로 이어서
+  setTimeout(() => toast('💰 초기 운영자금 3,000G 지급 — 요식업 왕국의 첫걸음을 내디뎌 보세요!'), 2500);
   saveGame();
 });
 
@@ -5426,7 +5317,6 @@ function showEnding() {
 document.getElementById('endingBtn').addEventListener('click', () => {
   document.getElementById('endingOverlay').style.display = 'none';
   document.getElementById('endingPanel').style.display = 'none';
-  updateEpisode();   // 📖 강남 빌딩 매입 → 곧바로 에피소드 3 「요식업 제패」 개막
 });
 
 // 상점 목록 생성
@@ -5924,7 +5814,7 @@ function tick() {
   // ☀️ 일일 영업 타이머 & 마감 흐름
   if (state.opened) {
     if (state.dayPhase === 'open') {
-      if (!epIntroOn) state.dayTimer -= dt;   // 📖 에피소드 인트로 상영 중엔 영업시간 정지
+      state.dayTimer -= dt;   // 🕘 9AM→9PM 영업 타이머 (인트로 정지 로직 삭제)
       if (state.dayTimer <= 0) {
         state.dayPhase = 'closing';
         toast('🌇 오늘 영업 종료! 홀에 남은 손님을 마무리하고 정산할게요');
