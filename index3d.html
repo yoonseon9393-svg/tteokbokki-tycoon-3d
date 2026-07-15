@@ -770,7 +770,10 @@ const state = {
   storyIdx: 0,        // 📖 현재 에피소드에서 소비한 아침 스토리 컷신 수
   settings: { bgm: true, sfx: true },   // 🎵 오디오 설정 (⚙️ 설정 탭 토글, 세이브 유지)
   marketing: { flyerDay: 0, snsDay: 0, radio: false },   // 📣 홍보 (당일권 2종 + 영구 라디오)
+  expandNoticed: false,   // 🔓 영토 확장 권한 (Day 3+ & 평판 3.5성 아침에 영구 해금)
 };
+// 🔓 확장 기능 해금 여부 — 권한은 아침 판정에서 1회 부여되면 영구 유지
+function expandUnlocked() { return state.expandNoticed; }
 
 /* ── 📣 홍보 마케팅 3종 (폭풍호객 대체 — 마켓 하단에서 구매) ── */
 const MARKETING = [
@@ -963,6 +966,7 @@ function saveGame() {
       episode: state.episode, storyIdx: state.storyIdx,
       settings: state.settings,
       marketing: state.marketing,
+      expandNoticed: state.expandNoticed,
       research: state.research,
       deliveryCount: state.deliveryCount, sGradeCount: state.sGradeCount,
       achClaimed: state.achClaimed,
@@ -2688,13 +2692,13 @@ function applyShopLevelVisuals() {
 }
 
 function upgradeShop() {
+  if (!expandUnlocked()) { toast('🔒 가게 확장은 Day 3 이상, 평판 ★3.5 달성 후 해금됩니다!'); return; }   // 🛡️ 이중 안전장치
   if (state.shopLevel >= MAX_SHOP_LEVEL) return;
   const cost = SHOP_LEVEL_COST[state.shopLevel];
   if (state.gold < cost) { toast('💸 골드가 부족해요! (' + cost + 'G 필요)'); return; }
   state.gold -= cost;
   const widthGrew = SHOP_X1[state.shopLevel + 1] - SHOP_X1[state.shopLevel];
-  state.shopLevel++;
-  tutoAdvance(3);   // 🎓 Step3 완료: 첫 매장 확장
+  state.shopLevel++;   // (🎓 확장은 더 이상 튜토리얼 목표가 아님 — Step3은 첫 마감에서 완료)
   if (widthGrew > 0 && state.shopLevel >= 3) shiftTerraceFurniture(widthGrew);   // 벽 이동 시 테라스 가구 동반 이사
   const msgs = {
     2: '🎉 영토 확장! 「동네 핫플」 — 바닥 1.3배 + 테라스 데크 오픈 (가구 한도 16개)',
@@ -2786,6 +2790,9 @@ function leavePath(seat, exitDir) {
     state.storyIdx = saved.storyIdx || 0;
     state.settings = Object.assign({ bgm: true, sfx: true }, saved.settings || {});   // 🎵 오디오 설정 복원
     state.marketing = Object.assign({ flyerDay: 0, snsDay: 0, radio: false }, saved.marketing || {});   // 📣 홍보 복원
+    // 🔓 확장 권한 복원 — 구 세이브는 이미 확장했거나 조건 충족 상태면 소급 인정 (팝업 없이 조용히)
+    state.expandNoticed = !!saved.expandNoticed || (saved.shopLevel || 1) > 1 ||
+      ((saved.day || 1) >= 3 && (saved.reputation || 3) >= 3.5);
     for (const k in state.menuStats)   // ✨ 진화 메뉴는 이름/태그 변신도 복원
       if (state.menuStats[k].evolved) applyEvolutionVisual(k);
     // 🧰 주방 기물 위치 복원 — 가구보다 먼저 해야 점유 충돌 검사가 정확함
@@ -4587,8 +4594,9 @@ function updateUI(pulse = false) {
     (stars > 5 ? '🌟' : '') + ' ' + state.reputation.toFixed(1);
   researchBtn.textContent = '📖 메뉴';   // 🎛️ 고정 라벨 — 개발/마켓 현황은 패널 안에서
   researchBtn.disabled = false;
-  expandBtn.textContent = state.shopLevel < MAX_SHOP_LEVEL ? '🏗️ 확장' : '👑 확장';
-  expandBtn.disabled = false;   // 최대 레벨에서도 영토 현황판은 열람 가능
+  expandBtn.textContent = !expandUnlocked() ? '🔒 확장'
+    : state.shopLevel < MAX_SHOP_LEVEL ? '🏗️ 확장' : '👑 확장';
+  expandBtn.disabled = false;   // 잠김 상태에서도 눌러서 해금 조건 안내를 볼 수 있게
   refreshTuto();   // 🎓 자금 변동에 따라 Step3(1000G 돌파) 가이드 갱신
   if (pulse) {
     goldChip.classList.remove('pulse');
@@ -4987,14 +4995,14 @@ let tutoEditSeen = false;   // 이번 세션에서 편집 모드에 들어와 �
 const TUTO_MSGS = {
   1: "💡 첫 손님을 맞이하기 위해 하단 '상점' 버튼에서 테이블 세트를 구매해 배치해 보세요!",
   2: '💡 동전은 잠시 후 자동 수집돼요. 🐱 고양이 알바생이 먼저 주우면 +20% 보너스 골드!',
-  3: "💡 가게를 확장할 준비가 되었습니다! 하단의 '확장' 버튼을 눌러 면적을 넓혀보세요.",
+  3: '💡 이제 가볍게 첫 영업을 즐겨보세요! 손님을 맞이하고 Day 1 마감 정산까지 완료하면 기본기가 끝나요.',
   4: '💡 가구를 클릭하면 즉시 들립니다! 주방 기물들의 위치를 조절해 일꾼들의 최적 서빙 동선을 설계해 보세요!',
 };
 function refreshTuto() {
   const el = document.getElementById('tutoGuide');
   const s = state.tutorialStep;
   let show = state.opened && s >= 1 && s <= 4;
-  if (s === 3 && state.gold < 1000) show = false;         // 자금 1000G 돌파 시 등장
+  // (구 3단계 '1000G 돌파 시 확장 유도' 게이트 제거 — 3단계는 첫 영업 안내로 항상 표시)
   if (s === 4 && !tutoEditSeen) show = false;             // 가구 편집 첫 진입 시 등장
   el.style.display = show ? 'flex' : 'none';
   if (show) document.getElementById('tutoText').textContent = TUTO_MSGS[s];
@@ -5041,6 +5049,7 @@ function closeDay() {
     vip: state.dayVip, failed: state.dayFailed, grade });
   if (state.dayHistory.length > 24) state.dayHistory.shift();
   state.dayPhase = 'report';
+  tutoAdvance(3);          // 🎓 Step3 완료: 첫 영업 마감 정산 경험
   refreshCatShopLocks();   // 🛵 배달 센터 등 해금 상태 실시간 갱신
   showDayReport();
   updateUI(true);
@@ -5085,6 +5094,20 @@ document.getElementById('nextDayBtn').addEventListener('click', () => {
   toast('🌅 Day ' + state.day + ' 영업 시작! 오늘도 대박 나세요!');
   updateEpisode();   // 📖 아침마다 에피소드 전환 판정 (해금 시 블러 인트로)
   morningStory();    // 💬 진행 중 에피소드의 오늘 컷신 1장
+  // 🔓 영토 확장 권한 판정: Day 3+ & 평판 ★3.5 동시 달성한 아침에 1회 해금 (영구)
+  if (!state.expandNoticed && state.day >= 3 && state.reputation >= 3.5) {
+    state.expandNoticed = true;
+    saveGame();
+    spawnConfetti(wx(6.5), wz(3));
+    sfx('skill');
+    setTimeout(() => {   // 전용 안내 가이드 카드 (아침 컷신과 같은 무대)
+      document.getElementById('storySpeaker').textContent = '🏗️ 부동산 중개인';
+      document.getElementById('storyText').textContent =
+        '가게를 넓은 곳으로 이전 및 확장할 수 있는 권한을 얻었습니다! 하단 [확장] 탭을 확인하세요!';
+      document.getElementById('storyPanel').style.display = 'block';
+    }, 1600);
+    toast('🔓 영토 확장 기능이 열렸습니다!');
+  }
   updateUI(true);
 });
 document.getElementById('menuClose').addEventListener('click', closeMenuBook);
@@ -5356,7 +5379,10 @@ function openPanel(id) {
   if (id === 'shop') { openShop(); if (shopSelectTab) shopSelectTab('hall'); }
   else if (id === 'edit') { editMode ? exitEditMode() : enterEditMode(); }
   else if (id === 'menu') { openShop(); if (shopSelectTab) shopSelectTab('market'); }   // 🥬 식재료 마켓/요리 진화
-  else if (id === 'expand') { renderExpand(); expandPanel.style.display = 'block'; expandOverlay.style.display = 'block'; }
+  else if (id === 'expand') {
+    if (!expandUnlocked()) { toast('🔒 가게 확장은 Day 3 이상, 평판 ★3.5 달성 후 해금됩니다!'); return; }
+    renderExpand(); expandPanel.style.display = 'block'; expandOverlay.style.display = 'block';
+  }
   else if (id === 'biz') { renderBiz(); bizPanel.style.display = 'block'; bizOverlay.style.display = 'block'; }
   else if (id === 'set') { setPanel.style.display = 'block'; setOverlay.style.display = 'block'; }
 }
