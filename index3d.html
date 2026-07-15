@@ -538,11 +538,11 @@
     #topbar { top: calc(8px + env(safe-area-inset-top)); gap: 6px; max-width: calc(100vw - 108px); }
     .chip { font-size: 12px; padding: 6px 12px; }
     #help { display: none; }               /* 좁은 화면에선 도움말 숨김 */
-    #bottombar { width: 94vw; gap: 8px; }
+    #bottombar { width: 96vw; gap: 5px; }
     .bigbtn {
-      flex: 1; min-height: 52px;           /* 엄지로 누르기 좋은 크기 */
-      padding: 10px 6px; font-size: 14px; line-height: 1.3;
-      border-radius: 16px; white-space: normal;
+      flex: 1; min-height: 48px;           /* 6버튼 균등 분할 — 한 줄 고정 */
+      padding: 6px 4px; font-size: 12px; line-height: 1.2;
+      border-radius: 14px; white-space: nowrap; overflow: hidden;
     }
     #shopPanel, #menuPanel, #labPanel, #newsPanel, #achvPanel { max-height: 62vh; }
     #toast {
@@ -662,7 +662,7 @@
   <h3>📋 시즌 수첩 — 장기 업적</h3>
   <div id="achvList"></div>
 </div>
-<button id="rushBtn">🔥 폭풍 호객 (클릭!!)</button>
+<!-- 🔥 폭풍호객 버튼 삭제 → 📣 홍보 마케팅(메뉴 탭 마켓 하단)으로 대체 -->
 <button id="catSkillBtn"></button>
 <div id="newsOverlay"></div>
 <div id="newsPanel">
@@ -769,7 +769,20 @@ const state = {
   episode: 1,         // 📖 진행 중 에피소드 (1~3) — Day·평판·부동산 조건으로 전환
   storyIdx: 0,        // 📖 현재 에피소드에서 소비한 아침 스토리 컷신 수
   settings: { bgm: true, sfx: true },   // 🎵 오디오 설정 (⚙️ 설정 탭 토글, 세이브 유지)
+  marketing: { flyerDay: 0, snsDay: 0, radio: false },   // 📣 홍보 (당일권 2종 + 영구 라디오)
 };
+
+/* ── 📣 홍보 마케팅 3종 (폭풍호객 대체 — 마켓 하단에서 구매) ── */
+const MARKETING = [
+  { id: 'flyer', emoji: '📄', name: '전단지 배포', cost: 150,
+    desc: '당일 일반 손님 유입률 1.2배 (오늘 하루)' },
+  { id: 'sns', emoji: '📱', name: 'SNS 체험단 모집', cost: 1200,
+    desc: '당일 배달 주문·특수 단골 등장 확률 1.4배 (오늘 하루)' },
+  { id: 'radio', emoji: '📻', name: '지역 라디오 광고', cost: 5000,
+    desc: '영구! 손님 정산마다 기본 팁 +10G 보너스' },
+];
+function mkFlyerOn() { return state.marketing.flyerDay === state.day; }
+function mkSnsOn() { return state.marketing.snsDay === state.day; }
 
 /* ── 📖 3대 에피소드 스토리 모드 ─────────────────────────────
    ep1(창업, Day1~10) → ep2(Day11+ & 평판 4.0: 떡볶이 마왕) → ep3(강남 빌딩 매입: 미슐랭 심사위원)
@@ -949,6 +962,7 @@ function saveGame() {
       realEstate: state.realEstate,
       episode: state.episode, storyIdx: state.storyIdx,
       settings: state.settings,
+      marketing: state.marketing,
       research: state.research,
       deliveryCount: state.deliveryCount, sGradeCount: state.sGradeCount,
       achClaimed: state.achClaimed,
@@ -988,7 +1002,7 @@ const SHOP_LEVEL_COST = [0, 2000, 8000, 25000, 75000];   // [n→n+1 비용]
 const SHOP_X1 = [0, 16, 18, 20, 20, 20];    // 레벨별 내부 오른쪽 끝 칸
 const SHOP_Z0 = [0, -1, -2, -4, -8, -14];   // 레벨별 내부 '뒤쪽 끝' 행 — 깊이 7→8→10→14→20칸
 const SHOP_LEVEL_NAMES = ['', '골목 노점', '동네 핫플', '가맹 1호점', '강남 직영점', '떡볶이 제국 랜드'];
-const FURN_CAP = [0, 4, 8, 14, 22, 35];     // 레벨별 가구 배치 한도
+const FURN_CAP = [0, 8, 16, 26, 38, 55];    // 레벨별 가구 배치 한도 (광활 영토 기준 대폭 상향)
 function territoryHaste() { return Math.pow(1.15, state.shopLevel - 1); }   // 🏃 영토 단계별 워커/라이더 +15% 복리 가속
 function shopZ0() { return SHOP_Z0[state.shopLevel]; }
 function shopExtraZ() { return 1 - SHOP_Z0[state.shopLevel]; }   // 뒤로 늘어난 행 수 (0~6)
@@ -1843,14 +1857,26 @@ const bubbleTexCache = new Map();
 function getBubbleTexture(text) {
   if (bubbleTexCache.has(text)) return bubbleTexCache.get(text);
   const isShort = [...text].length <= 2;   // 이모지 1~2개짜리
-  const font = isShort ? '54px serif' : 'bold 30px "Malgun Gothic", sans-serif';
+  const font = isShort ? '54px serif' : 'bold 28px "Malgun Gothic", sans-serif';
   const cnv = document.createElement('canvas');
   const c = cnv.getContext('2d');
   c.font = font;
-  const textW = Math.ceil(c.measureText(text).width);
-  // 글자 폭에 맞춰 말풍선 너비 자동 확장 (padding: 세로 여유 + 가로 20px씩)
-  const padX = 20, bodyH = 74, tailH = 24;
-  const w = Math.max(92, textW + padX * 2);
+  // 📐 keep-all 줄바꿈: 어절(공백) 단위로만 감싸기 — 글자 중간 끊김 완전 방지
+  //    한 줄은 최대 320px(≈ CSS 180px 체감)까지, 넘치면 다음 줄로 부드럽게
+  const MAX_LINE_W = 320;
+  const lines = [];
+  let cur = '';
+  for (const wd of text.split(' ')) {
+    const cand = cur ? cur + ' ' + wd : wd;
+    if (cur && c.measureText(cand).width > MAX_LINE_W) { lines.push(cur); cur = wd; }
+    else cur = cand;
+  }
+  if (cur) lines.push(cur);
+  const textW = Math.ceil(Math.max(...lines.map(l => c.measureText(l).width)));
+  // 컴팩트 패딩: 좌우 16px·상하 10px (CSS 8px/5px 체감) — 글자에 딱 붙는 가뿐한 풍선
+  const padX = 16, padY = 10, lineH = isShort ? 58 : 34, tailH = 22;
+  const bodyH = padY * 2 + lineH * lines.length + 6;
+  const w = Math.max(84, textW + padX * 2);
   cnv.width = w; cnv.height = bodyH + tailH;
   c.font = font;   // 캔버스 크기 변경 후 폰트 재설정
   // 말풍선 본체
@@ -1858,19 +1884,19 @@ function getBubbleTexture(text) {
   c.strokeStyle = 'rgba(90,74,66,.25)';
   c.lineWidth = 3;
   c.beginPath();
-  c.roundRect(4, 4, w - 8, bodyH - 4, 22);
+  c.roundRect(3, 3, w - 6, bodyH - 3, 18);
   c.fill(); c.stroke();
   // 꼬리
   c.beginPath();
-  c.moveTo(w / 2 - 12, bodyH - 2);
+  c.moveTo(w / 2 - 11, bodyH - 2);
   c.lineTo(w / 2, bodyH + tailH - 4);
-  c.lineTo(w / 2 + 12, bodyH - 2);
+  c.lineTo(w / 2 + 11, bodyH - 2);
   c.closePath();
   c.fill();
-  // 이모지/글자
+  // 이모지/글자 (여러 줄 중앙 정렬)
   c.fillStyle = '#f0a020';
   c.textAlign = 'center'; c.textBaseline = 'middle';
-  c.fillText(text, w / 2, bodyH / 2 + 2);
+  lines.forEach((ln, i) => c.fillText(ln, w / 2, padY + lineH * (i + 0.5) + 3));
   const tex = new THREE.CanvasTexture(cnv);
   tex.colorSpace = THREE.SRGBColorSpace;
   const entry = { tex, aspect: cnv.width / cnv.height };   // 가로세로 비율 저장
@@ -2671,10 +2697,10 @@ function upgradeShop() {
   tutoAdvance(3);   // 🎓 Step3 완료: 첫 매장 확장
   if (widthGrew > 0 && state.shopLevel >= 3) shiftTerraceFurniture(widthGrew);   // 벽 이동 시 테라스 가구 동반 이사
   const msgs = {
-    2: '🎉 영토 확장! 「동네 핫플」 — 바닥 1.3배 + 테라스 데크 오픈 (가구 한도 8개)',
-    3: '🚧 영토 확장! 「가맹 1호점」 — 바닥 1.8배 + 목재 펜스·알전구 (가구 한도 14개)',
-    4: '💡 영토 확장! 「강남 직영점」 — 바닥 2.5배 + 가로등 자동 배치 (가구 한도 22개)',
-    5: '👑 최종 확장! 「떡볶이 제국 랜드」 — 3.5배 초대형 영토 + 황금 네온·웰컴 벌룬 (가구 한도 35개)!!',
+    2: '🎉 영토 확장! 「동네 핫플」 — 바닥 1.3배 + 테라스 데크 오픈 (가구 한도 16개)',
+    3: '🚧 영토 확장! 「가맹 1호점」 — 바닥 1.8배 + 목재 펜스·알전구 (가구 한도 26개)',
+    4: '💡 영토 확장! 「강남 직영점」 — 바닥 2.5배 + 가로등 자동 배치 (가구 한도 38개)',
+    5: '👑 최종 확장! 「떡볶이 제국 랜드」 — 3.5배 초대형 영토 + 황금 네온·웰컴 벌룬 (가구 한도 55개)!!',
   };
   toast(msgs[state.shopLevel]);
   setTimeout(() => toast('🏃 영토가 넓어져 워커·라이더가 +' + Math.round((territoryHaste() - 1) * 100) + '% 초광속 서빙 모드!'), 2200);
@@ -2759,6 +2785,7 @@ function leavePath(seat, exitDir) {
     state.episode = Math.min(Math.max(saved.episode || 1, 1), 3);   // 📖 에피소드 진행 복원
     state.storyIdx = saved.storyIdx || 0;
     state.settings = Object.assign({ bgm: true, sfx: true }, saved.settings || {});   // 🎵 오디오 설정 복원
+    state.marketing = Object.assign({ flyerDay: 0, snsDay: 0, radio: false }, saved.marketing || {});   // 📣 홍보 복원
     for (const k in state.menuStats)   // ✨ 진화 메뉴는 이름/태그 변신도 복원
       if (state.menuStats[k].evolved) applyEvolutionVisual(k);
     // 🧰 주방 기물 위치 복원 — 가구보다 먼저 해야 점유 충돌 검사가 정확함
@@ -2923,11 +2950,12 @@ function applyTouchLift(tile, e) {
   return { gx: tile.gx, gz: Math.max(shopZ0(), tile.gz - PLACE_LIFT) };
 }
 // ✔ 배치 최종 확정 (탭·가상 패드 공용): 초록 상태에서만 설치/이사 완료
-function confirmPlacement(gx, gz) {
+// exitLoop=false(탭)면 같은 가구 연속 배치 루프 유지, true(✔ 버튼)면 확정 후 종료
+function confirmPlacement(gx, gz, exitLoop = false) {
   if (!state.placing) return false;
   if (!updatePlacementPreview(gx, gz)) return false;
   const key = state.placing;
-  if (moveInfo) {   // 🪑 이동 모드: 무료로 새 자리에 설치 → 조작 완료 시 일반 모드 복귀
+  if (moveInfo) {   // 🪑 이동 모드: 무료로 새 자리에 설치 — 🔁 편집 모드는 유지 (연속 재배치)
     const m = moveInfo; moveInfo = null;   // 복원 방지 후 취소 루틴으로 마무리
     if (m.fixture) {   // 🧰 주방 기물: 새 위치 반영 → 픽업 좌표는 fixtureSpot이 자동 추종
       placeFixture(m.fixture, gx, gz, state.placeRot);
@@ -2935,15 +2963,23 @@ function confirmPlacement(gx, gz) {
     } else {
       placeFurniture(key, gx, gz, state.placeRot, true);
     }
-    toast('🪑 ' + SHOP_ITEMS[key].name + ' 이사 완료!');
-    cancelPlacing();
-    exitEditMode();
+    toast('🪑 ' + SHOP_ITEMS[key].name + ' 이사 완료! 계속 다른 가구를 골라 재배치할 수 있어요');
+    cancelPlacing();   // 편집 모드는 [✅ 편집 완료]를 누를 때까지 계속
     return true;
   }
   if (state.gold < SHOP_ITEMS[key].price) { toast('💸 골드가 부족해요!'); cancelPlacing(); return false; }
   placeFurniture(key, gx, gz, state.placeRot);
   toast('✨ ' + SHOP_ITEMS[key].name + ' 배치 완료!');
+  // 🔁 연속 배치 루프: 골드·가구 한도가 허용하면 같은 가구를 곧바로 이어서 배치
+  const rot = state.placeRot;
+  const again = !exitLoop && !SHOP_ITEMS[key].fixture &&
+    state.gold >= SHOP_ITEMS[key].price && placedFurniture.length < FURN_CAP[state.shopLevel];
   cancelPlacing();
+  if (again) {
+    startPlacing(key);
+    state.placeRot = rot;                 // 방금 쓰던 회전 유지
+    updatePlacementPreview(gx, gz);       // 직전 자리 옆에서 이어가기 (빨강 = 방금 놓인 칸 안내)
+  }
   return true;
 }
 
@@ -3091,7 +3127,7 @@ canvas.addEventListener('pointermove', e => {
     tapInfo.moved = true;
   }
   if (touches.size === 1) {
-    if (!state.placing) panByPixels(dx, dy);   // 배치 모드 중엔 화면 고정
+    panByPixels(dx, dy);   // 🎥 배치/편집 모드 중에도 화면 이동 완전 자유 (고스트는 패드/탭으로)
   } else if (touches.size === 2) {
     const [p1, p2] = [...touches.values()];
     // 손가락 사이 거리 변화 = 줌
@@ -3585,12 +3621,15 @@ function updateCat(dt, time) {
     const idx = coins.indexOf(target);
     if (idx >= 0) {
       coins.splice(idx, 1);
-      state.gold += target.value;
+      // 🐾 고양이 수거 프리미엄: 자동 흡수(1.7초)보다 먼저 주우면 +20% 보너스 골드!
+      //    (반경을 키우는 🧲 자석 연구·🐝 꿀벌 코스튬 = 보너스 횟수가 늘어나는 실질 투자)
+      const bonus = Math.ceil(target.value * 0.2);
+      state.gold += target.value + bonus;
       updateUI(true);
       scene.remove(target.mesh);
       target.mesh.geometry.dispose();
       target.mesh.material.dispose();
-      if (!g.userData.bubbleOn) showBubble(g, '😺 +' + target.value + 'G', 0.9, 1.2);
+      if (!g.userData.bubbleOn) showBubble(g, '😺 +' + target.value + 'G (🐾+' + bonus + ')', 0.9, 1.3);
     }
   }
 }
@@ -3601,7 +3640,7 @@ function hireCat() {
   state.catHired = true;
   spawnCat();
   refreshCatShopLocks();   // 🔓 코스튬·버스킹 무대 구매 잠금 실시간 해제
-  toast('🐱 야옹! 고양이 알바생 출근 — 코스튬·버스킹 무대도 해금됐어요!');
+  toast('🐱 야옹! 고양이 알바생 출근 — 주워온 동전마다 🐾+20% 보너스! (코스튬·무대 해금)');
   updateUI(true);
 }
 // 🔒 고양이 선행 조건 잠금: 상점 렌더러들이 등록해두면 고용 순간 일괄 갱신
@@ -3657,7 +3696,7 @@ function updateConfetti(dt) {
 let feverT = 0;
 // 🔥 폭풍 호객 버튼: 피버(⭐/📱) 중에만 노출 — 연타할 때마다 +2G & 일꾼 3초 가속
 function updateRushBtn() {
-  document.getElementById('rushBtn').style.display = (feverT > 0 || vipFeverT > 0) ? 'block' : 'none';
+  // 🔥 폭풍호객 버튼 삭제됨 — 피버 연출은 feverFx 오버레이가 전담 (함수는 호출부 호환용 no-op)
 }
 /* ── 🐱 고양이 액티브 필살기: 코스튬별 3종 (게이지 35초 만충 → 터치 발동) ── */
 const catSkillBtn = document.getElementById('catSkillBtn');
@@ -3711,12 +3750,7 @@ function updateCatSkillBtn() {
 }
 catSkillBtn.addEventListener('click', activateCatSkill);
 
-document.getElementById('rushBtn').addEventListener('click', () => {
-  if (feverT <= 0 && vipFeverT <= 0) return;
-  rushBuffT = 3;               // 🏃 주방장+보조 이동 1.4배 (3초, 연타로 갱신)
-  state.gold += 2;             // 💰 클릭당 즉시 보너스
-  updateUI(true);
-});
+// (🔥 폭풍호객 연타 리스너 삭제 — rushBuffT는 다른 가속원 호환을 위해 변수만 유지)
 
 function startFever() {
   feverT = 20;
@@ -3764,6 +3798,7 @@ function spawnInterval() {
   const boost = Math.min(0.5, Math.max(0.25, 0.25 + (seats - 2) * 0.02));
   let interval = (5 + Math.random() * 3) / (1 + boost);   // 기본 5~8초를 보너스만큼 단축
   interval /= 1 + Math.max(0, state.reputation - 3) * 0.15;   // ⭐ 평판 가속 (5성이면 +30%)
+  if (mkFlyerOn()) interval /= 1.2;   // 📄 전단지 배포: 당일 유입 1.2배
   if (vipFeverT > 0) interval /= 3;   // 📱 VIP 대박 피버: 손님 유입 3배
   if (state.newsId === 'vacation') interval /= 2;   // 📰 학생 방학: 스폰 2배 가속
   if (dayEvent('exam')) interval /= 2.5;            // 💡 시험 기간: 학생 유입 2.5배
@@ -3924,7 +3959,7 @@ function spawnCustomer() {
   if (vip && !c.topping) c.topping = TOPPINGS[Math.floor(Math.random() * TOPPINGS.length)];   // VIP는 까다롭게 토핑 필수
   if (vip || influencer) c.trait = null;   // 특수 손님은 고유 특성과 중복 금지
   // 👥 특수 단골손님 3종 (9%, 🌌 워프 시 확정): 👑 건물주는 우천/야간에 가중 등장
-  if (warped === 'regular' || (!vip && !influencer && Math.random() < 0.09)) {
+  if (warped === 'regular' || (!vip && !influencer && Math.random() < 0.09 * (mkSnsOn() ? 1.4 : 1))) {   // 📱 체험단: 단골 1.4배
     const wp = weatherPhase();
     const pool = (wp === 'rain' || wp === 'night')
       ? ['youtuber', 'worker', 'owner', 'owner'] : ['youtuber', 'worker', 'owner'];
@@ -4043,21 +4078,21 @@ function updateCustomers(dt) {
         // 🌧️ 우천 시 테라스(실외)석은 비 맞으며 1.5배 빨리 자리를 뜸
         if (c.mainServed) c.timer -= dt * (feverT > 0 ? 2 : 1) * (c.nearStage ? 0.5 : 1)
           * (raining && c.seat.terrace ? 1.5 : 1);
-        if (c.nearStage && !c.group.userData.bubbleOn && Math.random() < dt * 0.12)
-          showBubble(c.group, '🎵', 1.55, 1.2);   // 공연 감상 음표
+        if (c.nearStage && !c.group.userData.bubbleOn && Math.random() < dt * 0.05)
+          showBubble(c.group, '🎵', 1.55, 1.2);   // 공연 감상 음표 (소음 최소화)
         // 💬 상태 연동형 리뷰 말풍선: 날씨/시간대/연구 버프에 맞춰 은은하게 (식사당 1~2회)
-        if (c.mainServed && !c.group.userData.bubbleOn && Math.random() < dt * 0.14) {
+        if (c.mainServed && !c.group.userData.bubbleOn && Math.random() < dt * 0.05) {   // 리뷰도 은은하게
           const lines = [];
           if (raining && !c.seat.terrace) lines.push('☂️ 크으~ 빗소리 들으며 먹는 매운 떡볶이가 진리!');
           if (weatherPhase() === 'night') lines.push('🌙 분위기 대박! 단골 될 것 같아');
           if (state.research.gochujang) lines.push('🌶️ 이 집 소스 마법 가루 썼나? 중독성 쩔어!');
           if (lines.length) showBubble(c.group, pick(lines), 1.55, 2.2);
         }
-        // 🕊️ 대기 무드 밸런싱: 보챔은 아주 드물게(기존의 16%), 힐링 일상 대사가 주인공
+        // 🕊️ 대기 무드: 대사는 초당 약 6.5%만 간헐적으로 — 그중 보챔은 8% 미만, 나머진 힐링 일상
         if (!c.mainServed && (c.hungerT = (c.hungerT || 0) + dt) > 6 && !c.group.userData.bubbleOn) {
-          if (Math.random() < dt * 0.08)
+          if (Math.random() < dt * 0.005)
             showBubble(c.group, '💢 꼬르륵.. 배고파요 사장님 빨리요!', 1.55, 1.8);
-          else if (Math.random() < dt * 0.34)
+          else if (Math.random() < dt * 0.06)
             showBubble(c.group, pick(peaceLines()), 1.55, 2.2);
         }
         c.group.position.y = c.seat.terrace ? 0.29 : 0.2;   // 의자 높이 유지 (테라스는 데크 위)
@@ -4105,6 +4140,7 @@ function updateCustomers(dt) {
           if (raining && !c.seat.terrace) income = Math.round(income * (state.research.capsaicin ? 1.6 : 1.3));
           // 🌶️ 고추장 마스터리: 전 메뉴 정산 골드 영구 +15%
           if (state.research.gochujang) income = Math.round(income * 1.15);
+          if (state.marketing.radio) income += 10;   // 📻 라디오 광고: 손님마다 기본 팁 +10G 영구
           if (c.trait === 'glutton') income *= 2;   // 🐷 대식가: 2그릇 값을 통 크게 지불
           if (c.regular === 'youtuber') income *= 2;   // 🎥 유튜버: 기본 골드 2배 쾌척
           if (c.regular === 'owner' && !dayEvent('costup')) {   // 👑 건물주: 대형 팁 (폭등일엔 누락)
@@ -4774,6 +4810,35 @@ function renderMarket() {
   devBtn.textContent = '📖 신메뉴 개발 연구소 (' + (state.menuLevel + 1) + '/' + MENU_LEVELS.length + ')';
   devBtn.addEventListener('click', () => { closeShop(); openMenuBook(); });
   wrap.appendChild(devBtn);
+  // 📣 홍보 마케팅: 마켓 하단 상주 (전단지/SNS 체험단은 당일권, 라디오는 영구)
+  const mkHead = document.createElement('div');
+  mkHead.style.cssText = 'margin:12px 0 2px;font-weight:800;color:#b58a5a;font-size:13px;';
+  mkHead.textContent = '📣 홍보 마케팅 — 골목을 넘어 도시로!';
+  wrap.appendChild(mkHead);
+  for (const mk of MARKETING) {
+    const row = document.createElement('div');
+    row.className = 'shopItem';
+    row.innerHTML = '<div class="info">' + mk.emoji + ' ' + mk.name + '<small>' + mk.desc + '</small></div>';
+    const btn = document.createElement('button');
+    const owned = mk.id === 'radio' ? state.marketing.radio
+      : mk.id === 'flyer' ? mkFlyerOn() : mkSnsOn();
+    btn.className = 'achReward ' + (owned ? 'done' : 'ready');
+    btn.textContent = owned ? (mk.id === 'radio' ? '✅ 방송 중' : '✅ 오늘 적용') : mk.cost.toLocaleString() + 'G';
+    if (!owned) btn.addEventListener('click', () => {
+      if (state.gold < mk.cost) { toast('💸 골드가 부족해요! (' + mk.cost.toLocaleString() + 'G 필요)'); return; }
+      state.gold -= mk.cost;
+      if (mk.id === 'flyer') state.marketing.flyerDay = state.day;
+      else if (mk.id === 'sns') state.marketing.snsDay = state.day;
+      else state.marketing.radio = true;
+      sfx('stamp');
+      toast(mk.emoji + ' ' + mk.name + ' 개시! ' + mk.desc);
+      updateUI(true);
+      saveGame();
+      renderMarket();   // 버튼 상태 즉시 갱신
+    });
+    row.appendChild(btn);
+    wrap.appendChild(row);
+  }
   const entries = [];
   for (let i = 0; i <= state.menuLevel; i++) entries.push(['m' + i, MENU_LEVELS[i]]);
   for (let i = 0; i <= state.sideLevel; i++) entries.push(['s' + i, SIDE_MENUS[i]]);
@@ -4921,7 +4986,7 @@ newsOverlay.addEventListener('click', closeNews);
 let tutoEditSeen = false;   // 이번 세션에서 편집 모드에 들어와 봤는지 (Step4 노출 조건)
 const TUTO_MSGS = {
   1: "💡 첫 손님을 맞이하기 위해 하단 '상점' 버튼에서 테이블 세트를 구매해 배치해 보세요!",
-  2: '💡 일꾼들이 서빙을 시작합니다! 바닥의 동전을 터치하거나 고양이 알바생을 고용하면 자동으로 수집됩니다!',
+  2: '💡 동전은 잠시 후 자동 수집돼요. 🐱 고양이 알바생이 먼저 주우면 +20% 보너스 골드!',
   3: "💡 가게를 확장할 준비가 되었습니다! 하단의 '확장' 버튼을 눌러 면적을 넓혀보세요.",
   4: '💡 가구를 클릭하면 즉시 들립니다! 주방 기물들의 위치를 조절해 일꾼들의 최적 서빙 동선을 설계해 보세요!',
 };
@@ -5121,7 +5186,7 @@ document.getElementById('padRight').addEventListener('click', () => nudgeTarget(
 document.getElementById('padRot').addEventListener('click', () => rotatePlacing());
 document.getElementById('padYes').addEventListener('click', () => {
   if (!state.placing || !state.hoverTile) return;
-  if (!confirmPlacement(state.hoverTile.gx, state.hoverTile.gz) && state.placing)
+  if (!confirmPlacement(state.hoverTile.gx, state.hoverTile.gz, true) && state.placing)   // ✔ = 확정 후 배치 종료
     toast('🚫 빨간 칸과 겹쳐요 — 화살표로 초록 자리를 찾아 ✔ 해주세요');   // (골드 부족 취소 시엔 전용 안내만)
 });
 document.getElementById('padNo').addEventListener('click', () => cancelPlacing());
@@ -5431,7 +5496,7 @@ document.getElementById('endingBtn').addEventListener('click', () => {
   const catRow = document.createElement('div');
   catRow.className = 'shopItem';
   catRow.innerHTML = '<div class="info">🐱 고양이 알바생' +
-    '<small>바닥 동전 자동 수집! 코스튬·버스킹 무대 해금 (1회 고용)</small></div>';
+    '<small>동전을 먼저 주우면 +20% 보너스 골드! 코스튬·필살기·버스킹 무대 해금 (1회 고용)</small></div>';
   const catHireBtn = document.createElement('button');
   const refreshCatHire = () => {
     if (state.catHired) { catHireBtn.textContent = '✅ 근무 중'; catHireBtn.disabled = true; }
@@ -5811,7 +5876,7 @@ function tick() {
       // 🛵 배달 주문 스폰 (배달 센터 설치 + 이전 주문 완료 시, 18초 주기)
       deliveryTimer -= dt;
       if (deliveryTimer <= 0) {
-        deliveryTimer = dayEvent('snshot') ? 12 : 18;   // 💡 SNS 노출: 배달 주기 단축
+        deliveryTimer = (dayEvent('snshot') ? 12 : 18) / (mkSnsOn() ? 1.4 : 1);   // 💡 SNS 노출·📱 체험단: 배달 주기 단축
         const dv = tables.find(t => t.key === 'delivery');
         if (dv && !deliveryOrder) spawnDeliveryOrder(dv);
       }
