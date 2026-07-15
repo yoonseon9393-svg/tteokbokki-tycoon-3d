@@ -87,6 +87,9 @@
   }
   #shopPanel h3, #menuPanel h3, #labPanel h3, #newsPanel h3, #achvPanel h3 { color: #5a4a42; font-size: 17px; margin-bottom: 12px; text-align: center; }
   .cookHead { margin: 10px 0 4px; font-weight: 800; color: #b58a5a; font-size: 13px; }   /* 🍳 요리 연구소 섹션 라벨 */
+  #cookTabs { display: flex; gap: 6px; margin-bottom: 10px; }
+  .cookBtns { display: flex; gap: 5px; align-items: center; }                             /* 개발·업그레이드 가로 나란히 */
+  .cookBtns button { font-size: 11.5px; padding: 7px 9px; white-space: nowrap; }
   #shopClose, #menuClose, #labClose, #newsClose, #achvClose, #setClose, #bizClose {
     position: absolute; top: 12px; right: 14px;
     border: none; background: #ffd9b8; color: #7a5c3a;
@@ -581,7 +584,7 @@
 <div id="shopOverlay"></div>
 <div id="shopPanel">
   <button id="shopClose">✕</button>
-  <h3>🛒 가구 상점</h3>
+  <h3>🛒 상점</h3>
   <div id="shopItems"></div>
 </div>
 
@@ -590,10 +593,12 @@
 <div id="menuPanel">
   <button id="menuClose">✕</button>
   <h3>🍳 요리 연구소</h3>
-  <div class="cookHead">📖 신메뉴 개발 — 새로운 떡볶이를 해금하세요</div>
-  <div id="menuList"></div>
-  <div class="cookHead">🥬 메뉴 업그레이드 — 레벨당 정산 +20% · Lv.5 진화 ×2.5</div>
-  <div id="marketList"></div>
+  <div id="cookTabs">
+    <button class="shopTabBtn active" id="cookTabMain">🍲 메뉴</button>
+    <button class="shopTabBtn" id="cookTabSide">🍤 사이드</button>
+  </div>
+  <div id="cookMainPane"></div>
+  <div id="cookSidePane" style="display:none"></div>
 </div>
 
 <div id="placeHint">🧱 초록 칸을 터치해서 배치! <button id="cancelPlaceBtn">✕ 취소</button></div>
@@ -776,7 +781,16 @@ const state = {
   settings: { bgm: true, sfx: true },   // 🎵 오디오 설정 (⚙️ 설정 탭 토글, 세이브 유지)
   marketing: { flyerDay: 0, snsDay: 0, radio: false },   // 📣 홍보 (당일권 2종 + 영구 라디오)
   expandNoticed: false,   // 🔓 영토 확장 권한 (Day 3+ & 평판 3.5성 아침에 영구 해금)
+  sideMenus: { fried: false, kimbap: false },   // 🍱 단품 사이드 출시 상태 (요리 탭 [사이드])
 };
+
+/* ── 🍱 단품 사이드 출시 라인: 일반 손님이 확률적으로 곁들여 추가 매출 ── */
+const SIDE_LAUNCH = [
+  { id: 'fried',  emoji: '🍤', name: '바삭 모듬튀김', cost: 800,  chance: 0.3, bonus: 120, rep: false,
+    desc: '손님 30%가 추가 주문 — 건당 +120G' },
+  { id: 'kimbap', emoji: '🍙', name: '마약 꼬마김밥', cost: 2500, chance: 0.4, bonus: 180, rep: true,
+    desc: '손님 40%가 추가 주문 — 건당 +180G · 평판 획득 확률 상승' },
+];
 // 🔓 확장 기능 해금 여부 — 권한은 아침 판정에서 1회 부여되면 영구 유지
 function expandUnlocked() { return state.expandNoticed; }
 
@@ -979,6 +993,7 @@ function saveGame() {
       settings: state.settings,
       marketing: state.marketing,
       expandNoticed: state.expandNoticed,
+      sideMenus: state.sideMenus,
       research: state.research,
       deliveryCount: state.deliveryCount, sGradeCount: state.sGradeCount,
       achClaimed: state.achClaimed,
@@ -2805,6 +2820,7 @@ function leavePath(seat, exitDir) {
     // 🔓 확장 권한 복원 — 구 세이브는 이미 확장했거나 조건 충족 상태면 소급 인정 (팝업 없이 조용히)
     state.expandNoticed = !!saved.expandNoticed || (saved.shopLevel || 1) > 1 ||
       ((saved.day || 1) >= 3 && (saved.reputation || 3) >= 3.5);
+    state.sideMenus = Object.assign({ fried: false, kimbap: false }, saved.sideMenus || {});   // 🍱 단품 사이드 복원
     for (const k in state.menuStats)   // ✨ 진화 메뉴는 이름/태그 변신도 복원
       if (state.menuStats[k].evolved) applyEvolutionVisual(k);
     // 🧰 주방 기물 위치 복원 — 가구보다 먼저 해야 점유 충돌 검사가 정확함
@@ -4160,6 +4176,14 @@ function updateCustomers(dt) {
           // 🌶️ 고추장 마스터리: 전 메뉴 정산 골드 영구 +15%
           if (state.research.gochujang) income = Math.round(income * 1.15);
           if (state.marketing.radio) income += 10;   // 📻 라디오 광고: 손님마다 기본 팁 +10G 영구
+          // 🍱 단품 사이드 추가 주문: 출시했다면 일반 손님이 확률적으로 곁들여 추가 매출
+          if (!c.vip && !c.influencer) for (const sl of SIDE_LAUNCH) {
+            if (state.sideMenus[sl.id] && Math.random() < sl.chance) {
+              income += sl.bonus;
+              if (sl.rep && Math.random() < 0.5)   // 🍙 꼬마김밥: 평판 획득 확률 상승
+                state.reputation = Math.min(repCap(), state.reputation + 0.02);
+            }
+          }
           if (c.trait === 'glutton') income *= 2;   // 🐷 대식가: 2그릇 값을 통 크게 지불
           if (c.regular === 'youtuber') income *= 2;   // 🎥 유튜버: 기본 골드 2배 쾌척
           if (c.regular === 'owner' && !dayEvent('costup')) {   // 👑 건물주: 대형 팁 (폭등일엔 누락)
@@ -4622,72 +4646,93 @@ function updateUI(pulse = false) {
 const menuPanel = document.getElementById('menuPanel');
 const menuOverlay = document.getElementById('menuOverlay');
 
-function renderMenuBook() {
-  const wrap = document.getElementById('menuList');
-  wrap.innerHTML = '';
-  MENU_LEVELS.forEach((m, i) => {
-    const unlocked = i <= state.menuLevel;
-    const isNext = i === state.menuLevel + 1;
-    const row = document.createElement('div');
-    row.className = 'shopItem' + (!unlocked && !isNext ? ' locked' : '');
-    const info = document.createElement('div');
-    info.className = 'info';
-    info.innerHTML = (unlocked || isNext ? m.tag.split(' ')[0] + ' ' + m.name : '🔒 ???') +
-      '<small>' + (unlocked
-        ? '판매 중 · 손님이 ' + m.income + 'G씩 내요'
-        : (isNext ? '개발 가능! 판매가 ' + m.income + 'G' : '이전 메뉴를 먼저 개발하세요')) + '</small>';
-    row.appendChild(info);
-    if (unlocked) {
-      const done = document.createElement('span');
-      done.textContent = '✅';
-      row.appendChild(done);
-    } else if (isNext) {
-      const btn = document.createElement('button');
-      btn.textContent = m.cost + 'G 개발';
-      btn.addEventListener('click', () => developMenu(i));
-      row.appendChild(btn);
+/* ── 🍳 요리 연구소 2대 탭: [🍲 메뉴] 개발·업그레이드 가로 배치 / [🍤 사이드] 세트+단품 출시 ── */
+function cookRow(wrap, kind, m, i, curLevel, developFn, devLabel) {
+  const key = kind + i;
+  const unlocked = i <= curLevel, isNext = i === curLevel + 1;
+  const s = menuStat(key);
+  const row = document.createElement('div');
+  row.className = 'shopItem' + (!unlocked && !isNext ? ' locked' : '');
+  const info = document.createElement('div');
+  info.className = 'info';
+  info.innerHTML = (unlocked || isNext ? m.tag.split(' ')[0] + ' ' + m.name : '🔒 ???') +
+    (unlocked ? ' <span style="color:#e8a23d">Lv.' + s.lv + '</span>' : '') +
+    '<small>' + (unlocked
+      ? '단가 ' + Math.round(m.income * menuMult(key)) + 'G (배율 ×' + menuMult(key).toFixed(2) + ')'
+      : isNext ? (devLabel === '개발' ? '개발 가능! 판매가 ' + m.income + 'G' : '출시 가능! 세트로 +' + m.income + 'G')
+      : '이전 단계를 먼저 진행하세요') + '</small>';
+  row.appendChild(info);
+  const btns = document.createElement('div');
+  btns.className = 'cookBtns';   // 🔬 개발 / ⬆️ 업그레이드 버튼이 가로로 나란히 서는 자리
+  if (isNext) {
+    const dev = document.createElement('button');
+    dev.textContent = m.cost + 'G ' + devLabel;
+    dev.addEventListener('click', () => developFn(i));
+    btns.appendChild(dev);
+  } else if (unlocked) {
+    const up = document.createElement('button');
+    if (s.evolved) { up.textContent = '✨ MAX'; up.disabled = true; }
+    else if (s.lv >= 5) {
+      up.textContent = '✨ 진화 ' + Math.round(m.income * 40 * marketDiscount()) + 'G';
+      up.addEventListener('click', () => evolveMenu(key, m));
     } else {
-      const lock = document.createElement('span');
-      lock.textContent = '🔒';
-      row.appendChild(lock);
+      up.textContent = Math.round(m.income * 5 * s.lv * marketDiscount()) + 'G 업그레이드';
+      up.addEventListener('click', () => upgradeMenuLevel(key, m));
     }
-    wrap.appendChild(row);
-  });
-
-  // 🥤 사이드 메뉴 섹션 — 떡볶이와 별도 트리로 순서대로 개발
-  const head = document.createElement('div');
-  head.style.cssText = 'margin:12px 0 2px;font-weight:800;color:#b58a5a;font-size:13px;';
-  head.textContent = '🥤 사이드 메뉴 — 세트 주문으로 수익 UP!';
-  wrap.appendChild(head);
-  SIDE_MENUS.forEach((m, i) => {
-    const unlocked = i <= state.sideLevel;
-    const isNext = i === state.sideLevel + 1;
-    const row = document.createElement('div');
-    row.className = 'shopItem' + (!unlocked && !isNext ? ' locked' : '');
-    const info = document.createElement('div');
-    info.className = 'info';
-    info.innerHTML = (unlocked || isNext ? m.tag.split(' ')[0] + ' ' + m.name : '🔒 ???') +
-      '<small>' + (unlocked
-        ? '판매 중 · 세트로 +' + m.income + 'G & 보너스 20%'
-        : (isNext ? '출시 가능! 세트로 +' + m.income + 'G' : '이전 사이드를 먼저 출시하세요')) + '</small>';
-    row.appendChild(info);
-    if (unlocked) {
-      const done = document.createElement('span');
-      done.textContent = '✅';
-      row.appendChild(done);
-    } else if (isNext) {
-      const btn = document.createElement('button');
-      btn.textContent = m.cost + 'G 출시';
-      btn.addEventListener('click', () => developSideMenu(i));
-      row.appendChild(btn);
-    } else {
-      const lock = document.createElement('span');
-      lock.textContent = '🔒';
-      row.appendChild(lock);
-    }
-    wrap.appendChild(row);
-  });
+    btns.appendChild(up);
+  } else {
+    const lock = document.createElement('span');
+    lock.textContent = '🔒';
+    btns.appendChild(lock);
+  }
+  row.appendChild(btns);
+  wrap.appendChild(row);
 }
+function renderCookMain() {   // 🍲 [메뉴] 탭: 메인 떡볶이 라인 — 해금과 레벨업을 한 화면에서
+  const wrap = document.getElementById('cookMainPane');
+  if (!wrap) return;
+  wrap.innerHTML = '';
+  MENU_LEVELS.forEach((m, i) => cookRow(wrap, 'm', m, i, state.menuLevel, developMenu, '개발'));
+}
+function renderCookSide() {   // 🍤 [사이드] 탭: 세트 사이드 트리 + 단품 출시 라인
+  const wrap = document.getElementById('cookSidePane');
+  if (!wrap) return;
+  wrap.innerHTML = '';
+  const h1 = document.createElement('div');
+  h1.className = 'cookHead';
+  h1.textContent = '🥤 세트 사이드 — 손님이 떡볶이와 세트로 주문';
+  wrap.appendChild(h1);
+  SIDE_MENUS.forEach((m, i) => cookRow(wrap, 's', m, i, state.sideLevel, developSideMenu, '출시'));
+  const h2 = document.createElement('div');
+  h2.className = 'cookHead';
+  h2.textContent = '🍱 단품 사이드 출시 — 곁들임 추가 매출';
+  wrap.appendChild(h2);
+  for (const sl of SIDE_LAUNCH) {
+    const row = document.createElement('div');
+    row.className = 'shopItem';
+    row.innerHTML = '<div class="info">' + sl.emoji + ' ' + sl.name + '<small>' + sl.desc + '</small></div>';
+    const btn = document.createElement('button');
+    if (state.sideMenus[sl.id]) { btn.textContent = '✅ 판매 중'; btn.disabled = true; }
+    else {
+      btn.textContent = sl.cost.toLocaleString() + 'G 출시';
+      btn.addEventListener('click', () => launchSideItem(sl));
+    }
+    row.appendChild(btn);
+    wrap.appendChild(row);
+  }
+}
+function launchSideItem(sl) {   // 🍱 단품 사이드 출시 (state.sideMenus 세이브 페어)
+  if (state.sideMenus[sl.id]) return;
+  if (state.gold < sl.cost) { toast('💸 골드가 부족해요! (' + sl.cost.toLocaleString() + 'G 필요)'); return; }
+  state.gold -= sl.cost;
+  state.sideMenus[sl.id] = true;
+  sfx('stamp');
+  toast(sl.emoji + ' 「' + sl.name + '」 출시! ' + sl.desc);
+  updateUI(true);
+  saveGame();
+  renderMenuBook();
+}
+function renderMenuBook() { renderCookMain(); renderCookSide(); }   // 기존 호출부 호환: 양 탭 동시 갱신
 function developSideMenu(i) {
   const m = SIDE_MENUS[i];
   if (state.gold < m.cost) { toast('💸 골드가 부족해요! (' + m.cost + 'G 필요)'); return; }
@@ -4710,11 +4755,20 @@ function developMenu(i) {
   updateUI(true);
   renderMenuBook();
 }
-function openMenuBook() {   // 🍳 요리 연구소: 신메뉴 개발 + 메뉴 업그레이드 전용
+// 🍲/🍤 요리 연구소 내부 탭 전환
+function cookSelect(tab) {
+  document.getElementById('cookMainPane').style.display = tab === 'main' ? 'block' : 'none';
+  document.getElementById('cookSidePane').style.display = tab === 'side' ? 'block' : 'none';
+  document.getElementById('cookTabMain').classList.toggle('active', tab === 'main');
+  document.getElementById('cookTabSide').classList.toggle('active', tab === 'side');
+}
+document.getElementById('cookTabMain').addEventListener('click', () => cookSelect('main'));
+document.getElementById('cookTabSide').addEventListener('click', () => cookSelect('side'));
+function openMenuBook() {   // 🍳 요리 연구소: [메뉴]/[사이드] 2대 탭
   if (editMode) exitEditMode();
   cancelPlacing(); closeShop();
-  renderMenuBook();   // 📖 신메뉴 개발 리스트
-  renderMarket();     // 🥬 메뉴 업그레이드(레벨업/진화) 리스트
+  renderMenuBook();     // 양 탭 콘텐츠 동시 갱신
+  cookSelect('main');   // 기본은 [🍲 메뉴] 탭
   menuPanel.style.display = 'block';
   menuOverlay.style.display = 'block';
 }
@@ -4850,37 +4904,8 @@ function renderPromo() {
     wrap.appendChild(row);
   }
 }
-// 🥬 메뉴 업그레이드 렌더 (🍳 요리 연구소 하단 섹션 — 레벨업/진화 전용, 상점 요소 없음)
-function renderMarket() {
-  const wrap = document.getElementById('marketList');
-  if (!wrap) return;
-  wrap.innerHTML = '';
-  const entries = [];
-  for (let i = 0; i <= state.menuLevel; i++) entries.push(['m' + i, MENU_LEVELS[i]]);
-  for (let i = 0; i <= state.sideLevel; i++) entries.push(['s' + i, SIDE_MENUS[i]]);
-  for (const [key, item] of entries) {
-    const s = menuStat(key);
-    const row = document.createElement('div');
-    row.className = 'shopItem';
-    row.innerHTML = '<div class="info">' + item.tag.split(' ')[0] + ' ' + item.name +
-      ' <span style="color:#e8a23d">Lv.' + s.lv + '</span>' +
-      '<small>현재 단가 ' + Math.round(item.income * menuMult(key)) + 'G (배율 ×' +
-      menuMult(key).toFixed(2) + ')</small></div>';
-    const btn = document.createElement('button');
-    if (s.evolved) {
-      btn.textContent = '✨ MAX';
-      btn.disabled = true;
-    } else if (s.lv >= 5) {
-      btn.textContent = '✨ 진화 ' + Math.round(item.income * 40 * marketDiscount()) + 'G';
-      btn.addEventListener('click', () => evolveMenu(key, item));
-    } else {
-      btn.textContent = Math.round(item.income * 5 * s.lv * marketDiscount()) + 'G';
-      btn.addEventListener('click', () => upgradeMenuLevel(key, item));
-    }
-    row.appendChild(btn);
-    wrap.appendChild(row);
-  }
-}
+// 🥬 (구 식재료 마켓) — 레벨업/진화는 요리 연구소 통합 행(cookRow)으로 이주, 호출부 호환용 위임
+function renderMarket() { renderMenuBook(); }
 
 function openLab() {
   if (editMode) exitEditMode();
@@ -5438,7 +5463,7 @@ document.getElementById('endingBtn').addEventListener('click', () => {
 (function buildShopUI() {
   const wrap = document.getElementById('shopItems');
   // 🗂️ 카테고리 탭: 홀 가구 / 주방 기물 / 특별 엔터
-  const TABS = [['hall', '🪑 홀 가구'], ['kitchen', '🧰 주방 기물'], ['promo', '📣 홍보'], ['ent', '🎪 알바/코스튬'], ['lab', '🧪 연구']];   // 🍳 메뉴 육성은 [요리] 탭으로 독립
+  const TABS = [['hall', '🪑 홀'], ['kitchen', '🧰 주방'], ['promo', '📣 홍보'], ['ent', '🎪 알바'], ['lab', '🧪 연구']];   // 한 줄 정렬 콤팩트 라벨
   const tabBar = document.createElement('div');
   tabBar.id = 'shopTabs';
   const panes = {};
