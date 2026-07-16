@@ -30,7 +30,6 @@
     white-space: nowrap;
   }
   #goldChip { color: #b8860b; }
-  #repChip { color: #e8a33d; }
 
   /* (🔥 피버타임 화면 이펙트 전면 삭제 — 시야 정돈) */
   #goldChip.pulse { animation: pulse .35s ease; }
@@ -497,6 +496,74 @@
     box-shadow: 0 4px 0 rgba(0,0,0,.13); touch-action: manipulation;
   }
   #quickSaveBtn:active { transform: scale(.92); }
+  /* 🏆 대회 도전 플로팅 버튼 — 퀵 세이브 위 동일 스타일 */
+  #contestBtn {
+    position: fixed; left: 21px; bottom: calc(224px + env(safe-area-inset-bottom));
+    width: 48px; height: 48px; border-radius: 50%;
+    border: 3px solid #ffd166; cursor: pointer; z-index: 15; display: none;
+    background: linear-gradient(160deg, #fff3cf, #ffe08a); font-size: 19px;
+    align-items: center; justify-content: center;
+    box-shadow: 0 4px 0 rgba(0,0,0,.13); touch-action: manipulation;
+  }
+  #contestBtn:active { transform: scale(.92); }
+  #contestBtn.ctDone { filter: grayscale(1); opacity: .6; }
+  /* ── 🏆 대회 스타디움 패널 ─────────── */
+  #ctOverlay { position: fixed; inset: 0; background: rgba(30,20,14,.6); z-index: 80; display: none; }
+  #ctPanel {
+    position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    background: linear-gradient(165deg, #2c2438, #4a3550);
+    border: 3px solid #ffd166; border-radius: 24px; color: #fff8ec;
+    padding: 16px 18px 18px; z-index: 81; display: none;
+    box-shadow: 0 18px 50px rgba(0,0,0,.55); width: min(430px, 94vw);
+  }
+  #ctPanel h3 { text-align: center; font-size: 18px; color: #ffd166; margin-bottom: 8px; }
+  #ctTimer { height: 8px; background: rgba(255,255,255,.15); border-radius: 999px; overflow: hidden; }
+  #ctTimerFill { height: 100%; width: 100%; background: linear-gradient(90deg, #ffd166, #ff9f68); }
+  #ctRace { margin: 10px 0 6px; }
+  .ctRow { display: flex; align-items: center; gap: 7px; margin-top: 5px; font-size: 12px; font-weight: 800; }
+  .ctRow .ctName { width: 86px; white-space: nowrap; }
+  .ctRow .ctBarWrap { flex: 1; height: 12px; background: rgba(255,255,255,.14); border-radius: 999px; overflow: hidden; }
+  .ctRow .ctBar { height: 100%; width: 0%; border-radius: 999px; transition: width .2s; }
+  .ctRow .ctPts { width: 46px; text-align: right; }
+  #ctJudge {
+    min-height: 34px; font-size: 12.5px; font-weight: 800; text-align: center;
+    background: rgba(255,255,255,.1); border-radius: 12px; padding: 8px 10px; margin-bottom: 8px;
+  }
+  .ctHint { font-size: 12px; font-weight: 800; text-align: center; margin: 6px 0 8px; color: #ffe9b8; }
+  .ctBig {
+    display: block; width: 100%; margin-top: 10px; border: none; cursor: pointer;
+    border-radius: 16px; padding: 15px; font-size: 17px; font-weight: 900; color: #7a4a12;
+    background: linear-gradient(135deg, #ffd166, #ff9f68);
+    box-shadow: 0 5px 0 rgba(0,0,0,.3); touch-action: manipulation;
+  }
+  .ctBig:active { transform: translateY(3px); box-shadow: none; }
+  #ctSliceBar, #ctBoilBar { position: relative; height: 26px; background: rgba(255,255,255,.14); border-radius: 999px; overflow: hidden; }
+  #ctZone { position: absolute; left: 42%; width: 16%; height: 100%; background: rgba(126,200,169,.65); }
+  #ctMarker { position: absolute; top: 2px; width: 8px; height: 22px; border-radius: 4px; background: #fff; left: 0%; }
+  #ctBoilZone { position: absolute; left: 70%; width: 10%; height: 100%; background: rgba(255,209,102,.75); }
+  #ctBoilFill { position: absolute; left: 0; top: 0; height: 100%; width: 75%; background: linear-gradient(90deg, #6fb1d9, #e5383b); opacity: .85; }
+  #ctSeq { display: flex; justify-content: center; gap: 8px; margin: 6px 0 10px; font-size: 24px; font-weight: 900; }
+  #ctSeq span { opacity: .45; }
+  #ctSeq span.done { opacity: 1; color: #7ec8a9; }
+  #ctSeq span.cur { opacity: 1; color: #ffd166; text-shadow: 0 0 10px rgba(255,209,102,.8); }
+  #ctPadC { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+  #ctPadC button {
+    border: none; cursor: pointer; border-radius: 14px; padding: 14px 0;
+    font-size: 20px; font-weight: 900; color: #fff; background: #b3a6dd;
+    box-shadow: 0 4px 0 rgba(0,0,0,.3); touch-action: manipulation;
+  }
+  #ctPadC button:active { transform: translateY(3px); box-shadow: none; }
+  #ctFlash {
+    position: absolute; top: 44%; left: 50%; transform: translate(-50%, -50%);
+    font-size: 34px; font-weight: 900; pointer-events: none; opacity: 0; white-space: nowrap;
+    text-shadow: 0 4px 16px rgba(0,0,0,.6);
+  }
+  #ctFlash.pop { animation: ctPop .7s ease; }
+  @keyframes ctPop { 0% { opacity: 0; transform: translate(-50%,-50%) scale(.6); }
+    25% { opacity: 1; transform: translate(-50%,-50%) scale(1.15); } 100% { opacity: 0; transform: translate(-50%,-50%) scale(1); } }
+  #ctResult { text-align: center; font-size: 13px; line-height: 1.7; }
+  #ctResult .ctTrophy { font-size: 44px; margin: 6px 0; }
+  .ctFb { background: rgba(255,255,255,.1); border-radius: 12px; padding: 9px 11px; margin: 8px 0; font-size: 12px; text-align: left; }
   #catSkillBtn.skillReady {
     border-color: #ffd166; background: linear-gradient(160deg, #fff3cf, #ffe08a);
     animation: rushBlink .5s infinite alternate;
@@ -539,7 +606,6 @@
 <!-- 🎯 미니멀 상단바: 골드 · 평점 · Day 딱 3개만 -->
 <div id="topbar">
   <div class="chip" id="goldChip">💰 0 G</div>
-  <div class="chip" id="repChip">★★★☆☆ 3.0</div>
   <div class="chip" id="dayChip" title="오늘의 영업시간 (9 AM ~ 9 PM)">☀️ Day 1 · 9 AM</div>
 </div>
 
@@ -646,7 +712,38 @@
 </div>
 <!-- 🔥 폭풍호객 버튼 삭제 → 📣 홍보 마케팅(메뉴 탭 마켓 하단)으로 대체 -->
 <button id="quickSaveBtn" title="퀵 세이브">💾</button>
+<button id="contestBtn" title="천하제일 떡볶이 대회">🏆</button>
 <button id="catSkillBtn"></button>
+<!-- 🏆 천하제일 떡볶이 대회 스타디움 -->
+<div id="ctOverlay"></div>
+<div id="ctPanel">
+  <h3>🏆 천하제일 떡볶이 대회</h3>
+  <div id="ctTimer"><div id="ctTimerFill"></div></div>
+  <div id="ctRace"></div>
+  <div id="ctJudge">🎙️ 심사위원단이 지켜보고 있습니다…</div>
+  <div id="ctStage">
+    <div id="ctSlice">
+      <div class="ctHint">🔪 마커가 가운데 PERFECT 존을 지날 때 터치! (남은 시도 <span id="ctTries">3</span>회)</div>
+      <div id="ctSliceBar"><div id="ctZone"></div><div id="ctMarker"></div></div>
+      <button id="ctTapSlice" class="ctBig">🔪 썰기!</button>
+    </div>
+    <div id="ctSauce" style="display:none">
+      <div class="ctHint">🌶️ 비법 양념 커맨드를 순서대로 입력! (<span id="ctSauceT">5.0</span>초)</div>
+      <div id="ctSeq"></div>
+      <div id="ctPadC">
+        <button data-d="▲">▲</button><button data-d="◀">◀</button>
+        <button data-d="▶">▶</button><button data-d="▼">▼</button>
+      </div>
+    </div>
+    <div id="ctBoil" style="display:none">
+      <div class="ctHint">🔥 연타로 온도를 노란 적정 화력(70~80%)에 4초 유지! (<span id="ctHold">0.0</span>초)</div>
+      <div id="ctBoilBar"><div id="ctBoilZone"></div><div id="ctBoilFill"></div></div>
+      <button id="ctTapBoil" class="ctBig">🔥 화력!</button>
+    </div>
+    <div id="ctResult" style="display:none"></div>
+  </div>
+  <div id="ctFlash"></div>
+</div>
 <div id="newsOverlay"></div>
 <div id="newsPanel">
   <button id="newsClose">✕</button>
@@ -723,7 +820,8 @@ const state = {
   opened: false,     // 창업(오픈하기) 완료 여부 — 오픈 전엔 손님이 안 옴
   shopLevel: 1,      // 🏗️ 가게 확장 레벨 (1~3): 2=테라스, 3=알전구+테라스 확장
   catHired: false,   // 🐱 고양이 알바생 고용 여부 (동전 자동 수거 도우미)
-  reputation: 3,     // ⭐ 가게 평판 (1.0~5.0/업적 5.5) — 높을수록 손님 유입 가속
+  contestWins: 0,    // 🏆 천하제일 떡볶이 대회 누적 우승 (확장 해금·유입 가속 담당)
+  contestDay: 0,     // 🏆 마지막으로 대회에 도전한 Day (하루 1회 제한)
   sideLevel: -1,     // 🥤 사이드 메뉴 해금 단계 (-1=없음, 0~2 = SIDE_MENUS 인덱스)
   labKitchen: 0,     // 🧪 주방 속도 강화 레벨 (0~5): 주방장 이동속도 +15%/Lv
   labCat: 0,         // 🧪 고양이 자석 강화 레벨 (0~5): 동전 흡입 반경 ×1.5/Lv
@@ -751,7 +849,7 @@ const state = {
   realEstate: {},     // 🏢 부동산 투자 보유 { foodcourt, building, endingSeen } — 매초 방치 수익
   settings: { bgm: true, sfx: true, bgmVol: 1, sfxVol: 1 },   // 🎵 오디오 설정 (토글+볼륨 0~1, 세이브 유지)
   marketing: { flyerDay: 0, snsDay: 0, radio: false },   // 📣 홍보 (당일권 2종 + 영구 라디오)
-  expandNoticed: false,   // 🔓 영토 확장 권한 (Day 3+ & 평판 3.5성 아침에 영구 해금)
+  expandNoticed: false,   // 🔓 영토 확장 권한 (Day 3+ & 🏆 대회 1회 우승 시 영구 해금)
   sideMenus: { fried: false, kimbap: false },   // 🍱 단품 사이드 출시 상태 (요리 탭 [사이드])
 };
 
@@ -759,8 +857,8 @@ const state = {
 const SIDE_LAUNCH = [
   { id: 'fried',  emoji: '🍤', name: '바삭 모듬튀김', cost: 800,  chance: 0.3, bonus: 120, rep: false,
     desc: '손님 30%가 추가 주문 — 건당 +120G' },
-  { id: 'kimbap', emoji: '🍙', name: '마약 꼬마김밥', cost: 2500, chance: 0.4, bonus: 180, rep: true,
-    desc: '손님 40%가 추가 주문 — 건당 +180G · 평판 획득 확률 상승' },
+  { id: 'kimbap', emoji: '🍙', name: '마약 꼬마김밥', cost: 2500, chance: 0.4, bonus: 180,
+    desc: '손님 40%가 추가 주문 — 건당 +180G' },
 ];
 // 🔓 확장 기능 해금 여부 — 권한은 아침 판정에서 1회 부여되면 영구 유지
 function expandUnlocked() { return state.expandNoticed; }
@@ -794,7 +892,7 @@ function estateIncome() {   // 보유 투자처의 초당 수익 합계
 /* ── 💡 일일 돌발 이벤트 & 👥 특수 단골손님 데이터 ── */
 const DAY_EVENTS = [
   { id: 'exam',   emoji: '📚', title: '인근 학교 시험 기간!',   desc: '학생 유입 2.5배! 단, 대기 인내심이 1.5배 빨리 닳아요' },
-  { id: 'snshot', emoji: '📱', title: 'SNS 맛집 트렌드 노출!',  desc: '평판 상승 2배 · 배달 주문 주기 18→12초 단축!' },
+  { id: 'snshot', emoji: '📱', title: 'SNS 맛집 트렌드 노출!',  desc: '배달 주문 주기 18→12초 대폭 단축!' },
   { id: 'costup', emoji: '📉', title: '재료 공급가 폭등의 날…', desc: '팁 골드 누락… 대신 식재료 마켓 비용 10% 할인!' },
 ];
 function dayEvent(id) { return state.dayEventId === id; }
@@ -802,7 +900,7 @@ function marketDiscount() { return dayEvent('costup') ? 0.9 : 1; }   // 📉 육
 const REGULARS = [
   { id: 'youtuber', emoji: '🎥', name: '먹방 유튜버', line: '🎥 구독자 여러분! 이 집 떡볶이 진화 퀄리티 대박이네요!' },
   { id: 'worker',   emoji: '💼', name: '근처 직장인', line: '💼 점심시간 10분 남았다! 빨리 서빙해 주세요 사장님!' },
-  { id: 'owner',    emoji: '👑', name: '동네 건물주', line: '👑 허허, 우리 골목 최고 맛집이구먼~ 별점 후하게 주지!' },
+  { id: 'owner',    emoji: '👑', name: '동네 건물주', line: '👑 허허, 우리 골목 최고 맛집이구먼~ 자주 오겠네!' },
 ];
 const GRADES = ['D', 'C', 'B', 'A', 'S', 'SS', 'SSS'];
 const DAY_LENGTH = 120;   // 하루 영업 120초 (실시간) — 화면엔 9 AM ~ 9 PM 영업시간계로 표시
@@ -863,17 +961,16 @@ const ACHIEVEMENTS = [
   { id: 'rider', emoji: '🛵', name: '폭풍 배달의 민족', desc: '누적 배달 완료 5건 달성',
     reward: '주방 팀 이동속도 영구 1.2배', check: () => state.deliveryCount >= 5, prog: () => Math.min(state.deliveryCount, 5) + '/5건' },
   { id: 'michelin', emoji: '⭐', name: '미슐랭 가이드', desc: 'S등급 이상 마감 3회 달성',
-    reward: '기본 평판 별점 +0.5 보너스', check: () => state.sGradeCount >= 3, prog: () => Math.min(state.sGradeCount, 3) + '/3회' },
+    reward: '전 메뉴 정산 골드 영구 +5%', check: () => state.sGradeCount >= 3, prog: () => Math.min(state.sGradeCount, 3) + '/3회' },
   // 🏢 부동산 투자 전용 히든 업적 2종 (달성 전엔 ❓로 표시)
   { id: 'dept', emoji: '🏬', name: '백화점 점령', hidden: true, desc: '백화점 푸드코트 입점 계약 체결',
-    reward: '평판 별점 한계 5.5성으로 영구 확장', check: () => !!state.realEstate.foodcourt,
+    reward: '매초 방치 수익 +25G 영구', check: () => !!state.realEstate.foodcourt,
     prog: () => (state.realEstate.foodcourt ? 1 : 0) + '/1' },
   { id: 'gangnam', emoji: '🏢', name: '강남의 지배자', hidden: true, desc: '강남 직영 빌딩 매입 완료',
     reward: '배달 라이더 이동속도 영구 1.5배', check: () => !!state.realEstate.building,
     prog: () => (state.realEstate.building ? 1 : 0) + '/1' },
 ];
-// ⭐ 평판 별점 한계: 기본 5.0 → 「백화점 점령」 업적 수령 시 5.5로 영구 확장
-function repCap() { return state.achClaimed.includes('dept') ? 5.5 : 5; }
+// (⭐ 평판 시스템 전면 소거 — 성장 지표는 🏆 대회 우승·🎀 데코 등급·업적이 담당)
 
 // 📰 일일 마케팅 트렌드 뉴스 (하루 1개 랜덤, 당일 장사에 실시간 적용)
 const NEWS_LIST = [
@@ -913,7 +1010,7 @@ function saveGame() {
       opened: state.opened,
       shopLevel: state.shopLevel,
       catHired: state.catHired,
-      reputation: state.reputation,
+      contestWins: state.contestWins, contestDay: state.contestDay,
       sideLevel: state.sideLevel,
       labKitchen: state.labKitchen,
       labCat: state.labCat,
@@ -2120,7 +2217,28 @@ function buildLimoSet() {   // 🚘 VIP 전용 리무진 시트 (가로 2칸): �
   return g;
 }
 
+function buildGoldStatue() {   // 🏆 대회 우승 기념 황금 떡볶이 조형물
+  const g = new THREE.Group();
+  const base = cyl(0.34, 0.4, 0.22, 0xb0862c, 12); base.position.y = 0.11; g.add(base);
+  const column = cyl(0.16, 0.2, 0.5, 0xd9a24a, 10); column.position.y = 0.47; g.add(column);
+  const bowl = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.18, 0.2, 14), neonMat(0xffd166, 0.35));
+  bowl.position.y = 0.82; g.add(bowl);
+  for (let i = 0; i < 3; i++) {   // 황금 떡 3가락
+    const tteok = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.3, 8), neonMat(0xffe08a, 0.5));
+    tteok.rotation.z = 0.5 + i * 0.9; tteok.position.set((i - 1) * 0.12, 1.0, 0); g.add(tteok);
+  }
+  const star = new THREE.Mesh(new THREE.SphereGeometry(0.08, 8, 8), neonMat(0xfff2b0, 0.9));
+  star.position.y = 1.2; g.add(star);
+  return g;
+}
+
 const SHOP_ITEMS = {
+  goldstatue: {
+    name: '황금 떡볶이 조형물', emoji: '🏆', price: 0, theme: 'classic',
+    desc: '천하제일 대회 우승 기념 진품 (1칸·무료) · 🎀 데코 점수 +6000 극대 보너스',
+    build: buildGoldStatue, cells: [[0, 0]], seats: [],
+    needsContest: true,   // 🔒 대회 1회 우승 시 해금
+  },
   terrace: {
     name: '테라스 파라솔 테이블', emoji: '⛱️', price: 180, theme: 'classic',
     desc: '야외 우드 데크 전용! (Lv2 확장 후 데크 위 1칸)',
@@ -2256,6 +2374,7 @@ function decoInfo() {
     const it = SHOP_ITEMS[f.key];
     if (!it || it.fixture) continue;
     score += it.price;
+    if (f.key === 'goldstatue') score += 6000;   // 🏆 우승 트로피: 데코 극대 보너스
     if (it.theme) themes.add(it.theme);
   }
   if (themes.size >= 2) score = Math.round(score * 1.2);   // 🌳+🌆 두 테마 인테리어 믹스 +20%
@@ -2647,7 +2766,7 @@ function applyShopLevelVisuals() {
 }
 
 function upgradeShop() {
-  if (!expandUnlocked()) { toast('🔒 가게 확장은 Day 3 이상, 평판 ★3.5 달성 후 해금됩니다!'); return; }   // 🛡️ 이중 안전장치
+  if (!expandUnlocked()) { toast('🔒 가게 확장은 Day 3 이상 + 🏆 전국 요리 대회 우승 후 해금됩니다!'); return; }   // 🛡️ 이중 안전장치
   if (state.shopLevel >= MAX_SHOP_LEVEL) return;
   const cost = SHOP_LEVEL_COST[state.shopLevel];
   if (state.gold < cost) { toast('💸 골드가 부족해요! (' + cost + 'G 필요)'); return; }
@@ -2710,9 +2829,8 @@ function leavePath(seat, exitDir) {
     state.opened = saved.opened !== undefined ? !!saved.opened : true;
     state.shopLevel = Math.min(Math.max(saved.shopLevel || 1, 1), MAX_SHOP_LEVEL);
     state.catHired = !!saved.catHired;
-    // ⭐ 로드 시점엔 achClaimed가 아직 안 실려서 saved에서 직접 한계 판정 (5.5성 세이브 보존)
-    const savedRepCap = Array.isArray(saved.achClaimed) && saved.achClaimed.includes('dept') ? 5.5 : 5;
-    state.reputation = Math.min(savedRepCap, Math.max(1, saved.reputation || 3));
+    state.contestWins = saved.contestWins || 0;   // 🏆 대회 전적 복원
+    state.contestDay = saved.contestDay || 0;
     state.sideLevel = Math.min(saved.sideLevel !== undefined ? saved.sideLevel : -1, SIDE_MENUS.length - 1);
     state.labKitchen = Math.min(Math.max(saved.labKitchen || 0, 0), 5);
     state.labCat = Math.min(Math.max(saved.labCat || 0, 0), 5);
@@ -2745,7 +2863,7 @@ function leavePath(seat, exitDir) {
     state.marketing = Object.assign({ flyerDay: 0, snsDay: 0, radio: false }, saved.marketing || {});   // 📣 홍보 복원
     // 🔓 확장 권한 복원 — 구 세이브는 이미 확장했거나 조건 충족 상태면 소급 인정 (팝업 없이 조용히)
     state.expandNoticed = !!saved.expandNoticed || (saved.shopLevel || 1) > 1 ||
-      ((saved.day || 1) >= 3 && (saved.reputation || 3) >= 3.5);
+      ((saved.day || 1) >= 3 && state.contestWins >= 1);
     state.sideMenus = Object.assign({ fried: false, kimbap: false }, saved.sideMenus || {});   // 🍱 단품 사이드 복원
     for (const k in state.menuStats)   // ✨ 진화 메뉴는 이름/태그 변신도 복원
       if (state.menuStats[k].evolved) applyEvolutionVisual(k);
@@ -3168,7 +3286,6 @@ function evictSeated(table, angry) {
     if (angry) {
       showBubble(c.group, '💢 못 먹고 가요!', 1.55, 1.8);
       state.dayFailed++;   // ☀️ 실패 손님 집계
-      state.reputation = Math.max(1, state.reputation - 0.1);   // ⭐ 평판 소폭 하락
     } else {
       showBubble(c.group, '💨', 1.55, 1.2);
     }
@@ -3686,10 +3803,13 @@ function activateCatSkill() {
 function updateCatSkillBtn() {
   let cls, html;
   const emoji = { chef: '👨‍🍳', bee: '🐝', astro: '🚀' }[state.catWearing] || '🐱';
-  const qsBtn = document.getElementById('quickSaveBtn');   // 💾 퀵 세이브는 고양이 버튼과 노출 동기화
-  if (!state.opened) { catSkillBtn.style.display = 'none'; qsBtn.style.display = 'none'; return; }
+  const qsBtn = document.getElementById('quickSaveBtn');   // 💾 퀵 세이브·🏆 대회는 고양이 버튼과 노출 동기화
+  const ctBtn = document.getElementById('contestBtn');
+  if (!state.opened) { catSkillBtn.style.display = 'none'; qsBtn.style.display = 'none'; ctBtn.style.display = 'none'; return; }
   catSkillBtn.style.display = 'flex';
   qsBtn.style.display = 'flex';
+  ctBtn.style.display = 'flex';
+  ctBtn.classList.toggle('ctDone', state.contestDay === state.day || state.dayPhase !== 'open');   // 오늘 소진/영업 외 회색
   if (!state.catHired || !state.catWearing) {
     cls = 'skillLocked';
     html = '🔒<small>' + (!state.catHired ? '고양이' : '코스튬') + '</small>';
@@ -3708,6 +3828,211 @@ function updateCatSkillBtn() {
   }
 }
 catSkillBtn.addEventListener('click', activateCatSkill);
+
+/* ── 🏆 천하제일 떡볶이 대회: 3단계 연속 QTE 미니게임 엔진 ─────────────
+   1) 칼질 타이밍(3회) → 2) 양념 커맨드(5초) → 3) 화력 유지(4초) — 총 제한 25초
+   최종 점수 = 단계 합산 × (1 + shopLevel×0.15 + 주방화력(labKitchen)×0.1) */
+let contest = null;
+const CT_LIMIT = 25;
+const JUDGES = [
+  { emoji: '🧒', name: '초딩 입맛',   good: '와! 소스 냄새가 환상적이야!',   bad: '에이~ 좀 밍밍한데?' },
+  { emoji: '👵', name: '동네 주민',   good: '우리 골목의 자랑이구먼~!',     bad: '우리 집 양념만 못하네…' },
+  { emoji: '👨‍🍳', name: '미슐랭 셰프', good: '완벽한 칼질… 인정하지.',       bad: '불이 너무 세서 탄내가 나잖아!' },
+];
+function contestMult() { return 1 + state.shopLevel * 0.15 + state.labKitchen * 0.1; }
+function contestTarget() {   // 🤖 라이벌 지능 스케일링: 회차별 250→600→1100→1800 + Day 가산
+  return [250, 600, 1100, 1800][Math.min(state.contestWins, 3)] + Math.max(0, state.day - 3) * 8;
+}
+function ctFlash(kind, pts) {   // PERFECT/GOOD/BAD 스크린 플래시
+  const el = document.getElementById('ctFlash');
+  el.textContent = kind + (pts ? ' +' + pts : '');
+  el.style.color = kind === 'PERFECT' ? '#ffd166' : kind === 'GOOD' ? '#7ec8a9' : '#e5383b';
+  el.classList.remove('pop'); void el.offsetWidth; el.classList.add('pop');
+}
+function ctJudgeSay(good) {   // 🎙️ 심사위원 실시간 평가 말풍선
+  const j = pick(JUDGES);
+  document.getElementById('ctJudge').textContent = j.emoji + ' ' + j.name + ': "' + (good ? j.good : j.bad) + '"';
+}
+function ctShow(phase) {
+  for (const p of ['Slice', 'Sauce', 'Boil', 'Result'])
+    document.getElementById('ct' + p).style.display = p.toLowerCase() === phase ? 'block' : 'none';
+}
+function startContest() {
+  if (contest) return;
+  if (state.dayPhase !== 'open') { toast('🏆 대회는 영업시간(9AM~9PM)에만 열려요!'); return; }
+  if (state.contestDay === state.day) { toast('🏆 오늘 대회는 이미 끝났어요 — 내일 다시 도전하세요!'); return; }
+  state.contestDay = state.day;   // 하루 1회
+  const target = contestTarget();
+  contest = { phase: 'slice', t: CT_LIMIT, score: 0, stages: { slice: 0, sauce: 0, boil: 0 },
+    tries: 3, slicePh: 0, slicePos: 50,
+    seq: Array.from({ length: 4 }, () => pick(['▲', '▼', '◀', '▶'])), seqIdx: 0, sauceT: 5,
+    temp: 75, held: 0, boilT: 8,
+    target, r1: target, r2: Math.round(target * 0.85) };
+  document.getElementById('ctRace').innerHTML = [
+    ['me', '🍢 ' + state.shopName, '#7ec8a9'],
+    ['r1', '😈 마왕 떡볶이', '#e5383b'],
+    ['r2', '⛩️ 신선 분식', '#8fa8c4'],
+  ].map(([id, nm, col]) => '<div class="ctRow"><span class="ctName">' + nm + '</span>' +
+    '<span class="ctBarWrap"><span class="ctBar" id="ctBar_' + id + '" style="background:' + col + '"></span></span>' +
+    '<b class="ctPts" id="ctPts_' + id + '">0</b></div>').join('');
+  document.getElementById('ctTries').textContent = 3;
+  document.getElementById('ctSeq').innerHTML =
+    contest.seq.map((d, i) => '<span' + (i === 0 ? ' class="cur"' : '') + '>' + d + '</span>').join('');
+  document.getElementById('ctJudge').textContent = '🎙️ 심사위원단: 지금부터 천하제일 떡볶이 대회를 시작합니다!';
+  ctShow('slice');
+  document.getElementById('ctOverlay').style.display = 'block';
+  document.getElementById('ctPanel').style.display = 'block';
+  sfx('skill');
+  saveGame();
+}
+// 1️⃣ 칼질: 좌우 왕복 마커가 PERFECT 존(중앙)에 있을 때 터치
+function ctSliceTap() {
+  if (!contest || contest.phase !== 'slice') return;
+  const d = Math.abs(contest.slicePos - 50);
+  const [kind, pts] = d < 8 ? ['PERFECT', 40] : d < 18 ? ['GOOD', 25] : ['BAD', 5];
+  contest.score += pts; contest.stages.slice += pts;
+  ctFlash(kind, pts); ctJudgeSay(kind !== 'BAD'); sfx(kind === 'BAD' ? 'stamp' : 'serve');
+  contest.tries--;
+  document.getElementById('ctTries').textContent = contest.tries;
+  if (contest.tries <= 0) { contest.phase = 'sauce'; ctShow('sauce'); }
+}
+// 2️⃣ 양념 커맨드: 4방향 화살표를 5초 안에 순서대로
+function ctSauceTap(dir) {
+  if (!contest || contest.phase !== 'sauce') return;
+  if (dir !== contest.seq[contest.seqIdx]) { ctFlash('BAD', 0); ctJudgeSay(false); return; }   // 오입력: 같은 화살표 재도전
+  contest.score += 20; contest.stages.sauce += 20;
+  contest.seqIdx++;
+  const spans = document.querySelectorAll('#ctSeq span');
+  spans.forEach((s, i) => { s.className = i < contest.seqIdx ? 'done' : i === contest.seqIdx ? 'cur' : ''; });
+  if (contest.seqIdx >= contest.seq.length) {   // 제한 내 완주 보너스
+    contest.score += 20; contest.stages.sauce += 20;
+    ctFlash('PERFECT', 20); ctJudgeSay(true); sfx('skill');
+    contest.phase = 'boil'; ctShow('boil');
+  } else { ctFlash('GOOD', 20); sfx('serve'); }
+}
+// 3️⃣ 화력: 연타로 떨어지는 온도를 노란 구간(70~80)에 4초 유지
+function ctBoilTap() {
+  if (!contest || contest.phase !== 'boil') return;
+  contest.temp = Math.min(100, contest.temp + 7);
+}
+function ctBoilEnd() {
+  const pts = Math.round(Math.min(4, contest.held) / 4 * 130);
+  contest.score += pts; contest.stages.boil = pts;
+  const kind = contest.held >= 3.9 ? 'PERFECT' : contest.held >= 2.5 ? 'GOOD' : 'BAD';
+  ctFlash(kind, pts); ctJudgeSay(kind !== 'BAD');
+  finishContest();
+}
+// 🏁 최종 판정: 점수 = 단계 총합 × (1 + shopLevel×0.15 + labKitchen×0.1)
+function finishContest() {
+  if (!contest || contest.phase === 'result') return;
+  contest.phase = 'result';
+  const finalScore = Math.round(contest.score * contestMult());
+  document.getElementById('ctBar_me').style.width = Math.min(100, finalScore / contest.target * 100) + '%';
+  document.getElementById('ctBar_r1').style.width = '100%';
+  document.getElementById('ctBar_r2').style.width = (contest.r2 / contest.target * 100) + '%';
+  document.getElementById('ctPts_me').textContent = finalScore;
+  document.getElementById('ctPts_r1').textContent = contest.r1;
+  document.getElementById('ctPts_r2').textContent = contest.r2;
+  const win = finalScore > Math.max(contest.r1, contest.r2);
+  const wrap = document.getElementById('ctResult');
+  const detail = '🔪 칼질 ' + contest.stages.slice + ' · 🌶️ 양념 ' + contest.stages.sauce +
+    ' · 🔥 화력 ' + contest.stages.boil + ' → 합산 ' + contest.score +
+    ' × 배율 ' + contestMult().toFixed(2) + ' = <b>' + finalScore + '점</b>';
+  if (win) {
+    const prize = state.contestWins === 0 ? 3000 : state.contestWins === 1 ? 10000 : 10000 + (state.contestWins - 1) * 5000;
+    const firstWin = state.contestWins === 0;
+    state.contestWins++;
+    state.gold += prize;
+    spawnConfetti(wx(6.5), wz(3)); sfx('skill');
+    wrap.innerHTML = '<div class="ctTrophy">🏆</div><b style="font-size:17px;color:#ffd166">우승! 천하제일 떡볶이!</b><br>' +
+      detail + '<div class="ctFb">💰 우승 상금 <b>+' + prize.toLocaleString() + 'G</b>' +
+      (firstWin ? '<br>🎁 특전: 「🏆 황금 떡볶이 조형물」 해금! (상점 🪑 홀 탭 · 무료 지급)' : '') +
+      (firstWin && state.day >= 3 ? '<br>🔓 영토 확장 권한 획득!' : '') + '</div>' +
+      '<button class="ctBig" id="ctCloseBtn">🎉 영업으로 복귀</button>';
+    refreshCatShopLocks();   // 🏆 조형물 잠금 해제 반영
+    grantExpandIfReady();
+    updateUI(true);
+  } else {
+    const ratio = { slice: contest.stages.slice / 120, sauce: contest.stages.sauce / 100, boil: contest.stages.boil / 130 };
+    const weak = Object.keys(ratio).sort((a, b) => ratio[a] - ratio[b])[0];
+    const advice = {
+      slice: '🔪 칼질 점수가 부족했습니다. 마커가 중앙 PERFECT 존에 올 때를 노려보세요!',
+      sauce: '🌶️ 양념 커맨드가 늦었습니다. 화살표를 침착하게 순서대로 입력해 보세요!',
+      boil: '🔥 불조절 점수가 부족했습니다. 주방 화력을 업그레이드하거나 요리 레벨을 올린 뒤 내일 다시 도전하세요!',
+    }[weak];
+    wrap.innerHTML = '<div class="ctTrophy">📋</div><b style="font-size:16px;color:#e5383b">아쉬운 패배… 정산 리포트</b><br>' +
+      detail + '<div class="ctFb">' + advice +
+      '<br>💡 확장(×0.15/Lv)과 🧪 주방 속도 강화(×0.1/Lv)가 최종 배율을 올려줍니다.</div>' +
+      '<button class="ctBig" id="ctCloseBtn">💪 내일 재도전</button>';
+  }
+  ctShow('result');
+  saveGame();
+}
+function closeContest() {
+  contest = null;
+  document.getElementById('ctOverlay').style.display = 'none';
+  document.getElementById('ctPanel').style.display = 'none';
+  updateUI();
+}
+// ⏱️ 대회 프레임 루프: 타이머·레이스 게이지·단계별 실시간 진행 (tick에서 호출)
+function updateContest(dt) {
+  if (!contest || contest.phase === 'result') return;
+  contest.t -= dt;
+  document.getElementById('ctTimerFill').style.width = Math.max(0, contest.t / CT_LIMIT * 100) + '%';
+  // 📊 3인 레이스: 라이벌은 시간 비례 + 흔들림, 나는 현재 점수×배율
+  const prog = 1 - Math.max(0, contest.t) / CT_LIMIT;
+  const myNow = Math.round(contest.score * contestMult());
+  const jit = 1 + Math.sin(contest.t * 5) * 0.03;
+  document.getElementById('ctBar_me').style.width = Math.min(100, myNow / contest.target * 100) + '%';
+  document.getElementById('ctBar_r1').style.width = Math.min(100, prog * 100 * jit) + '%';
+  document.getElementById('ctBar_r2').style.width = Math.min(100, prog * (contest.r2 / contest.target * 100) / jit) + '%';
+  document.getElementById('ctPts_me').textContent = myNow;
+  document.getElementById('ctPts_r1').textContent = Math.round(prog * contest.r1);
+  document.getElementById('ctPts_r2').textContent = Math.round(prog * contest.r2);
+  if (contest.t <= 0) { ctBoilEnd(); return; }   // ⏰ 시간 종료 = 즉시 최종 판정
+  if (contest.phase === 'slice') {
+    contest.slicePh += dt * 2.7;
+    contest.slicePos = (Math.sin(contest.slicePh) * 0.5 + 0.5) * 100;
+    document.getElementById('ctMarker').style.left = 'calc(' + contest.slicePos + '% - 4px)';
+  } else if (contest.phase === 'sauce') {
+    contest.sauceT -= dt;
+    document.getElementById('ctSauceT').textContent = Math.max(0, contest.sauceT).toFixed(1);
+    if (contest.sauceT <= 0) {   // ⏳ 시간 초과: 남은 화살표 포기
+      ctFlash('BAD', 0); ctJudgeSay(false);
+      contest.phase = 'boil'; ctShow('boil');
+    }
+  } else if (contest.phase === 'boil') {
+    contest.temp = Math.max(0, contest.temp - dt * 20);
+    document.getElementById('ctBoilFill').style.width = contest.temp + '%';
+    if (contest.temp >= 70 && contest.temp <= 80) contest.held += dt;
+    document.getElementById('ctHold').textContent = Math.min(4, contest.held).toFixed(1);
+    contest.boilT -= dt;
+    if (contest.held >= 4 || contest.boilT <= 0) ctBoilEnd();
+  }
+}
+// 🔓 확장 권한: Day 3+ & 🏆 대회 1회 우승 (아침 판정 + 우승 직후 즉시 판정 공용)
+function grantExpandIfReady() {
+  if (state.expandNoticed || state.day < 3 || state.contestWins < 1) return;
+  state.expandNoticed = true;
+  saveGame();
+  spawnConfetti(wx(6.5), wz(3));
+  sfx('skill');
+  setTimeout(() => {   // 🏗️ 부동산 중개인 전용 안내 카드
+    document.getElementById('storySpeaker').textContent = '🏗️ 부동산 중개인';
+    document.getElementById('storyText').textContent =
+      '가게를 넓은 곳으로 이전 및 확장할 수 있는 권한을 얻었습니다! 하단 [확장] 탭을 확인하세요!';
+    document.getElementById('storyPanel').style.display = 'block';
+  }, 1600);
+  toast('🔓 영토 확장 기능이 열렸습니다!');
+}
+document.getElementById('contestBtn').addEventListener('click', startContest);
+document.getElementById('ctTapSlice').addEventListener('click', ctSliceTap);
+document.getElementById('ctTapBoil').addEventListener('click', ctBoilTap);
+document.querySelectorAll('#ctPadC button').forEach(b =>
+  b.addEventListener('click', () => ctSauceTap(b.dataset.d)));
+document.getElementById('ctResult').addEventListener('click', e => {
+  if (e.target.id === 'ctCloseBtn') closeContest();
+});
 
 // 📱 VIP 인플루언서 업로드 성공 → 대박 부스트 (손님 유입 3배 · 정산 골드 2배)
 //    (🔥 화면 전체 오버레이 연출은 삭제 — 폭죽+토스트로만 담백하게 안내)
@@ -3732,7 +4057,7 @@ function spawnInterval() {
   const seats = tables.reduce((n, t) => n + t.seats.length, 0);
   const boost = Math.min(0.5, Math.max(0.25, 0.25 + (seats - 2) * 0.02));
   let interval = (5 + Math.random() * 3) / (1 + boost);   // 기본 5~8초를 보너스만큼 단축
-  interval /= 1 + Math.max(0, state.reputation - 3) * 0.15;   // ⭐ 평판 가속 (5성이면 +30%)
+  interval /= 1 + Math.min(0.3, state.contestWins * 0.1);   // 🏆 대회 우승 명성: 회당 유입 +10% (최대 +30%)
   if (mkFlyerOn()) interval /= 1.2;   // 📄 전단지 배포: 당일 유입 1.2배
   if (vipFeverT > 0) interval /= 3;   // 📱 VIP 대박 피버: 손님 유입 3배
   if (state.newsId === 'vacation') interval /= 2;   // 📰 학생 방학: 스폰 2배 가속
@@ -3989,10 +4314,6 @@ function updateCustomers(dt) {
                 (c.side ? ' 세트요!' : ' 주세요!');
             showBubble(c.group, orderTxt, 1.55, c.influencer || c.vip || c.regular ? 2.6 : 1.6);
             if (c.regular) {
-              if (c.regular === 'owner') {   // 👑 건물주: 착석 즉시 평판 +0.3
-                state.reputation = Math.min(repCap(), state.reputation + 0.3);
-                updateUI();
-              }
               if (!state.regularsMet.includes(c.regular)) {   // 👥 단골 도감 첫 조우 등록
                 state.regularsMet.push(c.regular);
                 spawnConfetti(c.seat.x, c.seat.z);
@@ -4075,14 +4396,11 @@ function updateCustomers(dt) {
           if (raining && !c.seat.terrace) income = Math.round(income * (state.research.capsaicin ? 1.6 : 1.3));
           // 🌶️ 고추장 마스터리: 전 메뉴 정산 골드 영구 +15%
           if (state.research.gochujang) income = Math.round(income * 1.15);
+          if (state.achClaimed.includes('michelin')) income = Math.round(income * 1.05);   // ⭐ 미슐랭 가이드 업적: 정산 +5%
           if (state.marketing.radio) income += 10;   // 📻 라디오 광고: 손님마다 기본 팁 +10G 영구
           // 🍱 단품 사이드 추가 주문: 출시했다면 일반 손님이 확률적으로 곁들여 추가 매출
           if (!c.vip && !c.influencer) for (const sl of SIDE_LAUNCH) {
-            if (state.sideMenus[sl.id] && Math.random() < sl.chance) {
-              income += sl.bonus;
-              if (sl.rep && Math.random() < 0.5)   // 🍙 꼬마김밥: 평판 획득 확률 상승
-                state.reputation = Math.min(repCap(), state.reputation + 0.02);
-            }
+            if (state.sideMenus[sl.id] && Math.random() < sl.chance) income += sl.bonus;
           }
           if (c.trait === 'glutton') income *= 2;   // 🐷 대식가: 2그릇 값을 통 크게 지불
           if (c.regular === 'youtuber') income *= 2;   // 🎥 유튜버: 기본 골드 2배 쾌척
@@ -4109,7 +4427,6 @@ function updateCustomers(dt) {
             } else {
               showBubble(c.group, '😤 SNS에 올릴 게 없네요…', 1.55, 1.8);
               state.dayFailed++;          // ☀️ VIP 실패 집계
-              state.reputation = Math.max(1, state.reputation - 0.1);
             }
           }
           dropCoin(c.seat.x + Math.sin(c.seat.ry) * 0.3, c.seat.z + Math.cos(c.seat.ry) * 0.3, income, c.influencer);
@@ -4122,10 +4439,7 @@ function updateCustomers(dt) {
           state.dayGold += income + (c.trait === 'gourmet' ? 20 : 0);
           state.dayServed++;
           if (!c.vip && c.side && !c.sideServed) state.dayFailed++;   // 사이드 못 받고 떠난 손님
-          // ⭐ 만족한 손님이 평판을 올려줌 (인플루언서는 3배!) — 상한(★5.0/5.5)에서 유지
-          state.reputation = Math.min(repCap(), state.reputation +
-            (c.influencer ? 0.15 : 0.05) * (dayEvent('snshot') ? 2 : 1));   // 💡 SNS 노출: 평판 상승 2배
-          // (🔥 평판 5.0 피버 발동 삭제 — 평판은 리셋 없이 상한에서 유지되어 유입 가속 상시 적용)
+          // (⭐ 평판 시스템 소거 — 성장 지표는 🏆 대회 우승이 담당)
           updateUI();
           c.seat.taken = false;             // 의자 반납 → 대기열이 페이싱에 맞춰 입장
           if (c.dishes) { for (const d of c.dishes) removeCharacter(d); c.dishes = null; }   // 🍽️ 빈 그릇 치우기
@@ -4483,7 +4797,7 @@ function updateWalkers(dt) {
           const s = t.seats.find(s => !s.taken);
           if (s) { seat = s; break; }
         }
-        const chance = 0.45 + Math.max(0, state.reputation - 3) * 0.15;   // 3성 45% → 5성 75%
+        const chance = 0.55 + Math.min(0.2, state.contestWins * 0.05);   // 🏆 대회 명성: 우승할수록 손님이 쑥쑥
         if (seat && Math.random() < chance) {
           seat.taken = true;
           showBubble(w.group, seat.terrace
@@ -4517,7 +4831,6 @@ function updateWalkers(dt) {
 /* ── UI ──────────────────────────────────────────────────── */
 // 🎯 미니멀 상단바: 골드·평점·Day 3종만 (손님 수/메뉴/뉴스 칩 제거됨)
 const goldChip = document.getElementById('goldChip');
-const repChip = document.getElementById('repChip');
 const researchBtn = document.getElementById('researchBtn');
 const expandBtn = document.getElementById('expandBtn');
 expandBtn.addEventListener('click', () => openPanel('expand'));   // 🏗️ 5단계 영토 현황판
@@ -4525,9 +4838,7 @@ const shopPanel = document.getElementById('shopPanel');
 
 function updateUI(pulse = false) {
   goldChip.textContent = '💰 ' + state.gold + ' G';
-  const stars = Math.round(state.reputation);   // ⭐ 「백화점 점령」 이후 5.5성 → 6번째 별은 🌟
-  repChip.textContent = '★'.repeat(Math.min(stars, 5)) + '☆'.repeat(Math.max(0, 5 - stars)) +
-    (stars > 5 ? '🌟' : '') + ' ' + state.reputation.toFixed(1);
+  // (⭐ 평판 칩 삭제 — 상단은 골드·Day 2칩 미니멀)
   researchBtn.textContent = '🍳 요리';   // 🎛️ 고정 라벨 — 개발/업그레이드 현황은 패널 안에서
   researchBtn.disabled = false;
   expandBtn.textContent = !expandUnlocked() ? '🔒 확장'
@@ -4828,8 +5139,7 @@ function claimAchievement(a) {
   if (state.achClaimed.includes(a.id) || !a.check()) return;
   state.achClaimed.push(a.id);
   if (a.id === 'landlord') state.gold += 2000;                                     // 💰 즉시 지급
-  if (a.id === 'michelin') state.reputation = Math.min(repCap(), state.reputation + 0.5); // ⭐ 즉시 +0.5 (기본선도 상향)
-  // 'rider' 1.2배·'dept' 별점 한계 5.5·'gangnam' 라이더 1.5배는 각 참조 지점(repCap/스폰)에서 즉시 반영
+  // 'michelin' 정산 +5%·'dept' 방치 +25G·'rider' 1.2배·'gangnam' 라이더 1.5배는 각 참조 지점에서 즉시 반영
   spawnConfetti(wx(6.5), wz(3));
   toast('🏆 업적 달성! 「' + a.name + '」 — ' + a.reward);
   updateUI(true);
@@ -4981,7 +5291,7 @@ function bizUnlocked() {
 // 오늘의 운영 등급 채점: 매출 + 손님 수 + VIP + 평판 − 실패
 function gradeOfDay() {
   const score = state.dayGold / 100 + state.dayServed + state.dayVip * 5
-    + (state.reputation - 3) * 10 - state.dayFailed * 5;
+    + state.contestWins * 5 - state.dayFailed * 5;   // 🏆 대회 전적이 평판 항목 대체
   const T = [['SSS', 90], ['SS', 70], ['S', 50], ['A', 35], ['B', 20], ['C', 10]];
   for (const [k, v] of T) if (score >= v) return k;
   return 'D';
@@ -5012,7 +5322,7 @@ function showDayReport() {
     '<div class="rRow"><span>😋 만족한 손님</span><b>' + rec.served + '명</b></div>' +
     '<div class="rRow"><span>🕶️ VIP 촬영 성공</span><b>' + rec.vip + '명</b></div>' +
     '<div class="rRow"><span>💢 실패한 손님</span><b>' + rec.failed + '명</b></div>' +
-    '<div class="rRow"><span>⭐ 마감 평판</span><b>' + state.reputation.toFixed(1) + '</b></div>';
+    '<div class="rRow"><span>🏆 대회 우승</span><b>' + state.contestWins + '회</b></div>';
   if (rec.day % 3 === 0) html += '<div class="rMile">📆 1개월 마감! 최근 3일 매출 합계 ' + sum(3) + 'G</div>';
   if (rec.day % 12 === 0) html += '<div class="rMile">🗓️ 1년(사계절) 마감! 연 매출 ' + sum(12) + 'G — 수고했어요 사장님!</div>';
   if (bizUnlocked()) html += '<div class="rMile">🛵 배달 주문 센터 해금 조건 달성! (상점 🎪 탭 확인)</div>';
@@ -5040,20 +5350,7 @@ document.getElementById('nextDayBtn').addEventListener('click', () => {
   rollDailyNews();   // 새 영업일 = 새 트렌드 확인 기회 (실제 날짜 기준 유지)
   rollDayEvent();    // 💡 새 아침 = 새 돌발 이벤트
   toast('🌅 Day ' + state.day + ' 영업 시작! 오늘도 대박 나세요!');
-  // 🔓 영토 확장 권한 판정: Day 3+ & 평판 ★3.5 동시 달성한 아침에 1회 해금 (영구)
-  if (!state.expandNoticed && state.day >= 3 && state.reputation >= 3.5) {
-    state.expandNoticed = true;
-    saveGame();
-    spawnConfetti(wx(6.5), wz(3));
-    sfx('skill');
-    setTimeout(() => {   // 전용 안내 가이드 카드 (아침 컷신과 같은 무대)
-      document.getElementById('storySpeaker').textContent = '🏗️ 부동산 중개인';
-      document.getElementById('storyText').textContent =
-        '가게를 넓은 곳으로 이전 및 확장할 수 있는 권한을 얻었습니다! 하단 [확장] 탭을 확인하세요!';
-      document.getElementById('storyPanel').style.display = 'block';
-    }, 1600);
-    toast('🔓 영토 확장 기능이 열렸습니다!');
-  }
+  grantExpandIfReady();   // 🔓 Day 3+ & 🏆 대회 우승 → 아침에 확장 권한 부여 (중개인 카드)
   updateUI(true);
 });
 document.getElementById('menuClose').addEventListener('click', closeMenuBook);
@@ -5218,7 +5515,7 @@ const bizOverlay = document.getElementById('bizOverlay');
 let estatePayTimer = 1;   // 방치 수익 적립 주기 (매초 1회, tick의 dt로 감산)
 function closeBiz() { bizPanel.style.display = 'none'; bizOverlay.style.display = 'none'; }
 function renderBiz() {
-  const inc = estateIncome() + decoInfo().tip;   // 🎀 데코 등급 방치 팁 합산
+  const inc = estateIncome() + decoInfo().tip + (state.achClaimed.includes('dept') ? 25 : 0);   // 🎀 데코 팁 + 🏬 업적 합산
   document.getElementById('bizIncome').textContent =
     inc > 0 ? '💰 현재 자동 방치 수익: +' + inc + 'G/초' : '본점 수익을 굴려 제2의 매출 파이프라인을 만드세요';
   const list = document.getElementById('bizList');
@@ -5294,7 +5591,7 @@ function openPanel(id) {
   else if (id === 'edit') { editMode ? exitEditMode() : enterEditMode(); }
   else if (id === 'menu') openMenuBook();   // 🍳 요리 연구소 독립 패널 (상점과 완전 분리)
   else if (id === 'expand') {
-    if (!expandUnlocked()) { toast('🔒 가게 확장은 Day 3 이상, 평판 ★3.5 달성 후 해금됩니다!'); return; }
+    if (!expandUnlocked()) { toast('🔒 가게 확장은 Day 3 이상 + 🏆 전국 요리 대회 우승 후 해금됩니다!'); return; }
     renderExpand(); expandPanel.style.display = 'block'; expandOverlay.style.display = 'block';
   }
   else if (id === 'biz') { renderBiz(); bizPanel.style.display = 'block'; bizOverlay.style.display = 'block'; }
@@ -5376,6 +5673,7 @@ document.getElementById('endingBtn').addEventListener('click', () => {
     const lockText = () =>
       item.needsCat && !state.catHired ? '🔒 고양이 고용 필요'
       : item.needsBiz && !bizUnlocked() ? '🔒 Day3 완료 & 등급 A 필요'
+      : item.needsContest && state.contestWins < 1 ? '🔒 대회 우승 필요'
       : null;
     const refreshBuyBtn = () => {
       const lock = lockText();
@@ -5386,14 +5684,15 @@ document.getElementById('endingBtn').addEventListener('click', () => {
       const lock = lockText();
       if (lock) {
         toast(item.needsCat && !state.catHired
-          ? '🙀 우선 고양이 알바생을 먼저 고용해 주세요! (상점 🎪 알바/코스튬 탭)'
+          ? '🙀 우선 고양이 알바생을 먼저 고용해 주세요! (상점 🎪 알바 탭)'
+          : item.needsContest ? '🏆 천하제일 떡볶이 대회에서 우승하면 무료로 받을 수 있어요!'
           : '🛵 장사 3일 차 완료 + 운영 등급 A 이상을 달성해야 열려요!');
         return;
       }
       startPlacing(key);
     });
     refreshBuyBtn();
-    if (item.needsCat || item.needsBiz) catLockRefreshers.push(refreshBuyBtn);
+    if (item.needsCat || item.needsBiz || item.needsContest) catLockRefreshers.push(refreshBuyBtn);
     row.appendChild(btn);
     // 🌳/🌆 홀 가구는 테마 섹션으로, 나머지는 기존 카테고리 탭으로
     ((item.cat || 'hall') === 'hall' && item.theme && themeSecs[item.theme]
@@ -5814,7 +6113,7 @@ function tick() {
   // ☀️ 일일 영업 타이머 & 마감 흐름
   if (state.opened) {
     if (state.dayPhase === 'open') {
-      state.dayTimer -= dt;   // 🕘 9AM→9PM 영업 타이머 (인트로 정지 로직 삭제)
+      if (!contest) state.dayTimer -= dt;   // 🕘 9AM→9PM 영업 타이머 (🏆 대회 중엔 일시 정지)
       if (state.dayTimer <= 0) {
         state.dayPhase = 'closing';
         toast('🌇 오늘 영업 종료! 홀에 남은 손님을 마무리하고 정산할게요');
@@ -5839,7 +6138,7 @@ function tick() {
 
   // 🏢🎀 방치 수익: 부동산 투자 + 데코 등급 방치 팁이 매초 골드 자동 적립 (마감 중에도 흐름)
   if (state.opened) {
-    const estInc = estateIncome() + decoInfo().tip;
+    const estInc = estateIncome() + decoInfo().tip + (state.achClaimed.includes('dept') ? 25 : 0);   // 🏬 백화점 점령 +25G
     if (estInc > 0) {
       estatePayTimer -= dt;
       if (estatePayTimer <= 0) {
@@ -5887,6 +6186,7 @@ function tick() {
   updateWeather(dt);        // 🌦️ 날씨/조명 전환 + 빗줄기 + 야간 포인트 조명
   updateScooters(dt);       // 🏍️ 배달 오토바이 출발 애니메이션
   updateEstatePops(dt);     // 🏢 부동산 기념 오브젝트 솟아오르기 연출
+  updateContest(dt);        // 🏆 대회 QTE 진행 (타이머·레이스·단계 루프)
   updateCat(dt, time);      // 🐱 고양이 알바 순찰/수거
   updateConfetti(dt);       // 🎉 폭죽 파티클
 
