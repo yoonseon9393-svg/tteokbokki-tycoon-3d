@@ -1146,7 +1146,7 @@ const SHOP_LEVEL_COST = [0, 2000, 8000, 25000, 75000];   // [n→n+1 비용]
 const SHOP_X1 = [0, 16, 18, 20, 20, 20];    // 레벨별 내부 오른쪽 끝 칸
 const SHOP_Z0 = [0, -1, -2, -4, -8, -14];   // 레벨별 내부 '뒤쪽 끝' 행 — 깊이 7→8→10→14→20칸
 const SHOP_LEVEL_NAMES = ['', '골목 노점', '동네 핫플', '가맹 1호점', '강남 직영점', '떡볶이 제국 랜드'];
-const FURN_CAP = [0, 8, 16, 26, 38, 55];    // 레벨별 가구 배치 한도 (광활 영토 기준 대폭 상향)
+// (🚫 가구 배치 한도 시스템 철폐 — 골드와 공간만 있다면 무제한 배치)
 function territoryHaste() { return Math.pow(1.15, state.shopLevel - 1); }   // 🏃 영토 단계별 워커/라이더 +15% 복리 가속
 function shopZ0() { return SHOP_Z0[state.shopLevel]; }
 function shopExtraZ() { return 1 - SHOP_Z0[state.shopLevel]; }   // 뒤로 늘어난 행 수 (0~6)
@@ -2980,10 +2980,10 @@ function upgradeShop() {
   state.shopLevel++;   // (🎓 확장은 더 이상 튜토리얼 목표가 아님 — Step3은 첫 마감에서 완료)
   if (widthGrew > 0 && state.shopLevel >= 3) shiftTerraceFurniture(widthGrew);   // 벽 이동 시 테라스 가구 동반 이사
   const msgs = {
-    2: '🎉 영토 확장! 「동네 핫플」 — 바닥 1.3배 + 테라스 데크 오픈 (가구 한도 16개)',
-    3: '🚧 영토 확장! 「가맹 1호점」 — 바닥 1.8배 + 목재 펜스·알전구 (가구 한도 26개)',
-    4: '💡 영토 확장! 「강남 직영점」 — 바닥 2.5배 + 가로등 자동 배치 (가구 한도 38개)',
-    5: '👑 최종 확장! 「떡볶이 제국 랜드」 — 3.5배 초대형 영토 + 황금 네온·웰컴 벌룬 (가구 한도 55개)!!',
+    2: '🎉 영토 확장! 「동네 핫플」 — 바닥 1.3배 + 테라스 데크 오픈',
+    3: '🚧 영토 확장! 「가맹 1호점」 — 바닥 1.8배 + 목재 펜스·알전구',
+    4: '💡 영토 확장! 「강남 직영점」 — 바닥 2.5배 + 가로등 자동 배치',
+    5: '👑 최종 확장! 「떡볶이 제국 랜드」 — 3.5배 초대형 영토 + 황금 네온·웰컴 벌룬!!',
   };
   toast(msgs[state.shopLevel]);
   setTimeout(() => toast('🏃 영토가 넓어져 워커·라이더가 +' + Math.round((territoryHaste() - 1) * 100) + '% 초광속 서빙 모드!'), 2200);
@@ -3114,10 +3114,6 @@ function startPlacing(key, isMove = false) {
   cancelPlacing();
   const item = SHOP_ITEMS[key];
   if (!isMove && state.gold < item.price && !((state.inventory[key] || 0) > 0)) { toast('💸 골드가 부족해요!'); return; }   // 이동·📦 창고 재배치는 무료
-  if (!isMove && !item.fixture && placedFurniture.length >= FURN_CAP[state.shopLevel]) {   // 🏗️ 레벨별 가구 한도
-    toast('🪑 가구 한도 도달! (' + FURN_CAP[state.shopLevel] + '개) — 🏗️ 영토를 확장해 자리를 넓혀주세요');
-    return;
-  }
   if (item.terraceOnly && state.shopLevel < 2) {
     toast('⛱️ 테라스 가구는 가게 확장 Lv2부터 배치할 수 있어요!');
     return;
@@ -3267,11 +3263,10 @@ function confirmPlacement(gx, gz, exitLoop = false) {
     placeFurniture(key, gx, gz, state.placeRot);
     toast('✨ ' + SHOP_ITEMS[key].name + ' 배치 완료!');
   }
-  // 🔁 연속 배치 루프: 골드/창고·가구 한도가 허용하면 같은 가구를 곧바로 이어서 배치
+  // 🔁 연속 배치 루프: 골드/창고가 허용하면 같은 가구를 곧바로 이어서 배치 (한도 무제한)
   const rot = state.placeRot;
   const again = !exitLoop && !SHOP_ITEMS[key].fixture &&
-    (state.gold >= SHOP_ITEMS[key].price || (state.inventory[key] || 0) > 0) &&
-    placedFurniture.length < FURN_CAP[state.shopLevel];
+    (state.gold >= SHOP_ITEMS[key].price || (state.inventory[key] || 0) > 0);
   cancelPlacing();
   if (again) {
     startPlacing(key);
@@ -4007,17 +4002,20 @@ function closeEmergency() {
   document.getElementById('emgOverlay').style.display = 'none';
   document.getElementById('emgPanel').style.display = 'none';
 }
-document.getElementById('emgBtn').addEventListener('click', () => {   // 💰 수령 즉시 7일 쿨타임
-  if (!emergencyReady()) { closeEmergency(); return; }
-  state.gold += 2000;
-  state.lastEmergencyDay = state.day;
-  emgNoticed = false;   // 다음 쿨타임을 위한 안내 재무장
-  saveGame();
+document.getElementById('emgBtn').addEventListener('click', () => {
+  // 🚨 버그 픽스: 팝업이 열린 사이 방치 수익으로 골드가 500G를 넘어도 무조건 지급
+  //    (재검증 가드가 수령을 조용히 무시하던 문제 제거 — 유일한 안전장치는 쿨타임 그 자체)
+  if (state.day < state.lastEmergencyDay + 7) { closeEmergency(); return; }   // 이중 클릭 방지용 쿨타임만 확인
+  state.gold += 2000;                     // 💰 소지 자금 즉시 반영
+  state.lastEmergencyDay = state.day;     // 🗓️ 수령 날짜 저장 → 7일 락 개시
+  emgNoticed = false;                     // 다음 쿨타임을 위한 안내 재무장
+  updateUI(true);                         // 상단 골드 칩 즉시 갱신 (펄스)
   spawnConfetti(wx(6.5), wz(3));
   sfx('skill');
-  toast('🐾 길고양이의 비상금 +2,000G! 이번엔 꼭 알뜰하게 쓰기다옹!');
-  updateUI(true);
-  closeEmergency();
+  toast('🐾 이번엔 꼭 알뜰하게 쓰기다옹!');
+  document.getElementById('emgOverlay').style.display = 'none';   // 팝업 즉시 소등
+  document.getElementById('emgPanel').style.display = 'none';
+  saveGame();                             // 💾 즉시 자동 저장
 });
 document.getElementById('emgOverlay').addEventListener('click', closeEmergency);
 
@@ -5851,7 +5849,7 @@ function renderExpand() {
     row.className = 'expRow' + (lv === state.shopLevel ? ' now' : '');
     const status = lv < state.shopLevel ? '✅' : lv === state.shopLevel ? '📍 현재' : '🔒';
     row.innerHTML = '<div class="expName">' + status + ' Lv' + lv + ' · ' + SHOP_LEVEL_NAMES[lv] + '</div>' +
-      '<div class="expDesc">바닥 ' + EXP_AREA[lv] + ' · 가구 한도 ' + FURN_CAP[lv] + '개 · ' + EXP_PERKS[lv] +
+      '<div class="expDesc">바닥 ' + EXP_AREA[lv] + ' · ' + EXP_PERKS[lv] +
       (lv > 1 ? ' · 워커 가속 +' + Math.round((Math.pow(1.15, lv - 1) - 1) * 100) + '%' : '') + '</div>';
     if (lv === state.shopLevel + 1) {   // ▶ 다음 단계만 구매 버튼 노출
       const btn = document.createElement('button');
