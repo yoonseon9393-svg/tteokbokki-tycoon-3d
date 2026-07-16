@@ -2315,6 +2315,52 @@ function buildBear() {   // 👑 마스코트 대형 곰인형 (1칸): 특수 �
   return g;
 }
 
+/* ── 🍳 기능성 주방 기물 3종: 🏆 대회 QTE 버프 + 장사 버프 겸용 ── */
+function buildChopper() {   // 🔪 초고속 야채 다지기
+  const g = new THREE.Group();
+  const body = box(0.62, 0.5, 0.5, 0xf1e0c4); body.position.y = 0.25; g.add(body);
+  const boardTop = box(0.7, 0.06, 0.56, 0xd9a066); boardTop.position.y = 0.53; g.add(boardTop);
+  const drum = cyl(0.14, 0.14, 0.4, 0x8a8f98, 12);
+  drum.rotation.z = Math.PI / 2; drum.position.set(0, 0.68, -0.08); g.add(drum);
+  for (let i = 0; i < 3; i++) {   // 회전 칼날 디테일
+    const blade = box(0.02, 0.3, 0.06, 0xd9dee6); blade.rotation.x = i * 1.05;
+    blade.position.set(0, 0.68, -0.08); g.add(blade);
+  }
+  for (const [vx, col] of [[-0.2, 0x7fb069], [0, 0xff8f5e], [0.2, 0x9fd98f]]) {   // 다져진 야채
+    const v = new THREE.Mesh(new THREE.SphereGeometry(0.05, 6, 6), mat(col)); v.position.set(vx, 0.59, 0.16); g.add(v);
+  }
+  const lamp = new THREE.Mesh(new THREE.SphereGeometry(0.035, 6, 6), neonMat(0x7ec8a9, 0.8));
+  lamp.position.set(0.24, 0.4, 0.26); g.add(lamp);
+  return g;
+}
+function buildMixer() {   // 🧂 자동 양념 배합기
+  const g = new THREE.Group();
+  const base = box(0.6, 0.16, 0.5, 0xc9302c); base.position.y = 0.08; g.add(base);
+  const arm = box(0.14, 0.75, 0.14, 0xb0862c); arm.position.set(-0.2, 0.53, 0); g.add(arm);
+  const head = box(0.42, 0.18, 0.3, 0xc9302c); head.position.set(0.02, 0.86, 0); g.add(head);
+  const bowl = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.15, 0.26, 14), mat(0xffd166));
+  bowl.position.set(0.06, 0.42, 0); g.add(bowl);
+  const sauce = cyl(0.18, 0.18, 0.04, 0xff4d4d, 12); sauce.position.set(0.06, 0.56, 0); sauce.castShadow = false; g.add(sauce);
+  const whisk = cyl(0.025, 0.025, 0.24, 0xd9dee6, 8); whisk.position.set(0.06, 0.7, 0); g.add(whisk);
+  const dial = new THREE.Mesh(new THREE.SphereGeometry(0.04, 8, 8), neonMat(0xffd166, 0.7));
+  dial.position.set(0.18, 0.9, 0.14); g.add(dial);
+  return g;
+}
+function buildSmartStove() {   // 📟 디지털 스마트 가스레인지
+  const g = new THREE.Group();
+  const body = box(0.72, 0.55, 0.58, 0x3a3f4c); body.position.y = 0.275; g.add(body);
+  const top = box(0.76, 0.05, 0.62, 0x23262f); top.position.y = 0.57; g.add(top);
+  for (const bx of [-0.18, 0.18]) {   // 🔥 화구 2구 (은은한 발광 링)
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(0.11, 0.025, 8, 18), neonMat(0xff7043, 0.7));
+    ring.rotation.x = Math.PI / 2; ring.position.set(bx, 0.61, -0.04); g.add(ring);
+  }
+  const panel = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.12, 0.03), neonMat(0x53f5e0, 0.6));
+  panel.position.set(0, 0.42, 0.3); g.add(panel);   // 📟 디지털 센서 패널
+  const knob1 = cyl(0.035, 0.035, 0.05, 0xd9dee6, 8); knob1.rotation.x = Math.PI / 2; knob1.position.set(-0.2, 0.22, 0.3); g.add(knob1);
+  const knob2 = cyl(0.035, 0.035, 0.05, 0xd9dee6, 8); knob2.rotation.x = Math.PI / 2; knob2.position.set(0.2, 0.22, 0.3); g.add(knob2);
+  return g;
+}
+
 const SHOP_ITEMS = {
   goldstatue: {
     name: '황금 떡볶이 조형물', emoji: '🏆', price: 0, theme: 'champ',
@@ -2337,6 +2383,25 @@ const SHOP_ITEMS = {
     name: '마스코트 대형 곰인형', emoji: '🧸', price: 15000, theme: 'champ',
     desc: '지나가던 단골도 돌아보게 만드는 치명적 귀여움.', fx: '특수 단골 등장 +25%',
     build: buildBear, cells: [[0, 0]], seats: [], needsWins: 3,
+  },
+  // ── 🍳 기능성 주방 기물 3종 (상점 [🧰 주방] 탭 · 대회+장사 이중 버프) ──
+  chopper: {
+    name: '최첨단 초고속 야채 다지기', emoji: '🔪', price: 1800, cat: 'kitchen',
+    desc: '도마 위에서 번개 같은 속도로 야채를 다져주는 기계.',
+    fx: '대회: 칼질 바 속도 25% 감속 | 장사: 조리 속도 +10%',
+    build: buildChopper, cells: [[0, 0]], seats: [],
+  },
+  mixer: {
+    name: '황금 비율 자동 양념 배합기', emoji: '🧂', price: 3200, cat: 'kitchen',
+    desc: '한 치의 오차도 없이 고추장과 설탕 비율을 배합하는 기계.',
+    fx: '대회: 양념 커맨드 2개 자동 입력 | 장사: 사이드 주문 확률 상승',
+    build: buildMixer, cells: [[0, 0]], seats: [],
+  },
+  smartStove: {
+    name: '디지털 스마트 가스레인지', emoji: '📟', price: 5500, cat: 'kitchen',
+    desc: '미세한 화력 조절 센서가 장착된 인공지능 가스레인지.',
+    fx: '대회: 불조절 안전지대 대폭 확장 | 장사: 정산 시 그릇당 팁 +15G',
+    build: buildSmartStove, cells: [[0, 0]], seats: [],
   },
   terrace: {
     name: '테라스 파라솔 테이블', emoji: '⛱️', price: 180, theme: 'classic',
@@ -3984,7 +4049,13 @@ function startContest() {
     tries: 3, slicePh: 0, slicePos: 50,
     seq: Array.from({ length: 4 }, () => pick(['▲', '▼', '◀', '▶'])), seqIdx: 0, sauceT: 10,   // ⌨️ 커맨드 5→10초
     temp: 75, held: 0, boilT: 10,   // 🔥 화력 판정 창 8→10초
+    zLo: hasFurn('smartStove') ? 50 : 60, zHi: hasFurn('smartStove') ? 90 : 85,   // 📟 스마트 레인지: 안전지대 확장
     target, r1: target, r2: Math.round(target * 0.85) };
+  // 📟 안전지대 시각·문구를 배치 기물에 맞춰 동기화
+  document.getElementById('ctBoilZone').style.left = contest.zLo + '%';
+  document.getElementById('ctBoilZone').style.width = (contest.zHi - contest.zLo) + '%';
+  document.querySelector('#ctBoil .ctHint').innerHTML =
+    '🔥 연타로 온도를 노란 적정 화력(' + contest.zLo + '~' + contest.zHi + '%)에 4초 유지! (<span id="ctHold">0.0</span>초)';
   document.getElementById('ctRace').innerHTML = [
     ['me', '🍢 ' + state.shopName, '#7ec8a9'],
     ['r1', '😈 마왕 떡볶이', '#e5383b'],
@@ -4019,6 +4090,11 @@ function ctSauceTap(dir) {
   if (dir !== contest.seq[contest.seqIdx]) { ctFlash('BAD', 0); ctJudgeSay(false); return; }   // 오입력: 같은 화살표 재도전
   contest.score += 20; contest.stages.sauce += 20;
   contest.seqIdx++;
+  // 🧂 자동 양념 배합기: 남은 커맨드가 2개 이하면 기계가 PERFECT로 자동 입력
+  if (hasFurn('mixer')) while (contest.seqIdx < contest.seq.length && contest.seq.length - contest.seqIdx <= 2) {
+    contest.score += 20; contest.stages.sauce += 20;
+    contest.seqIdx++;
+  }
   const spans = document.querySelectorAll('#ctSeq span');
   spans.forEach((s, i) => { s.className = i < contest.seqIdx ? 'done' : i === contest.seqIdx ? 'cur' : ''; });
   if (contest.seqIdx >= contest.seq.length) {   // 제한 내 완주 보너스
@@ -4108,7 +4184,7 @@ function updateContest(dt) {
   document.getElementById('ctPts_r2').textContent = Math.round(prog * contest.r2);
   if (contest.t <= 0) { ctBoilEnd(); return; }   // ⏰ 시간 종료 = 즉시 최종 판정
   if (contest.phase === 'slice') {
-    contest.slicePh += dt * 1.35;   // 🔪 마커 속도 50% 하향 — PERFECT 존 조준이 쉬움
+    contest.slicePh += dt * 1.35 * (hasFurn('chopper') ? 0.75 : 1);   // 🔪 다지기 배치 시 추가 25% 감속
     contest.slicePos = (Math.sin(contest.slicePh) * 0.5 + 0.5) * 100;
     document.getElementById('ctMarker').style.left = 'calc(' + contest.slicePos + '% - 4px)';
   } else if (contest.phase === 'sauce') {
@@ -4121,7 +4197,7 @@ function updateContest(dt) {
   } else if (contest.phase === 'boil') {
     contest.temp = Math.max(0, contest.temp - dt * 9);   // 🔥 하강 속도 20→9로 부드럽게
     document.getElementById('ctBoilFill').style.width = contest.temp + '%';
-    if (contest.temp >= 60 && contest.temp <= 85) contest.held += dt;   // 🎯 적정 화력 60~85%로 확장
+    if (contest.temp >= contest.zLo && contest.temp <= contest.zHi) contest.held += dt;   // 🎯 안전지대 (📟 배치 시 50~90%)
     document.getElementById('ctHold').textContent = Math.min(4, contest.held).toFixed(1);
     contest.boilT -= dt;
     if (contest.held >= 4 || contest.boilT <= 0) ctBoilEnd();
@@ -4199,7 +4275,7 @@ function spawnGroupSize() {
 
 // 🥤 해금된 사이드 중 하나를 45% 확률로 곁들여 '세트 주문' (미해금 시 항상 단품)
 function rollSide() {
-  if (state.sideLevel < 0 || Math.random() > 0.45) return null;
+  if (state.sideLevel < 0 || Math.random() > 0.45 * (hasFurn('mixer') ? 1.25 : 1)) return null;   // 🧂 배합기: 세트 확률 상승
   return SIDE_MENUS[Math.floor(Math.random() * (state.sideLevel + 1))];
 }
 // 🕊️ 대기 중 힐링 일상 대사 풀 — 날씨/시간대에 맞는 문장이 섞여 골목의 평화를 연출
@@ -4523,8 +4599,9 @@ function updateCustomers(dt) {
           if (state.contestWins >= 1) income += 20;   // 🏆 1승 [동네 분식 최강자]: 기본 팁 +20G 영구
           // 🍱 단품 사이드 추가 주문: 출시했다면 일반 손님이 확률적으로 곁들여 추가 매출
           if (!c.vip && !c.influencer) for (const sl of SIDE_LAUNCH) {
-            if (state.sideMenus[sl.id] && Math.random() < sl.chance) income += sl.bonus;
+            if (state.sideMenus[sl.id] && Math.random() < sl.chance * (hasFurn('mixer') ? 1.2 : 1)) income += sl.bonus;   // 🧂 배합기: 단품 확률↑
           }
+          if (hasFurn('smartStove')) income += 15;   // 📟 스마트 레인지: 그릇당 팁 +15G
           if (c.trait === 'glutton') income *= 2;   // 🐷 대식가: 2그릇 값을 통 크게 지불
           if (c.regular === 'youtuber') income *= 2;   // 🎥 유튜버: 기본 골드 2배 쾌척
           if (c.regular === 'owner' && !dayEvent('costup')) {   // 👑 건물주: 대형 팁 (폭등일엔 누락)
@@ -4820,7 +4897,8 @@ function updateWorkerServing(w, dt, kinds) {
       speed: (2.4 + Math.min(2.2, cookTasks.length * 0.4)) * (1 + 0.15 * state.labKitchen)
         * (state.achClaimed.includes('rider') ? 1.2 : 1)   // 🛵 업적: 폭풍 배달의 민족
         * territoryHaste()   // 🏗️ 영토 단계별 +15% 복리 — 넓어진 동선 자동 보정
-        * (state.contestWins >= 2 ? 1.2 : 1),   // 🏆 2승 [경기 지역 명물]: 알바 이동 ×1.2
+        * (state.contestWins >= 2 ? 1.2 : 1)   // 🏆 2승 [경기 지역 명물]: 알바 이동 ×1.2
+        * (hasFurn('chopper') ? 1.1 : 1),   // 🔪 야채 다지기: 조리 속도 +10%
       group: w.group,
       waypoints: routeToPickup(w, pickupSpot(picked[0])) };
   }
