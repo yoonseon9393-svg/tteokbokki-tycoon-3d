@@ -585,6 +585,35 @@
   #catSkillBtn.skillActive { border-color: #ff7043; background: linear-gradient(160deg, #ffd9b0, #ffb56b); }
   #catSkillBtn.skillLocked { opacity: .55; }
   #catSkillBtn:active { transform: scale(.92); }
+  /* 🐾 길고양이 보은 대기: 노란 글로우 + 통통 바운스 */
+  #catSkillBtn.catEmergency {
+    opacity: 1; border-color: #ffd166;
+    background: linear-gradient(160deg, #fff3cf, #ffe08a);
+    animation: emgBounce .55s ease-in-out infinite alternate;
+  }
+  @keyframes emgBounce {
+    from { transform: translateY(0); box-shadow: 0 4px 0 rgba(0,0,0,.13); }
+    to { transform: translateY(-7px); box-shadow: 0 10px 18px rgba(255,193,60,.75); }
+  }
+  /* ── 🐾 길고양이의 보은 팝업 ─────────── */
+  #emgOverlay { position: fixed; inset: 0; background: rgba(70,55,45,.45); z-index: 44; display: none; }
+  #emgPanel {
+    position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    background: linear-gradient(160deg, #fff8ec, #ffeddb);
+    border: 3px solid #ffd166; border-radius: 24px; text-align: center;
+    padding: 20px 22px; z-index: 45; display: none;
+    box-shadow: 0 14px 40px rgba(90,60,40,.4); width: min(310px, 88vw);
+  }
+  #emgPanel h3 { color: #b07a2a; font-size: 17px; margin-bottom: 10px; }
+  #emgPanel p { font-size: 13px; color: #6a584a; line-height: 1.65; margin-bottom: 14px; }
+  #emgPanel p small { color: #a09383; }
+  #emgBtn {
+    width: 100%; border: none; cursor: pointer; border-radius: 16px;
+    padding: 13px; font-size: 14px; font-weight: 800; color: #7a4a12;
+    background: linear-gradient(135deg, #ffd166, #ff9f68);
+    box-shadow: 0 4px 0 rgba(0,0,0,.15); touch-action: manipulation;
+  }
+  #emgBtn:active { transform: translateY(3px); box-shadow: none; }
   @keyframes rushBlink { from { filter: brightness(1); } to { filter: brightness(1.45); box-shadow: 0 4px 18px rgba(255,110,60,.8); } }
 
   /* ── 도움말 ───────────────────────── */
@@ -728,6 +757,13 @@
 <!-- 🔥 폭풍호객 버튼 삭제 → 📣 홍보 마케팅(메뉴 탭 마켓 하단)으로 대체 -->
 <button id="quickSaveBtn" title="퀵 세이브">💾</button>
 <button id="contestBtn" title="천하제일 떡볶이 대회">🏆</button>
+<div id="emgOverlay"></div>
+<div id="emgPanel">
+  <h3>🐾 길고양이의 보은</h3>
+  <p>야옹~! 가게가 어려워져서 특별히 숨겨둔<br>비상금 <b style="color:#c77b3a">2,000G</b>을 준다옹!<br>
+  자꾸 탕진하면 다음엔 진짜 국물도 없다옹!<br><small>(7일 후에나 다시 도울 수 있다옹!)</small></p>
+  <button id="emgBtn">고마워! (2,000G 받기)</button>
+</div>
 <button id="catSkillBtn"></button>
 <!-- 🏆 천하제일 떡볶이 대회 스타디움 -->
 <div id="ctOverlay"></div>
@@ -867,6 +903,7 @@ const state = {
   expandNoticed: false,   // 🔓 영토 확장 권한 (Day 3+ & 🏆 대회 1회 우승 시 영구 해금)
   sideMenus: { fried: false, kimbap: false },   // 🍱 단품 사이드 출시 상태 (요리 탭 [사이드])
   inventory: {},          // 📦 철거(수거)한 가구 창고 { key: 개수 } — 상점에서 무료 재배치
+  lastEmergencyDay: -999, // 🐾 길고양이 비상금 마지막 수령 Day (7일 쿨타임)
 };
 
 /* ── 🍱 단품 사이드 출시 라인: 일반 손님이 확률적으로 곁들여 추가 매출 ── */
@@ -1069,6 +1106,7 @@ function saveGame() {
       expandNoticed: state.expandNoticed,
       sideMenus: state.sideMenus,
       inventory: state.inventory,
+      lastEmergencyDay: state.lastEmergencyDay,
       research: state.research,
       deliveryCount: state.deliveryCount, sGradeCount: state.sGradeCount,
       achClaimed: state.achClaimed,
@@ -3033,6 +3071,7 @@ function leavePath(seat, exitDir) {
       ((saved.day || 1) >= 3 && state.contestWins >= 1);
     state.sideMenus = Object.assign({ fried: false, kimbap: false }, saved.sideMenus || {});   // 🍱 단품 사이드 복원
     state.inventory = saved.inventory || {};   // 📦 가구 창고 복원
+    state.lastEmergencyDay = typeof saved.lastEmergencyDay === 'number' ? saved.lastEmergencyDay : -999;   // 🐾 보은 쿨타임 복원
     for (const k in state.menuStats)   // ✨ 진화 메뉴는 이름/태그 변신도 복원
       if (state.menuStats[k].evolved) applyEvolutionVisual(k);
     // 🧰 주방 기물 위치 복원 — 가구보다 먼저 해야 점유 충돌 검사가 정확함
@@ -3955,9 +3994,37 @@ function updateConfetti(dt) {
 
 /* (🔥 평판 피버타임 시스템 전면 삭제 — 평판은 리셋 없이 상한(★5.0/5.5)에서 유지되어
     손님 유입 가속·마케팅 시너지가 항상 살아있는 단순하고 안정적인 코어 루프로 정리) */
+/* ── 🐾 길고양이의 비상금 보은: 500G 이하 + 7일 쿨타임마다 2,000G 지원 ── */
+let emgNoticed = false;   // 이번 쿨타임에 안내 토스트를 이미 띄웠는지
+function emergencyReady() {
+  return state.opened && state.gold <= 500 && state.day >= state.lastEmergencyDay + 7;   // 🗓️ 7일 주기 판정
+}
+function showEmergencyPopup() {
+  document.getElementById('emgOverlay').style.display = 'block';
+  document.getElementById('emgPanel').style.display = 'block';
+}
+function closeEmergency() {
+  document.getElementById('emgOverlay').style.display = 'none';
+  document.getElementById('emgPanel').style.display = 'none';
+}
+document.getElementById('emgBtn').addEventListener('click', () => {   // 💰 수령 즉시 7일 쿨타임
+  if (!emergencyReady()) { closeEmergency(); return; }
+  state.gold += 2000;
+  state.lastEmergencyDay = state.day;
+  emgNoticed = false;   // 다음 쿨타임을 위한 안내 재무장
+  saveGame();
+  spawnConfetti(wx(6.5), wz(3));
+  sfx('skill');
+  toast('🐾 길고양이의 비상금 +2,000G! 이번엔 꼭 알뜰하게 쓰기다옹!');
+  updateUI(true);
+  closeEmergency();
+});
+document.getElementById('emgOverlay').addEventListener('click', closeEmergency);
+
 /* ── 🐱 고양이 액티브 필살기: 코스튬별 3종 (게이지 35초 만충 → 터치 발동) ── */
 const catSkillBtn = document.getElementById('catSkillBtn');
 function activateCatSkill() {
+  if (emergencyReady()) { showEmergencyPopup(); return; }   // 🐾 보은 대기 중엔 비상금 팝업이 최우선
   if (!state.catHired) { toast('🙀 고양이 알바생을 먼저 고용해 주세요! (상점 🎪 알바/코스튬 탭)'); return; }
   if (!state.catWearing) { toast('🎽 코스튬을 장착해야 필살기를 쓸 수 있어요!'); return; }
   if (catSkillActiveT > 0 || catSkillGauge < CAT_SKILL_CD) return;
@@ -4002,6 +4069,11 @@ function updateCatSkillBtn() {
     cls = 'skillReady'; html = emoji + '<small>READY</small>';
   } else {
     cls = ''; html = emoji + '<small>' + Math.floor(catSkillGauge / CAT_SKILL_CD * 100) + '%</small>';
+  }
+  if (emergencyReady()) {   // 🐾 보은 대기: 노란 글로우 + 통통 (필살기 표시보다 우선)
+    cls = (cls + ' catEmergency').trim();
+    html = '🐾<small>비상금!</small>';
+    if (!emgNoticed) { emgNoticed = true; toast('🐾 길고양이가 사장님 주머니 사정을 눈치챘어요… 왼쪽 아래 발바닥을 눌러보세요!'); }
   }
   const sig = cls + '|' + html;
   if (catSkillBtn._sig !== sig) {   // 변화 있을 때만 DOM 갱신
