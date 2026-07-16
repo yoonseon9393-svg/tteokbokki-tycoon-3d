@@ -101,11 +101,15 @@
   }
   .shopItem {
     display: flex; align-items: center; justify-content: space-between;
-    gap: 14px; padding: 8px 6px; border-bottom: 1px dashed #e8ddd0;
+    gap: 14px; padding: 12px 6px; border-bottom: 1.5px solid #f4ede8;   /* 🎨 점선 → 은은한 실선 + 여유 패딩 */
   }
   .shopItem:last-child { border-bottom: none; }
   .shopItem .info { font-size: 14px; font-weight: 700; color: #5a4a42; }
   .shopItem .info small { display: block; font-weight: 400; color: #a09383; font-size: 11px; }
+  /* 🎨 가독성 3단 구조: 이름 / 감성 설명 / [효과] 강조 */
+  .shopItem .info .itName { display: block; font-weight: 700; font-size: 13.5px; color: #4a2f1b; margin-bottom: 3px; }
+  .shopItem .info .itDesc { display: block; font-weight: 400; font-size: 11px; color: #7a6250; line-height: 1.4; }
+  .shopItem .info .itFx { display: block; font-weight: 700; font-size: 10.5px; color: #c77b3a; margin-top: 3px; }
   .shopItem button {
     border: none; background: #ffd166; color: #7a5c00;
     border-radius: 12px; padding: 7px 14px; font-weight: 800; cursor: pointer;
@@ -309,8 +313,9 @@
     background: #fff; border: 2px solid #ffe3c8; border-radius: 16px;
     padding: 12px 14px; margin-top: 10px;
   }
-  .bizCard .bizName { font-size: 14px; font-weight: 800; color: #5a4a42; }
-  .bizCard .bizDesc { font-size: 12px; color: #8a7a6c; margin: 4px 0 8px; line-height: 1.45; }
+  .bizCard .bizName { font-size: 13.5px; font-weight: 700; color: #4a2f1b; margin-bottom: 3px; }
+  .bizCard .bizDesc { font-size: 11px; font-weight: 400; color: #7a6250; margin: 0 0 4px; line-height: 1.4; }
+  .bizCard .bizFx { font-size: 10.5px; font-weight: 700; color: #c77b3a; margin-bottom: 8px; }
   .bizBuy {
     width: 100%; border: none; cursor: pointer; border-radius: 12px;
     padding: 10px; font-size: 13px; font-weight: 800; color: #fff;
@@ -873,9 +878,9 @@ const state = {
 /* ── 🍱 단품 사이드 출시 라인: 일반 손님이 확률적으로 곁들여 추가 매출 ── */
 const SIDE_LAUNCH = [
   { id: 'fried',  emoji: '🍤', name: '바삭 모듬튀김', cost: 800,  chance: 0.3, bonus: 120, rep: false,
-    desc: '손님 30%가 추가 주문 — 건당 +120G' },
+    desc: '갓 튀겨낸 바삭함의 정석 모둠튀김.', fx: '출시 시 일정 확률로 곁들임 주문 · 건당 +120G' },
   { id: 'kimbap', emoji: '🍙', name: '마약 꼬마김밥', cost: 2500, chance: 0.4, bonus: 180,
-    desc: '손님 40%가 추가 주문 — 건당 +180G' },
+    desc: '한 입에 사라지는 중독성 만점 꼬마김밥.', fx: '출시 시 일정 확률로 곁들임 주문 · 건당 +180G' },
 ];
 // 🔓 확장 기능 해금 여부 — 권한은 아침 판정에서 1회 부여되면 영구 유지
 function expandUnlocked() { return state.expandNoticed; }
@@ -883,11 +888,11 @@ function expandUnlocked() { return state.expandNoticed; }
 /* ── 📣 홍보 마케팅 3종 (폭풍호객 대체 — 마켓 하단에서 구매) ── */
 const MARKETING = [
   { id: 'flyer', emoji: '📄', name: '전단지 배포', cost: 150,
-    desc: '당일 일반 손님 유입률 1.2배 (오늘 하루)' },
+    desc: '골목 구석구석 정성껏 돌리는 홍보 전단.', fx: '오늘 하루 손님 유입 1.2배' },
   { id: 'sns', emoji: '📱', name: 'SNS 체험단 모집', cost: 1200,
-    desc: '당일 배달 주문·특수 단골 등장 확률 1.4배 (오늘 하루)' },
+    desc: '맛집 검증단이 우르르 몰려오는 화제성 이벤트.', fx: '오늘 하루 배달·단골 등장 1.4배' },
   { id: 'radio', emoji: '📻', name: '지역 라디오 광고', cost: 5000,
-    desc: '영구! 손님 정산마다 기본 팁 +10G 보너스' },
+    desc: '동네 전파를 타는 우리 가게 시그니처 멘트.', fx: '영구! 정산마다 기본 팁 +10G' },
 ];
 function mkFlyerOn() { return state.marketing.flyerDay === state.day; }
 function mkSnsOn() { return state.marketing.snsDay === state.day; }
@@ -918,9 +923,11 @@ function renderTrophyShelf() {
 /* ── 🏢 사업 확장: 프랜차이즈 부동산 투자처 (매초 방치 수익) ── */
 const REAL_ESTATE = [
   { id: 'foodcourt', emoji: '🏬', name: '백화점 푸드코트 입점', cost: 30000, income: 150,
-    desc: '본점의 맛 그대로! 백화점 지하 푸드코트 분점이 알아서 벌어다 줘요.' },
+    desc: '본점의 맛 그대로, 백화점 지하 1층에 분점을 냅니다.',
+    fx: '주기적으로 추가 수익 골드 자동 수급 (+150G/초)' },
   { id: 'building',  emoji: '🏢', name: '강남 직영 빌딩 매입', cost: 80000, income: 350,
-    desc: '강남 한복판 직영 사옥. 매입 즉시 대한민국 요식업 제패를 선언합니다!' },
+    desc: '강남 한복판, 요식업 제패를 선언하는 직영 사옥.',
+    fx: '자동 수익 +350G/초 · 최종 엔딩 달성' },
 ];
 function estateIncome() {   // 보유 투자처의 초당 수익 합계
   return REAL_ESTATE.reduce((sum, e) => sum + (state.realEstate[e.id] ? e.income : 0), 0);
@@ -2317,42 +2324,42 @@ function buildBear() {   // 👑 마스코트 대형 곰인형 (1칸): 특수 �
 const SHOP_ITEMS = {
   goldstatue: {
     name: '황금 떡볶이 조형물', emoji: '🏆', price: 0, theme: 'champ',
-    desc: '천하제일 대회 우승 기념 진품 (1칸·무료) · 🎀 데코 점수 +6000 극대 보너스',
+    desc: '천하제일 대회 우승을 증명하는 황금빛 진품 트로피.', fx: '데코 점수 +6000 | 무료 지급',
     build: buildGoldStatue, cells: [[0, 0]], seats: [],
     needsContest: true,   // 🔒 대회 1회 우승 시 해금
   },
   // ── 👑 대회 우승자 전용 프리미엄 3종 (needsWins: n승 이상 구매 가능) ──
   neonsign: {
     name: 'LED 네온사인 간판', emoji: '💡', price: 4000, theme: 'champ',
-    desc: '은은한 야간 감성 조명 (1칸) · 🌙 밤 시간대 손님 유입 30% 증가',
+    desc: '밤거리를 물들이는 은은한 네온 감성 조명.', fx: '야간 손님 유입 +30%',
     build: buildNeonSign, cells: [[0, 0]], seats: [], needsWins: 1,
   },
   arcade: {
     name: '레트로 네오 오락기', emoji: '🕹️', price: 8500, theme: 'champ',
-    desc: '대기 손님이 오락 삼매경 (1칸) · 🪑 대기 인내심 한도 ×1.4 (탈주 방지)',
+    desc: '기다림도 놀이가 되는 레트로 감성 오락기.', fx: '대기 인내심 한도 ×1.4',
     build: buildArcade, cells: [[0, 0]], seats: [], needsWins: 2,
   },
   bear: {
     name: '마스코트 대형 곰인형', emoji: '🧸', price: 15000, theme: 'champ',
-    desc: '귀여움에 매료 (1칸) · 👥 특수 VIP 단골 등장 확률 +25%',
+    desc: '지나가던 단골도 돌아보게 만드는 치명적 귀여움.', fx: '특수 단골 등장 +25%',
     build: buildBear, cells: [[0, 0]], seats: [], needsWins: 3,
   },
   terrace: {
     name: '테라스 파라솔 테이블', emoji: '⛱️', price: 180, theme: 'classic',
-    desc: '야외 우드 데크 전용! (Lv2 확장 후 데크 위 1칸)',
+    desc: '야외 우드 데크 전용 테이블 세트.', fx: '야외 전용 배치 가능',
     build: buildTerraceSet, cells: [[0, 0]],
     seats: [{ x: 0, z: 0.33, ry: Math.PI }],
     terraceOnly: true,
   },
   solo: {
     name: '1인 테이블', emoji: '🍚', price: 80, theme: 'classic',
-    desc: '미니 테이블 + 의자 1개 (1칸 차지)',
+    desc: '공간 효율이 극대화된 컴팩트한 미니 좌석.', fx: '1인 손님 전용',
     build: buildSoloSet, cells: [[0, 0]],
     seats: [{ x: 0, z: 0.33, ry: Math.PI }],
   },
   couple: {
     name: '2인 테이블', emoji: '💕', price: 150, theme: 'classic',
-    desc: '테이블 + 마주보는 의자 2개 (가로 2칸)',
+    desc: '연인과 친구가 함께 마주 보고 앉는 편안한 좌석.', fx: '2인 손님 전용',
     build: buildCoupleSet, cells: [[0, 0], [1, 0]],
     seats: [
       { x: -0.18, z: 0, ry: Math.PI / 2 },
@@ -2361,7 +2368,7 @@ const SHOP_ITEMS = {
   },
   quad: {
     name: '4인 테이블', emoji: '👨‍👩‍👧‍👦', price: 280, theme: 'classic',
-    desc: '원형 테이블 + 의자 4개 (2×2칸)',
+    desc: '온 팀이 둘러앉는 넉넉한 원형 테이블.', fx: '4인 손님 전용',
     build: buildQuadSet, cells: [[0, 0], [1, 0], [0, 1], [1, 1]],
     seats: [
       { x: -0.18, z: 0.5, ry: Math.PI / 2 },
@@ -2372,20 +2379,20 @@ const SHOP_ITEMS = {
   },
   bench: {
     name: '대기석', emoji: '🛋️', price: 220, theme: 'classic',
-    desc: '주변 2.5칸 손님이 사이드를 40% 더 진득하게 기다려요',
+    desc: '기다리는 시간도 설레게 만드는 대기 의자.', fx: '주변 손님 대기 시간 증가',
     build: buildBenchSet, cells: [[0, 0]], seats: [],
   },
   // ── 🌳 클래식 나무 테마: 프리미엄 라인업 (가구 패시브: 인내심↑ · 팁 확률↑) ──
   bamboo: {
     name: '대나무 1인석', emoji: '🎋', price: 450, theme: 'classic',
-    desc: '시원한 대숲 감성 (1칸) · 🪑 인내심 +10% · 팁 확률 8% (+15G)',
+    desc: '싱그러운 대숲 감성을 담은 최고급 1인석.', fx: '손님 인내심 +10% | 팁 확률 보너스',
     build: buildBambooSet, cells: [[0, 0]],
     seats: [{ x: 0, z: 0.33, ry: Math.PI }],
     passive: { patience: 0.10, tip: 0.08, tipGold: 15 },
   },
   pyeongsang: {
     name: '레트로 감성 평상', emoji: '🍉', price: 900, theme: 'classic',
-    desc: '온 가족 둘러앉는 원목 평상 (2×2칸) · 🪑 인내심 +15% · 팁 확률 12% (+20G)',
+    desc: '온 가족이 옹기종기 둘러앉아 정을 나누는 평상.', fx: '다인석 전용 | 대박 팁 보너스',
     build: buildPyeongsangSet, cells: [[0, 0], [1, 0], [0, 1], [1, 1]],
     seats: [
       { x: -0.05, z: 0.5, ry: Math.PI / 2 },
@@ -2397,7 +2404,7 @@ const SHOP_ITEMS = {
   },
   palace: {
     name: '황금 궁궐 4인 테이블', emoji: '👑', price: 2400, theme: 'classic',
-    desc: '수랏상 대접받는 금장 원탁 (2×2칸) · 🪑 인내심 +20% · 팁 확률 20% (+30G)',
+    desc: '수랏상 부럽지 않은 금장 원탁의 품격.', fx: '손님 인내심 +20% | 고액 팁 보너스',
     build: buildPalaceSet, cells: [[0, 0], [1, 0], [0, 1], [1, 1]],
     seats: [
       { x: -0.18, z: 0.5, ry: Math.PI / 2 },
@@ -2410,14 +2417,14 @@ const SHOP_ITEMS = {
   // ── 🌆 사이버 펑크 네온 테마: 하이엔드 라인업 ──
   capsule: {
     name: '네온 캡슐 1인석', emoji: '🛸', price: 1100, theme: 'cyber',
-    desc: '시안 링이 감도는 개인 포드 (1칸) · 🪑 인내심 +12% · 팁 확률 12% (+20G)',
+    desc: '미래에서 온 나만의 1인 전용 캡슐 포드.', fx: '손님 인내심 +12% | 팁 확률 보너스',
     build: buildCapsuleSet, cells: [[0, 0]],
     seats: [{ x: 0, z: 0.33, ry: Math.PI }],
     passive: { patience: 0.12, tip: 0.12, tipGold: 20 },
   },
   neonbar: {
     name: '사이버 펑크 네온 바', emoji: '🍸', price: 1500, theme: 'cyber',
-    desc: '마젠타 엣지의 스탠딩 바 (가로 2칸) · 🪑 인내심 +15% · 팁 확률 15% (+25G)',
+    desc: '네온이 흐르는 시티팝 감성 스탠딩 바.', fx: '손님 인내심 +15% | 팁 확률 보너스',
     build: buildNeonBarSet, cells: [[0, 0], [1, 0]],
     seats: [
       { x: 0, z: 0.33, ry: Math.PI },
@@ -2427,7 +2434,7 @@ const SHOP_ITEMS = {
   },
   limo: {
     name: 'VIP 전용 리무진 시트', emoji: '🚘', price: 3800, theme: 'cyber',
-    desc: '골드 언더글로우 프리미엄 소파 (가로 2칸) · 🪑 인내심 +25% · 팁 확률 30% (+40G)',
+    desc: '리무진에서 옮겨온 듯한 최상급 가죽 시트.', fx: '손님 인내심 +25% | 최고급 팁 보너스',
     build: buildLimoSet, cells: [[0, 0], [1, 0]],
     seats: [
       { x: 0.1, z: 0.06, ry: 0 },
@@ -2437,13 +2444,13 @@ const SHOP_ITEMS = {
   },
   stage: {
     name: '고양이 버스킹 무대', emoji: '🎸', price: 1800,
-    desc: '🐱 알바가 틈틈이 공연! 주변 3칸 손님의 식사가 50% 여유로워져요',
+    desc: '고양이 알바의 낭만 버스킹 무대.', fx: '주변 손님 식사 여유 +50%',
     build: buildStageSet, cells: [[0, 0], [1, 0], [0, 1], [1, 1]], seats: [],
     cat: 'ent', needsCat: true,   // 🔒 고양이 고용 선행 조건
   },
   delivery: {
     name: '오토바이 배달 주문 센터', emoji: '🛵', price: 3000,
-    desc: '18초마다 배달 주문 접수 — 주방팀이 포장하면 오토바이가 출발! 건당 +80G',
+    desc: '골목을 넘어 도시로 달리는 배달 사업 거점.', fx: '주기적으로 배달 주문 수익 발생',
     build: buildDeliverySet, cells: [[0, 0], [1, 0]], seats: [],
     cat: 'ent', needsBiz: true,   // 🔒 Day 3 완료 + 누적 등급 A 이상 선행 조건
   },
@@ -4973,12 +4980,15 @@ function cookRow(wrap, kind, m, i, curLevel, developFn, devLabel) {
   row.className = 'shopItem' + (!unlocked && !isNext ? ' locked' : '');
   const info = document.createElement('div');
   info.className = 'info';
-  info.innerHTML = (unlocked || isNext ? m.tag.split(' ')[0] + ' ' + m.name : '🔒 ???') +
-    (unlocked ? ' <span style="color:#e8a23d">Lv.' + s.lv + '</span>' : '') +
-    '<small>' + (unlocked
-      ? '단가 ' + Math.round(m.income * menuMult(key)) + 'G (배율 ×' + menuMult(key).toFixed(2) + ')'
-      : isNext ? (devLabel === '개발' ? '개발 가능! 판매가 ' + m.income + 'G' : '출시 가능! 세트로 +' + m.income + 'G')
-      : '이전 단계를 먼저 진행하세요') + '</small>';
+  info.innerHTML =   // 🎨 이름 / 직관 설명 / [효과] 3단 구조 (거친 수식 다이어트)
+    '<span class="itName">' + (unlocked || isNext ? m.tag.split(' ')[0] + ' ' + m.name : '🔒 ???') +
+    (unlocked ? ' <span style="color:#e8a23d">Lv.' + s.lv + '</span>' : '') + '</span>' +
+    '<span class="itDesc">' + (unlocked
+      ? '비법 양념을 업그레이드하여 기본 판매 단가를 상승시킵니다.'
+      : isNext ? (devLabel === '개발' ? '새로운 비법 레시피를 연구해 메뉴판에 올립니다.' : '새 사이드를 출시해 세트 주문의 문을 엽니다.')
+      : '이전 단계를 먼저 진행하세요.') + '</span>' +
+    (unlocked ? '<span class="itFx">[효과] 현재 단가 ' + Math.round(m.income * menuMult(key)) + 'G · 배율 ×' + menuMult(key).toFixed(2) + '</span>'
+      : isNext ? '<span class="itFx">[효과] ' + (devLabel === '개발' ? '판매가 ' + m.income + 'G' : '세트 주문 +' + m.income + 'G') + '</span>' : '');
   row.appendChild(info);
   const btns = document.createElement('div');
   btns.className = 'cookBtns';   // 🔬 개발 / ⬆️ 업그레이드 버튼이 가로로 나란히 서는 자리
@@ -5028,7 +5038,8 @@ function renderCookSide() {   // 🍤 [사이드] 탭: 세트 사이드 트리 +
   for (const sl of SIDE_LAUNCH) {
     const row = document.createElement('div');
     row.className = 'shopItem';
-    row.innerHTML = '<div class="info">' + sl.emoji + ' ' + sl.name + '<small>' + sl.desc + '</small></div>';
+    row.innerHTML = '<div class="info"><span class="itName">' + sl.emoji + ' ' + sl.name + '</span>' +
+      '<span class="itDesc">' + sl.desc + '</span><span class="itFx">[효과] ' + sl.fx + '</span></div>';
     const btn = document.createElement('button');
     if (state.sideMenus[sl.id]) { btn.textContent = '✅ 판매 중'; btn.disabled = true; }
     else {
@@ -5045,7 +5056,7 @@ function launchSideItem(sl) {   // 🍱 단품 사이드 출시 (state.sideMenus
   state.gold -= sl.cost;
   state.sideMenus[sl.id] = true;
   sfx('stamp');
-  toast(sl.emoji + ' 「' + sl.name + '」 출시! ' + sl.desc);
+  toast(sl.emoji + ' 「' + sl.name + '」 출시! ' + sl.fx);
   updateUI(true);
   saveGame();
   renderMenuBook();
@@ -5201,7 +5212,8 @@ function renderPromo() {
   for (const mk of MARKETING) {
     const row = document.createElement('div');
     row.className = 'shopItem';
-    row.innerHTML = '<div class="info">' + mk.emoji + ' ' + mk.name + '<small>' + mk.desc + '</small></div>';
+    row.innerHTML = '<div class="info"><span class="itName">' + mk.emoji + ' ' + mk.name + '</span>' +
+      '<span class="itDesc">' + mk.desc + '</span><span class="itFx">[효과] ' + mk.fx + '</span></div>';
     const btn = document.createElement('button');
     const owned = mk.id === 'radio' ? state.marketing.radio
       : mk.id === 'flyer' ? mkFlyerOn() : mkSnsOn();
@@ -5214,7 +5226,7 @@ function renderPromo() {
       else if (mk.id === 'sns') state.marketing.snsDay = state.day;
       else state.marketing.radio = true;
       sfx('stamp');
-      toast(mk.emoji + ' ' + mk.name + ' 개시! ' + mk.desc);
+      toast(mk.emoji + ' ' + mk.name + ' 개시! ' + mk.fx);
       updateUI(true);
       saveGame();
       renderPromo();   // 버튼 상태 즉시 갱신
@@ -5633,7 +5645,8 @@ function renderBiz() {
     const card = document.createElement('div');
     card.className = 'bizCard';
     card.innerHTML = '<div class="bizName">' + e.emoji + ' ' + e.name + '</div>' +
-      '<div class="bizDesc">' + e.desc + '<br>📈 해금 시 매초 <b>+' + e.income + 'G</b> 자동 수익</div>';
+      '<div class="bizDesc">' + e.desc + '</div>' +
+      '<div class="bizFx">[효과] ' + e.fx + '</div>';
     const btn = document.createElement('button');
     btn.className = 'bizBuy' + (owned ? ' owned' : state.gold < e.cost ? ' poor' : '');
     btn.textContent = owned ? '✅ 운영 중 (매초 +' + e.income + 'G)' : e.cost.toLocaleString() + 'G';
@@ -5773,9 +5786,10 @@ document.getElementById('endingBtn').addEventListener('click', () => {
     if (item.fixture) continue;   // 🧰 기물은 아래 정보 행으로 별도 표시
     const row = document.createElement('div');
     row.className = 'shopItem';
-    row.innerHTML =
-      '<div class="info">' + item.emoji + ' ' + item.name +
-      '<small>' + item.desc + '</small></div>';
+    row.innerHTML =   // 🎨 이름 / 감성 설명 / [효과] 3단 구조
+      '<div class="info"><span class="itName">' + item.emoji + ' ' + item.name + '</span>' +
+      '<span class="itDesc">' + item.desc + '</span>' +
+      (item.fx ? '<span class="itFx">[효과] ' + item.fx + '</span>' : '') + '</div>';
     const btn = document.createElement('button');
     // 🔒 선행 조건 판정: 고양이 고용 / 운영 실적 (배달 센터)
     const lockText = () =>
