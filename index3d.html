@@ -556,7 +556,7 @@
   #ctSliceBar, #ctBoilBar { position: relative; height: 26px; background: rgba(255,255,255,.14); border-radius: 999px; overflow: hidden; }
   #ctZone { position: absolute; left: 42%; width: 16%; height: 100%; background: rgba(126,200,169,.65); }
   #ctMarker { position: absolute; top: 2px; width: 8px; height: 22px; border-radius: 4px; background: #fff; left: 0%; }
-  #ctBoilZone { position: absolute; left: 70%; width: 10%; height: 100%; background: rgba(255,209,102,.75); }
+  #ctBoilZone { position: absolute; left: 60%; width: 25%; height: 100%; background: rgba(255,209,102,.75); }
   #ctBoilFill { position: absolute; left: 0; top: 0; height: 100%; width: 75%; background: linear-gradient(90deg, #6fb1d9, #e5383b); opacity: .85; }
   #ctSeq { display: flex; justify-content: center; gap: 8px; margin: 6px 0 10px; font-size: 24px; font-weight: 900; }
   #ctSeq span { opacity: .45; }
@@ -745,7 +745,7 @@
       <button id="ctTapSlice" class="ctBig">🔪 썰기!</button>
     </div>
     <div id="ctSauce" style="display:none">
-      <div class="ctHint">🌶️ 비법 양념 커맨드를 순서대로 입력! (<span id="ctSauceT">5.0</span>초)</div>
+      <div class="ctHint">🌶️ 비법 양념 커맨드를 순서대로 입력! (<span id="ctSauceT">10.0</span>초)</div>
       <div id="ctSeq"></div>
       <div id="ctPadC">
         <button data-d="▲">▲</button><button data-d="◀">◀</button>
@@ -753,7 +753,7 @@
       </div>
     </div>
     <div id="ctBoil" style="display:none">
-      <div class="ctHint">🔥 연타로 온도를 노란 적정 화력(70~80%)에 4초 유지! (<span id="ctHold">0.0</span>초)</div>
+      <div class="ctHint">🔥 연타로 온도를 노란 적정 화력(60~85%)에 4초 유지! (<span id="ctHold">0.0</span>초)</div>
       <div id="ctBoilBar"><div id="ctBoilZone"></div><div id="ctBoilFill"></div></div>
       <button id="ctTapBoil" class="ctBig">🔥 화력!</button>
     </div>
@@ -3933,7 +3933,7 @@ catSkillBtn.addEventListener('click', activateCatSkill);
    1) 칼질 타이밍(3회) → 2) 양념 커맨드(5초) → 3) 화력 유지(4초) — 총 제한 25초
    최종 점수 = 단계 합산 × (1 + shopLevel×0.15 + 주방화력(labKitchen)×0.1) */
 let contest = null;
-const CT_LIMIT = 25;
+const CT_LIMIT = 40;   // ⏱️ 총 제한시간 25→40초 여유롭게
 const JUDGES = [
   { emoji: '🧒', name: '초딩 입맛',   good: '와! 소스 냄새가 환상적이야!',   bad: '에이~ 좀 밍밍한데?' },
   { emoji: '👵', name: '동네 주민',   good: '우리 골목의 자랑이구먼~!',     bad: '우리 집 양념만 못하네…' },
@@ -3965,8 +3965,8 @@ function startContest() {
   const target = contestTarget();
   contest = { phase: 'slice', t: CT_LIMIT, score: 0, stages: { slice: 0, sauce: 0, boil: 0 },
     tries: 3, slicePh: 0, slicePos: 50,
-    seq: Array.from({ length: 4 }, () => pick(['▲', '▼', '◀', '▶'])), seqIdx: 0, sauceT: 5,
-    temp: 75, held: 0, boilT: 8,
+    seq: Array.from({ length: 4 }, () => pick(['▲', '▼', '◀', '▶'])), seqIdx: 0, sauceT: 10,   // ⌨️ 커맨드 5→10초
+    temp: 75, held: 0, boilT: 10,   // 🔥 화력 판정 창 8→10초
     target, r1: target, r2: Math.round(target * 0.85) };
   document.getElementById('ctRace').innerHTML = [
     ['me', '🍢 ' + state.shopName, '#7ec8a9'],
@@ -4091,7 +4091,7 @@ function updateContest(dt) {
   document.getElementById('ctPts_r2').textContent = Math.round(prog * contest.r2);
   if (contest.t <= 0) { ctBoilEnd(); return; }   // ⏰ 시간 종료 = 즉시 최종 판정
   if (contest.phase === 'slice') {
-    contest.slicePh += dt * 2.7;
+    contest.slicePh += dt * 1.35;   // 🔪 마커 속도 50% 하향 — PERFECT 존 조준이 쉬움
     contest.slicePos = (Math.sin(contest.slicePh) * 0.5 + 0.5) * 100;
     document.getElementById('ctMarker').style.left = 'calc(' + contest.slicePos + '% - 4px)';
   } else if (contest.phase === 'sauce') {
@@ -4102,9 +4102,9 @@ function updateContest(dt) {
       contest.phase = 'boil'; ctShow('boil');
     }
   } else if (contest.phase === 'boil') {
-    contest.temp = Math.max(0, contest.temp - dt * 20);
+    contest.temp = Math.max(0, contest.temp - dt * 9);   // 🔥 하강 속도 20→9로 부드럽게
     document.getElementById('ctBoilFill').style.width = contest.temp + '%';
-    if (contest.temp >= 70 && contest.temp <= 80) contest.held += dt;
+    if (contest.temp >= 60 && contest.temp <= 85) contest.held += dt;   // 🎯 적정 화력 60~85%로 확장
     document.getElementById('ctHold').textContent = Math.min(4, contest.held).toFixed(1);
     contest.boilT -= dt;
     if (contest.held >= 4 || contest.boilT <= 0) ctBoilEnd();
