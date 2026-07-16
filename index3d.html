@@ -91,7 +91,7 @@
   .tsRow .tsInfo small { font-size: 10.5px; color: #cfc0a8; }
   .tsRow .tsState { font-size: 10px; font-weight: 800; color: #ffd166; white-space: nowrap; }
   .cookBtns { display: flex; gap: 5px; align-items: center; }                             /* 개발·업그레이드 가로 나란히 */
-  .cookBtns button { font-size: 11.5px; padding: 7px 9px; white-space: nowrap; }
+  .cookBtns button { font-size: 10.5px; padding: 4px 8px; white-space: nowrap; }   /* 🎚️ 개발·업그레이드도 슬림 배지 */
   #shopClose, #menuClose, #labClose, #newsClose, #achvClose, #setClose, #bizClose {
     position: absolute; top: 12px; right: 14px;
     border: none; background: #ffd9b8; color: #7a5c3a;
@@ -99,21 +99,22 @@
     font-size: 15px; font-weight: 800; cursor: pointer;
     touch-action: manipulation;
   }
+  /* 📏 슬림 & 미니멀: 세로 압축으로 한 화면 4행 목표 */
   .shopItem {
     display: flex; align-items: center; justify-content: space-between;
-    gap: 14px; padding: 12px 6px; border-bottom: 1.5px solid #f4ede8;   /* 🎨 점선 → 은은한 실선 + 여유 패딩 */
+    gap: 10px; padding: 6px 8px; border-bottom: 1.5px solid #f4ede8;   /* 패딩 절반 이하 압축 */
   }
   .shopItem:last-child { border-bottom: none; }
-  .shopItem .info { font-size: 14px; font-weight: 700; color: #5a4a42; }
-  .shopItem .info small { display: block; font-weight: 400; color: #a09383; font-size: 11px; }
-  /* 🎨 가독성 3단 구조: 이름 / 감성 설명 / [효과] 강조 */
-  .shopItem .info .itName { display: block; font-weight: 700; font-size: 13.5px; color: #4a2f1b; margin-bottom: 3px; }
-  .shopItem .info .itDesc { display: block; font-weight: 400; font-size: 11px; color: #7a6250; line-height: 1.4; }
-  .shopItem .info .itFx { display: block; font-weight: 700; font-size: 10.5px; color: #c77b3a; margin-top: 3px; }
+  .shopItem .info { flex: 1; min-width: 0; font-size: 14px; font-weight: 700; color: #5a4a42; }   /* 좌우 밀림 방지 균등 분배 */
+  .shopItem .info small { display: block; font-weight: 400; color: #a09383; font-size: 10.5px; line-height: 1.25; }
+  /* 🎨 가독성 3단 구조: 이름 / 감성 설명 / [효과] — 간격 1px대로 극압축 */
+  .shopItem .info .itName { display: block; font-weight: 700; font-size: 13px; color: #4a2f1b; margin-bottom: 1px; }
+  .shopItem .info .itDesc { display: block; font-weight: 400; font-size: 10.5px; color: #7a6250; line-height: 1.25; }
+  .shopItem .info .itFx { display: block; font-weight: 700; font-size: 10px; color: #c77b3a; margin-top: 1px; line-height: 1.25; }
   .shopItem button {
-    border: none; background: #ffd166; color: #7a5c00;
-    border-radius: 12px; padding: 7px 14px; font-weight: 800; cursor: pointer;
-    font-size: 13px;
+    border: none; background: #ffcf57; color: #6e5200;
+    border-radius: 999px; padding: 4px 8px; font-weight: 800; cursor: pointer;
+    font-size: 11px; white-space: nowrap; flex-shrink: 0;   /* 🎚️ 날씬한 라운드 배지 */
   }
   .shopItem button:hover { background: #ffc94d; }
   /* 🗂️ 상점 카테고리 탭 */
@@ -370,7 +371,7 @@
   #storyNext { margin-top: 8px; width: 100%; border: none; border-radius: 12px; padding: 9px; cursor: pointer;
     font-weight: 800; font-size: 13px; color: #fff; background: #b3a6dd; touch-action: manipulation; }
   /* 📋 업적 보상 버튼 상태 */
-  .achReward { border: none; border-radius: 12px; padding: 7px 12px; font-weight: 800; font-size: 12px; cursor: pointer; touch-action: manipulation; }
+  .achReward { border: none; border-radius: 999px; padding: 4px 8px; font-weight: 800; font-size: 10.5px; cursor: pointer; touch-action: manipulation; white-space: nowrap; flex-shrink: 0; }   /* 🎚️ 슬림 배지 */
   .achReward.ready { background: #ffd166; color: #7a5c00; animation: rushBlink .6s infinite alternate; }
   .achReward.done { background: #d9ead9; color: #4a7a4a; cursor: default; }
   .achReward.locked { background: #e8ddd0; color: #a09383; cursor: default; }
