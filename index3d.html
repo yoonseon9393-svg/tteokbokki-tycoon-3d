@@ -1185,10 +1185,10 @@ const SHOP_CX = wx(8.5);      // Lv1 매장 내부의 가로 중심 — 카메�
 // 📱 터치 카메라 조작 상태 (드래그 이동 + 핀치 줌)
 const camCtl = {
   panX: 0, panZ: 0,          // 드래그로 이동한 카메라 중심 오프셋
-  zoom: 1,                   // 핀치 줌 배율 (1 = 기본)
-  minZoom: 0.9, maxZoom: 2.4,   // 🚫 축소 마지노선 최종 락(0.85→0.9) — 기본 구도 대비 11%만 물러남, 맵이 항상 화면 꽉 참
+  zoom: 1.5,                 // 시작 줌 = 축소 마지노선과 동일 (허용되는 가장 넓은 구도로 시작)
+  minZoom: 1.5, maxZoom: 2.4,   // 📱 모바일 세로 대응 대폭 상향(0.9→1.5) — 최대 축소에도 맵이 좌우 타이트하게 꽉 참
   panLimitX: 12, panLimitZ: 7, // 맵 밖으로 너무 나가지 않게 (2배 폭 반영)
-  orbit: 0.25,                       // 좌우 궤도 회전 (기본값: 모서리가 정면을 보는 대각선 뷰)
+  orbit: 0,                          // 📐 마름모(Isometric) 구도: 카메라 X=Z 등거리 배치가 정확히 45°를 만들므로 추가 회전 0
   orbitLimit: Math.PI / 3.6,         // 좌우 약 ±50도 제한
   tilt: 0                            // 상하 틸트 (fitCamera에서 33°~60°로 엄격 클램프 — 절대 안 눕음!)
 };
@@ -1198,14 +1198,13 @@ function fitCamera() {
   const a = window.innerWidth / window.innerHeight;
   let halfH, px, py, pz, tx, tz;
   if (a >= 1) {
-    // 가로(PC) 화면: 위에서 시원하게 내려다보는 높은 시점 (원상복구!)
+    // 가로(PC) 화면: 📐 X=Z 등거리(13, 13) — 방위각 정확히 45°, 바닥 타일이 완벽한 마름모로 보임
     halfH = FRUSTUM;
-    px = 11; py = 13; pz = 13; tx = 0; tz = 0.5;
+    px = 13; py = 13; pz = 13.5; tx = 0; tz = 0.5;
   } else {
-    // 세로(모바일) 화면: 매장 바닥이 훤히 보이는 높은 시점 (원상복구!)
-    // 대각선 느낌은 camCtl.orbit 기본 회전값이 담당
+    // 세로(모바일) 화면: 📐 동일 45° 마름모 구도 (X=Z 등거리) + 높은 앙각 유지
     halfH = Math.min(PORTRAIT_HALF_W / a, PORTRAIT_MAX_H);
-    px = 4; py = 12.5; pz = 15; tx = 0; tz = 0.2;
+    px = 13; py = 12.5; pz = 13.2; tx = 0; tz = 0.2;
   }
   // 🏗️ 넓어진 매장 중심으로 카메라 평행이동 (앵글은 그대로 유지)
   px += SHOP_CX; tx += SHOP_CX;
