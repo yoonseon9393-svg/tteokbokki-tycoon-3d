@@ -426,16 +426,15 @@
   #furniRotate { background: #9fd8c8; color: #1f5c49; }
   #furniRemove { background: #ffb3b3; color: #7a2e2e; }
   /* ── 🪑 가구 편집 모드 안내 바 ─────────── */
-  #editHint {
+  #editHint {   /* 🧹 설명 상자 삭제 — 투명 컨테이너에 완료 버튼만 둥실 (시야 완전 개방) */
     position: fixed; top: 60px; left: 50%; transform: translateX(-50%);
-    background: rgba(66,58,52,.88); color: #d9f2e6; border-radius: 999px;
-    padding: 8px 10px 8px 18px; font-size: 13px; font-weight: 700; z-index: 14; display: none;   /* 🧹 칩(10)·튜토(12) 위 최상단 */
-    align-items: center; gap: 8px; white-space: nowrap;
+    background: none; padding: 0; z-index: 14; display: none;   /* 칩(10)·튜토(12) 위 최상단 */
+    align-items: center;
   }
   #editDoneBtn {
     border: none; background: #2fae6e; color: #fff; border-radius: 999px;
-    padding: 5px 13px; font-weight: 800; font-size: 12px; cursor: pointer;
-    touch-action: manipulation;
+    padding: 8px 18px; font-weight: 800; font-size: 13px; cursor: pointer;
+    touch-action: manipulation; box-shadow: 0 3px 10px rgba(40,90,60,.35);
   }
   /* ── 🎓 상황 맞춤형 실시간 튜토리얼 가이드 ─────────── */
   #tutoGuide {
@@ -657,7 +656,7 @@
   <button class="bigbtn" id="bizBtn">🏢 사업</button>
   <button class="bigbtn" id="setBtn">⚙️ 설정</button>
 </div>
-<div id="editHint">🪑 가구를 선택한 후 🔄 버튼으로 회전하고, 🗑️ 버튼을 누르면 가구가 철거(수거)됩니다! <button id="editDoneBtn">✅ 편집 완료</button></div>
+<div id="editHint"><button id="editDoneBtn">✅ 편집 완료</button></div><!-- 🧹 설명 줄글 제거 — 완료 버튼만 유지 -->
 <div id="tutoGuide"><span id="tutoText"></span><button id="tutoSkip" title="가이드 건너뛰기">✕</button></div>
 
 <div id="shopOverlay"></div>
@@ -681,9 +680,9 @@
   <div id="cookSidePane" style="display:none"></div>
 </div>
 
-<div id="placeHint">🎯 화면을 드래그해 중앙 칸을 맞추고, 탭해서 배치! <button id="hintDelBtn">🗑️ 수거</button> <button id="cancelPlaceBtn">✕ 취소</button></div>
+<div id="placeHint">🎯 화면을 드래그해 중앙 칸을 맞추고, 탭해서 배치! <button id="hintDelBtn">🗑️ 철거</button> <button id="cancelPlaceBtn">✕ 취소</button></div>
 <button id="rotateBtn">🔄 회전</button>
-<!-- (❌ 우측 하단 조작 패드 완전 제거 — 🎯 중앙 고정 배치가 대체. 회전=🔄 버튼/R키, 배치=탭, 취소·수거=상단 가이드 바) -->
+<!-- (❌ 우측 하단 조작 패드 완전 제거 — 🎯 중앙 고정 배치가 대체. 회전=🔄 버튼/R키, 배치=탭, 취소·철거=상단 가이드 바) -->
 
 <div id="welcomeOverlay"></div>
 <div id="welcomePanel">
@@ -888,7 +887,7 @@ const state = {
   marketing: { flyerDay: 0, snsDay: 0, radio: false },   // 📣 홍보 (당일권 2종 + 영구 라디오)
   expandNoticed: false,   // 🔓 영토 확장 권한 (Day 3+ & 🏆 대회 1회 우승 시 영구 해금)
   sideMenus: { fried: false, kimbap: false },   // 🍱 단품 사이드 출시 상태 (요리 탭 [사이드])
-  inventory: {},          // 📦 철거(수거)한 가구 창고 { key: 개수 } — 상점에서 무료 재배치
+  inventory: {},          // 📦 철거한 가구 창고 { key: 개수 } — 상점에서 무료 재배치
   lastEmergencyDay: -999, // 🐾 길고양이 비상금 마지막 수령 Day (7일 쿨타임)
 };
 
@@ -3598,7 +3597,7 @@ function beginMoveTable(t) {
   startPlacing(rec.key, true);       // 🆓 무료 이동 모드 (고스트가 마우스 추적)
   state.placeRot = rec.rot;
   moveInfo = rec;
-  toast('🖐️ ' + SHOP_ITEMS[rec.key].name + ' 들어올림! 초록 칸 클릭=배치 · 🔄회전 · 🗑️수거');
+  toast('🖐️ ' + SHOP_ITEMS[rec.key].name + ' 들어올림! 초록 칸 클릭=배치 · 🔄회전 · 🗑️철거');
   tutoAdvance(4);   // 🎓 Step4 완료 (축하 토스트가 마지막에 뜨도록 뒤에서 호출)
 }
 function beginMoveFixture(fid) {
@@ -3615,14 +3614,14 @@ function beginMoveFixture(fid) {
   tutoAdvance(4);   // 🎓 주방 기물 들어올리기도 Step4 완료로 인정
 }
 // 🗑️ 들림 상태에서 철거: 복원하지 않고 소멸 + 전액 회수 (주방 기물은 버튼 자체가 안 뜸)
-// 🗑️ 들어올린 가구 철거(수거): 파괴하지 않고 📦 창고 인벤토리로 회수 → 상점에서 무료 재배치
+// 🗑️ 들어올린 가구 철거: 파괴하지 않고 📦 창고 인벤토리로 회수 → 상점에서 무료 재배치
 function demolishHeld() {
   if (!state.placing) { toast('🗑️ 편집 모드에서 가구를 먼저 선택(들어올림)해 주세요!'); return; }
   if (!moveInfo) { toast('🗑️ 새 가구 구매 중엔 철거할 수 없어요 — ✕ 버튼으로 취소해 주세요'); return; }
   if (moveInfo.fixture) { toast('🧰 주방 기물은 필수 설비라 철거할 수 없어요 (이동만 가능)'); return; }
-  const m = moveInfo; moveInfo = null;   // 취소 루틴의 원위치 복원 차단 → 그대로 수거
+  const m = moveInfo; moveInfo = null;   // 취소 루틴의 원위치 복원 차단 → 그대로 철거
   state.inventory[m.key] = (state.inventory[m.key] || 0) + 1;
-  toast('📦 ' + SHOP_ITEMS[m.key].name + ' 수거 완료! 창고 보관 — 상점에서 무료로 재배치할 수 있어요');
+  toast('📦 ' + SHOP_ITEMS[m.key].name + ' 철거 완료! 창고 보관 — 상점에서 무료로 재배치할 수 있어요');
   sfx('serve');
   refreshCatShopLocks();   // 상점 버튼 라벨(📦 무료) 즉시 갱신
   updateUI(true);
@@ -5799,8 +5798,8 @@ document.getElementById('shopClose').addEventListener('click', closeShop);
 document.getElementById('cancelPlaceBtn').addEventListener('click', () => cancelPlacing());
 document.getElementById('rotateBtn').addEventListener('click', () => rotatePlacing());
 
-// (❌ 우측 하단 조작 패드 리스너 전면 삭제 — 🎯 중앙 고정 배치가 대체: 배치=탭 · 취소/수거=상단 가이드 바 · 회전=🔄/R)
-document.getElementById('hintDelBtn').addEventListener('click', demolishHeld);   // 🗑️ 들린 가구 → 📦 창고 수거 (상단 바 이관)
+// (❌ 우측 하단 조작 패드 리스너 전면 삭제 — 🎯 중앙 고정 배치가 대체: 배치=탭 · 취소/철거=상단 가이드 바 · 회전=🔄/R)
+document.getElementById('hintDelBtn').addEventListener('click', demolishHeld);   // 🗑️ 들린 가구 → 📦 창고 철거 (상단 바 이관)
 
 /* ── 🎉 창업 웰컴 팝업 ─────────────────────── */
 const welcomePanel = document.getElementById('welcomePanel');
