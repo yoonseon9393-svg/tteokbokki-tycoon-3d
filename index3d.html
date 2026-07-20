@@ -686,7 +686,7 @@
   <div id="cookSidePane" style="display:none"></div>
 </div>
 
-<div id="placeHint">🧱 초록 칸을 터치해서 배치! <button id="cancelPlaceBtn">✕ 취소</button></div>
+<div id="placeHint">🎯 화면을 드래그해 중앙 칸을 맞추고, 탭 또는 ✔로 배치! <button id="cancelPlaceBtn">✕ 취소</button></div>
 <button id="rotateBtn">🔄 회전</button>
 <div id="padCtl">
   <button class="padBtn" id="padUp">▲</button>
@@ -2487,8 +2487,9 @@ const SHOP_ITEMS = {
   },
   bench: {
     name: '대기석', emoji: '🛋️', price: 220, theme: 'classic',
-    desc: '기다리는 시간도 설레게 만드는 대기 의자.', fx: '주변 손님 대기 시간 증가',
+    desc: '기다리는 시간도 설레게 만드는 대기 의자.', fx: '대기 손님이 실제로 착석 | 대기 인내심 보너스',
     build: buildBenchSet, cells: [[0, 0]], seats: [],
+    waitSeat: { x: 0, z: 0.02, ry: Math.PI },   // 🪑 웨이팅 손님이 실제로 앉는 대기 좌석
   },
   // ── 🌳 클래식 나무 테마: 프리미엄 라인업 (가구 패시브: 인내심↑ · 팁 확률↑) ──
   bamboo: {
@@ -2616,7 +2617,21 @@ function queueSpot(i) {
 // 빈 의자가 생기면 대기열 맨 앞 손님부터 '한 명씩 간격을 두고' 입장
 // (즉시 우르르 들어가지 않아서 문 앞에 항상 2~3명 줄이 유지됨)
 let queueAdmitCooldown = 0;
+// 🛋️ 대기석 배정: 서서 기다리는 손님에게 비어있는 대기석을 찾아 실제로 앉힘
+function assignBenchSeats() {
+  for (const c of waitingQueue) {
+    if (c.waitBench || c.state !== 'waiting') continue;
+    const bench = tables.find(t => t.wait && !t.wait.taken);
+    if (!bench) return;
+    bench.wait.taken = true;   // 🛡️ 사용 중 처리 — 겹쳐 앉기 방지
+    c.waitBench = bench.wait;
+    c.state = 'toBench';
+    c.waypoints = [{ x: DOOR_X, z: SIDEWALK_Z }, { x: DOOR_X, z: wz(6) }, { x: DOOR_X, z: wz(5) },
+      { x: bench.wait.x, z: bench.wait.z }];   // 문을 통해 실내 대기석으로
+  }
+}
 function serveQueue(dt) {
+  assignBenchSeats();
   queueAdmitCooldown -= dt;
   if (!waitingQueue.length || queueAdmitCooldown > 0) return;
   let seat = null;
@@ -2629,10 +2644,20 @@ function serveQueue(dt) {
   seat.taken = true;
   c.seat = seat;
   c.state = 'arriving';
-  c.waypoints = seatPath(seat);   // 실내석은 문으로, 테라스석은 옆길로
+  if (c.waitBench) {   // 🛋️ 대기석에서 기상 → 실내 좌석으로 바로 이동 (문 재경유 없음)
+    c.waitBench.taken = false;
+    c.waitBench = null;
+    c.benchRested = true;   // 쉬고 온 손님: 착석 후 대기 인내심 보너스
+    setSitPose(c.group, false);
+    c.group.position.y = 0;
+    c.waypoints = [{ x: seat.x, z: seat.z }];
+  } else {
+    c.waypoints = seatPath(seat);   // 실내석은 문으로, 테라스석은 옆길로
+  }
   showBubble(c.group, '🎉');   // 와아! 자리가 났다!
-  // 남은 대기 손님들은 한 칸씩 앞으로 총총
+  // 남은 대기 손님들은 한 칸씩 앞으로 총총 (🛋️ 대기석 착석자는 제자리 유지)
   waitingQueue.forEach((q, i) => {
+    if (q.waitBench || q.state === 'toBench') { q.queueIndex = i; return; }
     if (q.queueIndex !== i) {
       q.queueIndex = i;
       q.state = 'toQueue';
@@ -2686,6 +2711,10 @@ function placeFurniture(key, gx, gz, rot, free = false) {
       const [px, pz] = rotCell(s.x, s.z, rot);   // 좌표 회전 (실수도 동일 공식)
       return { x: wx(gx) + px, z: wz(gz) + pz, ry: s.ry + rot * Math.PI / 2, taken: false, terrace: gx > 20, pk: key };   // 🪑 pk: 가구 패시브 참조용
     }),
+    wait: item.waitSeat ? (() => {   // 🛋️ 대기석: 웨이팅 손님용 실좌석 등록
+      const [px, pz] = rotCell(item.waitSeat.x, item.waitSeat.z, rot);
+      return { x: wx(gx) + px, z: wz(gz) + pz, ry: item.waitSeat.ry + rot * Math.PI / 2, taken: false };
+    })() : null,
   });
   updateDecoRating(!free);   // 🎀 배치 즉시 데코 등급 갱신 (로드 복원 중엔 무음)
   if (!free) {
@@ -2698,6 +2727,16 @@ function placeFurniture(key, gx, gz, rot, free = false) {
 // 🪑 배치된 가구 철거: 3D 오브젝트·점유 칸·좌석·저장 기록을 모두 정리
 function removeFurniture(table) {
   const item = SHOP_ITEMS[table.key], rec = table.rec;
+  if (table.wait && table.wait.taken) {   // 🛋️ 대기석에 앉아 있던 손님은 다시 줄로 복귀
+    const sitter = customers.find(c => c.waitBench === table.wait);
+    if (sitter) {
+      sitter.waitBench = null;
+      setSitPose(sitter.group, false);
+      sitter.group.position.y = 0;
+      sitter.state = 'toQueue';
+      sitter.waypoints = [queueSpot(sitter.queueIndex || 0)];
+    }
+  }
   for (const [dx, dz] of item.cells) {
     const [rx, rz] = rotCell(dx, dz, rec.rot);
     occupied.delete((rec.gx + rx) + ',' + (rec.gz + rz));
@@ -3160,10 +3199,8 @@ function startPlacing(key, isMove = false) {
   document.getElementById('padCtl').style.display = 'grid';   // 🎮 가상 컨트롤러 온
   refreshTuto();   // 🧹 배치 중 튜토 가이드 숨김 즉시 반영
   closeShop();
-  // 🎯 포인터를 대기 전에도 패드만으로 조작할 수 있게 매장 중앙 기본 스폿에서 시작
-  updatePlacementPreview(
-    item.terraceOnly ? SHOP_X1[state.shopLevel] + 3 : Math.min(4, SHOP_X1[state.shopLevel]),
-    3);
+  placeNudge = { x: 0, z: 0 };   // 🎯 중앙 고정 배치 시작 — 화면 중앙 타일이 곧 배치 예정 위치
+  centerTileUpdate();
 }
 function cancelPlacing() {
   if (ghost) {
@@ -3237,12 +3274,30 @@ function tileUnderPointer() {
   const hits = raycaster.intersectObjects(allTileMeshes, false);
   return hits.length ? hits[0].object.userData.tile : null;
 }
-// 📱 터치 오프셋: 손가락에 가구가 가리지 않게 교차점 기준 1칸 위(-gz)로 띄움
-// (마우스는 정밀 포인터라 오프셋 없음 · 테라스 열은 세로 1열이라 제외 · 최하단 줄은 패드 ▼로 정밀 보정)
-const PLACE_LIFT = 1;
-function applyTouchLift(tile, e) {
-  if (!e || e.pointerType !== 'touch' || tile.terrace) return tile;
-  return { gx: tile.gx, gz: Math.max(shopZ0(), tile.gz - PLACE_LIFT) };
+/* ── 🎯 스포트라이트 배치: 가구는 화면 정중앙에 고정, 드래그하면 배경(카메라)이 움직임 ── */
+let placeNudge = { x: 0, z: 0 };   // 패드 화살표로 준 중앙 기준 미세 오프셋
+function centerTile() {   // 화면 정중앙이 가리키는 타일 (공유 pointer는 원상 복구)
+  const ox = pointer.x, oy = pointer.y;
+  pointer.x = 0; pointer.y = 0;
+  const t = tileUnderPointer();
+  pointer.x = ox; pointer.y = oy;
+  return t;
+}
+function centerTileUpdate() {   // 매 프레임: 중앙 타일 + 패드 오프셋 = 배치 예정 위치
+  if (!state.placing || !ghost) return;
+  const t = centerTile();
+  if (!t) return;   // 중앙이 맵 밖이면 마지막 프리뷰 유지
+  const item = SHOP_ITEMS[state.placing];
+  let gx, gz;
+  if (item.terraceOnly) {   // ⛱️ 테라스는 데크 세로 1열 안에서만
+    gx = SHOP_X1[state.shopLevel] + 3;
+    gz = Math.min(5, Math.max(1, t.gz + placeNudge.z));
+  } else {
+    gx = Math.min(SHOP_X1[state.shopLevel], Math.max(1, t.gx + placeNudge.x));
+    gz = Math.min(5, Math.max(shopZ0(), t.gz + placeNudge.z));
+  }
+  if (!state.hoverTile || state.hoverTile.gx !== gx || state.hoverTile.gz !== gz)
+    updatePlacementPreview(gx, gz);
 }
 // ✔ 배치 최종 확정 (탭·가상 패드 공용): 초록 상태에서만 설치/이사 완료
 // exitLoop=false(탭)면 같은 가구 연속 배치 루프 유지, true(✔ 버튼)면 확정 후 종료
@@ -3280,8 +3335,8 @@ function confirmPlacement(gx, gz, exitLoop = false) {
   cancelPlacing();
   if (again) {
     startPlacing(key);
-    state.placeRot = rot;                 // 방금 쓰던 회전 유지
-    updatePlacementPreview(gx, gz);       // 직전 자리 옆에서 이어가기 (빨강 = 방금 놓인 칸 안내)
+    state.placeRot = rot;      // 방금 쓰던 회전 유지
+    centerTileUpdate();        // 🎯 중앙 타일 기준으로 곧바로 이어서 배치
   }
   return true;
 }
@@ -3332,11 +3387,7 @@ function hidePlacementGrid() {
 canvas.addEventListener('pointermove', e => {
   pointer.x = (e.clientX / window.innerWidth) * 2 - 1;
   pointer.y = -(e.clientY / window.innerHeight) * 2 + 1;
-  if (!state.placing || !ghost) return;
-  const tile = tileUnderPointer();
-  if (!tile) return;   // 바닥 밖은 마지막 스폿 유지 → 🎮 패드 미세조정과 자연 연결
-  const t = applyTouchLift(tile, e);   // 📱 터치는 1칸 위로 오프셋
-  updatePlacementPreview(t.gx, t.gz);
+  // (🎯 스포트라이트 배치: 고스트는 화면 중앙 고정 — 드래그는 panByPixels로 배경만 이동)
 });
 
 /* ── 📱 터치 조작: 한 손가락 드래그=화면 이동, 두 손가락=핀치 줌,
@@ -3353,10 +3404,8 @@ function handleTap(e) {
   pointer.y = -(e.clientY / window.innerHeight) * 2 + 1;
 
   if (state.placing) {
-    const tile = tileUnderPointer();
-    if (!tile) return;
-    const t = applyTouchLift(tile, e);   // 📱 프리뷰와 동일한 터치 오프셋으로 착지 좌표 일치
-    confirmPlacement(t.gx, t.gz);        // 초록 상태에서만 확정 (빨강이면 가이드만 갱신)
+    // 🎯 탭 = 화면 중앙 타일에 배치 확정 (초록 상태에서만 — 빨강이면 무시)
+    if (state.hoverTile) confirmPlacement(state.hoverTile.gx, state.hoverTile.gz);
     return;
   }
 
@@ -4501,6 +4550,24 @@ function updateCustomers(dt) {
         }
         break;
       }
+      case 'toBench': {   // 🛋️ 배정받은 실내 대기석으로 걸어가기
+        if (walkStep(c, dt)) {
+          c.state = 'benchWait';
+          c.group.rotation.y = c.waitBench ? c.waitBench.ry : Math.PI;
+          setSitPose(c.group, true);   // 실제로 앉아서 기다림!
+          c.group.position.y = 0.2;
+        }
+        break;
+      }
+      case 'benchWait': {   // 🛋️ 대기석 착석 대기 (편안하게 — 자리 나면 serveQueue가 기상시킴)
+        c.group.position.y = 0.2;
+        c.bubbleTimer -= dt;
+        if (c.bubbleTimer <= 0) {
+          c.bubbleTimer = 5 + Math.random() * 5;
+          if (Math.random() < 0.15) showBubble(c.group, pick(['🎵', '☕', '😌']));
+        }
+        break;
+      }
       case 'waiting': {   // 귀엽게 콩콩 뛰며 대기 (스트레스 게이지 없음!)
         animateWalk(c.group, dt, false);
         c.timer += dt;
@@ -4607,6 +4674,7 @@ function updateCustomers(dt) {
         if (c.timer <= 0 && c.side && !c.sideServed &&
             (c.sideWait = (c.sideWait || 0) + dt * (c.nearBench ? 0.6 : 1)
               * (1 - ((furnPassive(c.seat) || {}).patience || 0))   // 🪑 프리미엄 가구: 인내심 최대 +25%
+              * (c.benchRested ? 0.85 : 1)   // 🛋️ 대기석에서 쉬고 온 손님: 인내심 게이지 감소 15% 완화
               * (dayEvent('exam') ? 1.5 : 1)) <
             (c.vip ? 4 : 8) * (hasFurn('arcade') ? 1.4 : 1)) break;   // 🕹️ 오락기: 대기 인내심 한도 ×1.4
         if (c.timer <= 0) {
@@ -5640,19 +5708,11 @@ document.getElementById('cancelPlaceBtn').addEventListener('click', () => cancel
 document.getElementById('rotateBtn').addEventListener('click', () => rotatePlacing());
 
 /* ── 🎮 가구 배치 가상 컨트롤러: 드래그 없이 버튼만으로 줄 맞춰 정밀 배치 ── */
-function nudgeTarget(dx, dz) {
+function nudgeTarget(dx, dz) {   // 🎯 중앙 기준 미세 오프셋 누적 (드래그와 병행 가능)
   if (!state.placing || !ghost) return;
-  const item = SHOP_ITEMS[state.placing];
-  const cur = state.hoverTile || { gx: 4, gz: 3 };
-  let gx, gz;
-  if (item.terraceOnly) {   // ⛱️ 테라스는 데크 세로 1열 안에서만 이동
-    gx = SHOP_X1[state.shopLevel] + 3;
-    gz = Math.min(5, Math.max(1, cur.gz + dz));
-  } else {                  // 실내: 확장된 영토 경계(가로 1~x1 · 세로 z0~5)로 클램프
-    gx = Math.min(SHOP_X1[state.shopLevel], Math.max(1, cur.gx + dx));
-    gz = Math.min(5, Math.max(shopZ0(), cur.gz + dz));
-  }
-  updatePlacementPreview(gx, gz);
+  placeNudge.x += dx;
+  placeNudge.z += dz;
+  centerTileUpdate();
 }
 document.getElementById('padUp').addEventListener('click', () => nudgeTarget(0, -1));
 document.getElementById('padDown').addEventListener('click', () => nudgeTarget(0, 1));
@@ -5990,7 +6050,7 @@ document.getElementById('endingBtn').addEventListener('click', () => {
   });
   refreshHelperBtn();
   hRow.appendChild(hBtn);
-  panes.kitchen.appendChild(hRow);   // 🧰 주방 기물 탭 소속
+  panes.ent.appendChild(hRow);   // 👥 인간 알바생은 [🎪 알바] 탭 소속으로 완전 이관
 
   // 🐱 고양이 알바생 고용 (1회성) — 우측 플로팅 버튼 대체, 🎪 특별 엔터 탭 소속
   const catRow = document.createElement('div');
@@ -6449,6 +6509,7 @@ function tick() {
   updateScooters(dt);       // 🏍️ 배달 오토바이 출발 애니메이션
   updateEstatePops(dt);     // 🏢 부동산 기념 오브젝트 솟아오르기 연출
   updateContest(dt);        // 🏆 대회 QTE 진행 (타이머·레이스·단계 루프)
+  centerTileUpdate();       // 🎯 배치 모드: 화면 중앙 타일을 실시간 배치 예정 위치로
   updateCat(dt, time);      // 🐱 고양이 알바 순찰/수거
   updateConfetti(dt);       // 🎉 폭죽 파티클
 
