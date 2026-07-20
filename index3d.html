@@ -2143,6 +2143,22 @@ function buildBenchSet() {
   const cushion = box(0.4, 0.05, 0.28, 0xffb3c6); cushion.position.set(0, 0.36, 0.02); cushion.castShadow = false; g.add(cushion);
   return g;
 }
+// ☂️ 우산꽂이 (1×1): 비 오는 날 손님이 실내 진입 시 우산을 꽂고 착석하는 디테일 가구
+function buildUmbrellaStand() {
+  const g = new THREE.Group();
+  const bin = cyl(0.2, 0.16, 0.5, 0x8a9bb0, 10); bin.position.y = 0.25; g.add(bin);
+  const rim = cyl(0.22, 0.22, 0.05, 0xd9dee6, 10); rim.position.y = 0.5; rim.castShadow = false; g.add(rim);
+  [0xffadad, 0xa0c4ff, 0xfdffb6].forEach((col, i) => {   // 미리 꽂혀 있는 접힌 미니 우산 3자루
+    const a = -0.6 + i * 0.6;
+    const stick = cyl(0.02, 0.02, 0.55, 0x8a8f98);
+    stick.position.set(Math.sin(a) * 0.08, 0.62, Math.cos(a) * 0.08);
+    stick.rotation.z = Math.sin(a) * 0.16; stick.castShadow = false; g.add(stick);
+    const wrap = cyl(0.045, 0.02, 0.3, col);
+    wrap.position.set(Math.sin(a) * 0.1, 0.74, Math.cos(a) * 0.1);
+    wrap.rotation.z = Math.sin(a) * 0.16; wrap.castShadow = false; g.add(wrap);
+  });
+  return g;
+}
 // 🎸 고양이 버스킹 무대 (2×2): 알바냥이 틈틈이 공연 — 주변 손님이 오래 머묾
 function buildStageSet() {
   const g = new THREE.Group();
@@ -2462,6 +2478,11 @@ const SHOP_ITEMS = {
     desc: '기다리는 시간도 설레게 만드는 대기 의자.', fx: '대기 손님이 실제로 착석 | 대기 인내심 보너스',
     build: buildBenchSet, cells: [[0, 0]], seats: [],
     waitSeat: { x: 0, z: 0.02, ry: Math.PI },   // 🪑 웨이팅 손님이 실제로 앉는 대기 좌석
+  },
+  umbstand: {
+    name: '우산꽂이', emoji: '☂️', price: 350, theme: 'classic',
+    desc: '비 오는 날 입구의 품격을 완성하는 필수 소품.', fx: '우천 시 손님이 우산을 꽂고 착석하는 디테일 연출',
+    build: buildUmbrellaStand, cells: [[0, 0]], seats: [],
   },
   // ── 🌳 클래식 나무 테마: 프리미엄 라인업 (가구 패시브: 인내심↑ · 팁 확률↑) ──
   bamboo: {
@@ -4505,10 +4526,22 @@ function updateCustomers(dt) {
   const raining = weatherPhase() === 'rain';   // ☂️ 우천 여부는 프레임당 1회 판정
   for (let i = customers.length - 1; i >= 0; i--) {
     const c = customers[i];
-    // ☂️ 비 오는 날: 이동 중인 손님 머리 위에 파스텔 우산 (앉으면 접음)
+    // ☂️ 비 오는 날: '매장 밖(도로·인도)'에서만 우산을 펼침 — 문턱(앞벽 z) 통과 즉시 접고, 나갈 때 다시 펼침
     if (raining) {
       if (!c.umbrella) { c.umbrella = makeUmbrella(); c.group.add(c.umbrella); }
-      c.umbrella.visible = c.state !== 'eating';
+      const inside = c.group.position.z < wz(6) + 0.35 && !(c.seat && c.seat.terrace);   // 테라스석은 실외 취급
+      if (c.state === 'leaving') c.umbParked = false;   // 퇴장길에 꽂이에서 우산 회수 — 문 밖에서 자동 펼침
+      c.umbrella.visible = c.state !== 'eating' && !c.umbParked && !inside;
+      // ☂️ 우산꽂이 디테일: 실내 첫 진입 순간 꽂이 앞으로 다가가 우산을 꽂은 뒤 원래 동선 복귀
+      if (inside && !c.umbTried && (c.state === 'arriving' || c.state === 'toBench')) {
+        c.umbTried = true;   // 손님당 1회만 (대기석→좌석 재이동 시 재연출 방지)
+        const st = tables.find(t => t.key === 'umbstand');
+        if (st) {
+          c.umbResume = { state: c.state, waypoints: c.waypoints };
+          c.state = 'parkUmb';
+          c.waypoints = [{ x: st.group.position.x, z: st.group.position.z + 0.55 }];
+        }
+      }
     } else if (c.umbrella) {
       c.umbrella.visible = false;
     }
@@ -4546,6 +4579,21 @@ function updateCustomers(dt) {
         if (c.bubbleTimer <= 0) {
           c.bubbleTimer = 4 + Math.random() * 4;
           showBubble(c.group, pick(['🎵', '😋', '🤔']));
+        }
+        break;
+      }
+      case 'parkUmb': {   // ☂️ 우산꽂이 앞 도착 → 0.6초 꽂는 모션(몸 숙임+말풍선) → 원래 동선 재개
+        if (c.umbDone === undefined) {
+          if (walkStep(c, dt)) { c.umbDone = 0.6; showBubble(c.group, '☂️', 1.55, 1.2); }
+        } else {
+          c.group.rotation.x = Math.sin((0.6 - c.umbDone) / 0.6 * Math.PI) * 0.28;   // 꾸벅 숙여 꽂는 모션
+          if ((c.umbDone -= dt) <= 0) {
+            c.group.rotation.x = 0;
+            c.umbParked = true;   // 우산은 꽂이에 보관 완료
+            c.state = c.umbResume.state;
+            c.waypoints = c.umbResume.waypoints;
+            c.umbDone = undefined;
+          }
         }
         break;
       }
@@ -5398,6 +5446,7 @@ function renderPromo() {
       else if (mk.id === 'sns') state.marketing.snsDay = state.day;
       else state.marketing.radio = true;
       sfx('stamp');
+      launchPromoBus();   // 🚌 홍보 개시 = 래핑 버스가 가게 앞 도로를 질주 → 통과 후 손님 피버
       toast(mk.emoji + ' ' + mk.name + ' 개시! ' + mk.fx);
       updateUI(true);
       saveGame();
@@ -6293,6 +6342,51 @@ function updateScooters(dt) {
   }
 }
 
+/* ── 🚌 홍보 버스 피버: 홍보 개시 순간 래핑 버스가 가게 앞 도로를 슝~ 통과 ──
+   통과 직후 소문 듣은 손님들이 무더기로 몰려오는 피버 스폰 펌핑 연동 */
+const promoBuses = [];
+let promoRushLeft = 0;   // 버스 통과 직후 초고속 연쇄 스폰될 피버 손님 잔여 수
+function launchPromoBus() {
+  const b = new THREE.Group();
+  const body = box(3.4, 1.05, 1.15, 0xffd166); body.position.y = 0.8; b.add(body);
+  const skirt = box(3.4, 0.25, 1.17, 0xf4845f); skirt.position.y = 0.36; skirt.castShadow = false; b.add(skirt);
+  const roof = box(3.15, 0.1, 1.0, 0xfff1dc); roof.position.y = 1.37; roof.castShadow = false; b.add(roof);
+  for (let i = 0; i < 4; i++) {   // 도로 쪽(카메라 앞면) 창문 4개
+    const win = box(0.55, 0.42, 0.02, 0xbfe3ff);
+    win.position.set(-1.2 + i * 0.8, 0.98, 0.585); win.castShadow = false; b.add(win);
+  }
+  const ad = box(2.0, 0.34, 0.02, 0xff8fab);   // 🌶️ 우리 가게 래핑 광고판
+  ad.position.set(0.1, 0.45, 0.59); ad.castShadow = false; b.add(ad);
+  for (const px of [-1.15, 1.15]) for (const pz of [-0.55, 0.55]) {
+    const wheel = cyl(0.24, 0.24, 0.1, 0x2c2c33, 10);
+    wheel.rotation.x = Math.PI / 2; wheel.rotation.z = Math.PI / 2;
+    wheel.position.set(px, 0.24, pz); b.add(wheel);
+  }
+  b.position.set(-EDGE_X - 5, 0, wz(9) + 0.5);   // 왼쪽 화면 밖 도로에서 스폰
+  scene.add(b);
+  promoBuses.push({ group: b, speed: 13, cheered: false });
+  sfx('scooter');   // 🔊 부아앙~
+}
+function updatePromoBuses(dt) {
+  for (let i = promoBuses.length - 1; i >= 0; i--) {
+    const b = promoBuses[i];
+    b.group.position.x += b.speed * dt;   // 슝~ 등속 질주
+    b.group.position.y = Math.abs(Math.sin(b.group.position.x * 2.2)) * 0.035;   // 통통 서스펜션
+    if (!b.cheered && b.group.position.x > DOOR_X) {   // 가게 정면 통과 순간 빵빠레
+      b.cheered = true;
+      spawnConfetti(DOOR_X, SIDEWALK_Z);
+      showBubble(b.group, '📣 골목 최고 맛집!', 1.9, 1.6);
+    }
+    if (b.group.position.x > EDGE_X + 5) {   // 반대편 소실 → 피버 개시!
+      removeCharacter(b.group);
+      promoBuses.splice(i, 1);
+      promoRushLeft = 6 + Math.floor(Math.random() * 3);   // 6~8명 무더기 러시
+      spawnTimer = 0.15;
+      toast('🔥 홍보 대성공! 소문 듣은 손님들이 사방에서 몰려옵니다!');
+    }
+  }
+}
+
 /* ── 🌦️ 실시간 날씨 & 감성 야간 조명 시스템 ─────────────────
    하루 120초: ☀️ 화창(120~80s) → 🌧️ 우천(80~40s) → 🌇 노을(40~25s) → 🌙 야간(25~0s) */
 function weatherPhase() {
@@ -6433,6 +6527,7 @@ function tick() {
   spawnTimer -= dt;
   if (spawnTimer <= 0) {
     spawnTimer = spawnInterval();   // 🪑 의자 수에 비례해 자동 조절 (+25% ~ +50%)
+    if (promoRushLeft > 0) { promoRushLeft--; spawnTimer = 0.3 + Math.random() * 0.25; }   // 🚌 버스 피버: 초고속 연쇄 스폰
     if (state.opened && state.dayPhase === 'open') {   // 창업 후 + 영업시간에만 손님이 옴
       // 🧑‍🤝‍🧑 의자 수에 비례한 단체 손님: 매장이 클수록 2~4명씩 몰려옴
       const groupSize = spawnGroupSize();
@@ -6460,6 +6555,7 @@ function tick() {
   updatePetals(dt, time);   // 🌸 벚꽃잎 흩날림
   updateWeather(dt);        // 🌦️ 날씨/조명 전환 + 빗줄기 + 야간 포인트 조명
   updateScooters(dt);       // 🏍️ 배달 오토바이 출발 애니메이션
+  updatePromoBuses(dt);     // 🚌 홍보 버스 질주 + 피버 트리거
   updateEstatePops(dt);     // 🏢 부동산 기념 오브젝트 솟아오르기 연출
   updateContest(dt);        // 🏆 대회 QTE 진행 (타이머·레이스·단계 루프)
   centerTileUpdate();       // 🎯 배치 모드: 화면 중앙 타일을 실시간 배치 예정 위치로
