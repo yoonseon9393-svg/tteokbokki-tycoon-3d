@@ -333,30 +333,11 @@
     box-shadow: 0 4px 0 rgba(0,0,0,.15); touch-action: manipulation;
   }
   #endingBtn:active { transform: translateY(3px); box-shadow: none; }
-  /* ── 🎮 가구 배치 가상 컨트롤러 ─────────── */
-  #padCtl {
-    position: fixed; right: 14px; bottom: calc(118px + env(safe-area-inset-bottom));
-    z-index: 30; display: none;
-    grid-template-areas: '. up rot' 'left down right' 'no del yes';
-    grid-template-columns: 48px 48px 48px; grid-template-rows: 48px 48px 48px; gap: 7px;
-    background: linear-gradient(160deg, rgba(255,248,236,.92), rgba(255,237,219,.92));
-    border: 3px solid #ffd9b8; border-radius: 22px; padding: 12px;
-    box-shadow: 0 10px 28px rgba(90,60,40,.35);
-  }
-  .padBtn {
-    border: none; cursor: pointer; border-radius: 14px;
-    font-size: 19px; font-weight: 800; color: #fff; background: #b3a6dd;
-    box-shadow: 0 3px 0 rgba(0,0,0,.15); touch-action: manipulation;
-  }
-  .padBtn:active { transform: translateY(2px); box-shadow: none; }
-  #padUp { grid-area: up; } #padDown { grid-area: down; }
-  #padLeft { grid-area: left; } #padRight { grid-area: right; }
-  #padRot { grid-area: rot; background: #8fa8c4; }
-  #padYes { grid-area: yes; background: #7ec8a9; font-size: 22px; }
-  #padNo { grid-area: no; background: #9aa0ab; font-size: 20px; }         /* 취소는 회색으로 */
-  #padDel { grid-area: del; background: #e05a5a; font-size: 18px; }       /* 🗑️ 철거(수거)는 빨강 */
-  @media (max-width: 620px) {
-    #padCtl { grid-template-columns: 44px 44px 44px; grid-template-rows: 44px 44px 44px; right: 8px; }
+  /* (❌ 우측 하단 조작 패드 CSS 전면 삭제 — 🎯 중앙 고정 배치로 대체) */
+  #hintDelBtn {
+    border: none; background: #d9832a; color: #fff; border-radius: 999px;
+    padding: 5px 13px; font-weight: 800; font-size: 12px; cursor: pointer;
+    touch-action: manipulation;
   }
   /* (📖 에피소드 인트로 CSS 삭제 — epRise는 안내 카드 등장 연출용으로 유지) */
   @keyframes epRise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
@@ -686,18 +667,9 @@
   <div id="cookSidePane" style="display:none"></div>
 </div>
 
-<div id="placeHint">🎯 화면을 드래그해 중앙 칸을 맞추고, 탭 또는 ✔로 배치! <button id="cancelPlaceBtn">✕ 취소</button></div>
+<div id="placeHint">🎯 화면을 드래그해 중앙 칸을 맞추고, 탭해서 배치! <button id="hintDelBtn">🗑️ 수거</button> <button id="cancelPlaceBtn">✕ 취소</button></div>
 <button id="rotateBtn">🔄 회전</button>
-<div id="padCtl">
-  <button class="padBtn" id="padUp">▲</button>
-  <button class="padBtn" id="padLeft">◀</button>
-  <button class="padBtn" id="padDown">▼</button>
-  <button class="padBtn" id="padRight">▶</button>
-  <button class="padBtn" id="padRot">🔄</button>
-  <button class="padBtn" id="padYes">✔</button>
-  <button class="padBtn" id="padNo">✕</button>
-  <button class="padBtn" id="padDel" title="철거(창고 수거)">🗑️</button>
-</div>
+<!-- (❌ 우측 하단 조작 패드 완전 제거 — 🎯 중앙 고정 배치가 대체. 회전=🔄 버튼/R키, 배치=탭, 취소·수거=상단 가이드 바) -->
 
 <div id="welcomeOverlay"></div>
 <div id="welcomePanel">
@@ -3196,7 +3168,6 @@ function startPlacing(key, isMove = false) {
   document.getElementById('placeHint').style.display = 'flex';
   if (editMode) editHint.style.display = 'none';   // 🧹 배치 중엔 편집 바 잠시 숨김 (같은 높이 겹침 방지)
   document.getElementById('rotateBtn').style.display = 'block';
-  document.getElementById('padCtl').style.display = 'grid';   // 🎮 가상 컨트롤러 온
   refreshTuto();   // 🧹 배치 중 튜토 가이드 숨김 즉시 반영
   closeShop();
   placeNudge = { x: 0, z: 0 };   // 🎯 중앙 고정 배치 시작 — 화면 중앙 타일이 곧 배치 예정 위치
@@ -3219,7 +3190,6 @@ function cancelPlacing() {
   document.getElementById('placeHint').style.display = 'none';
   if (editMode) editHint.style.display = 'flex';   // 🧹 배치 종료 → 편집 바 복귀
   document.getElementById('rotateBtn').style.display = 'none';
-  document.getElementById('padCtl').style.display = 'none';       // 🎮 가상 컨트롤러 오프 (🗑️ 포함)
   if (moveInfo) {   // 🪑 이동이 완료되지 않고 취소됨 → 원래 자리로 복원
     const m = moveInfo; moveInfo = null;
     if (m.fixture) {
@@ -5707,25 +5677,8 @@ document.getElementById('shopClose').addEventListener('click', closeShop);
 document.getElementById('cancelPlaceBtn').addEventListener('click', () => cancelPlacing());
 document.getElementById('rotateBtn').addEventListener('click', () => rotatePlacing());
 
-/* ── 🎮 가구 배치 가상 컨트롤러: 드래그 없이 버튼만으로 줄 맞춰 정밀 배치 ── */
-function nudgeTarget(dx, dz) {   // 🎯 중앙 기준 미세 오프셋 누적 (드래그와 병행 가능)
-  if (!state.placing || !ghost) return;
-  placeNudge.x += dx;
-  placeNudge.z += dz;
-  centerTileUpdate();
-}
-document.getElementById('padUp').addEventListener('click', () => nudgeTarget(0, -1));
-document.getElementById('padDown').addEventListener('click', () => nudgeTarget(0, 1));
-document.getElementById('padLeft').addEventListener('click', () => nudgeTarget(-1, 0));
-document.getElementById('padRight').addEventListener('click', () => nudgeTarget(1, 0));
-document.getElementById('padRot').addEventListener('click', () => rotatePlacing());
-document.getElementById('padYes').addEventListener('click', () => {
-  if (!state.placing || !state.hoverTile) return;
-  if (!confirmPlacement(state.hoverTile.gx, state.hoverTile.gz, true) && state.placing)   // ✔ = 확정 후 배치 종료
-    toast('🚫 빨간 칸과 겹쳐요 — 화살표로 초록 자리를 찾아 ✔ 해주세요');   // (골드 부족 취소 시엔 전용 안내만)
-});
-document.getElementById('padNo').addEventListener('click', () => cancelPlacing());
-document.getElementById('padDel').addEventListener('click', demolishHeld);   // 🗑️ 들린 가구 → 📦 창고 수거
+// (❌ 우측 하단 조작 패드 리스너 전면 삭제 — 🎯 중앙 고정 배치가 대체: 배치=탭 · 취소/수거=상단 가이드 바 · 회전=🔄/R)
+document.getElementById('hintDelBtn').addEventListener('click', demolishHeld);   // 🗑️ 들린 가구 → 📦 창고 수거 (상단 바 이관)
 
 /* ── 🎉 창업 웰컴 팝업 ─────────────────────── */
 const welcomePanel = document.getElementById('welcomePanel');
