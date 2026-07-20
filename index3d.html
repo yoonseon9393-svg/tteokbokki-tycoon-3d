@@ -3163,6 +3163,35 @@ function leavePath(seat, exitDir) {
 let ghost = null;
 let cursorGroup = null;   // 세트가 차지할 칸들 위에 뜨는 선명한 초록/빨강 가이드
 let moveInfo = null;      // 🪑 이동 중인 가구의 원래 자리 { key, gx, gz, rot } — 취소 시 복원용
+/* ── 💡 배치 모드 시각 연출: 배경 톤 다운 + 기존 가구/손님 반투명 + 고스트 스포트라이트 ── */
+const PLACE_DIM = 0.45;            // 배치 중 전역 조명 감쇠 계수 (기존의 45%)
+let placeFxLit = false;            // 조명 감쇠 적용 여부 (틱마다 state.placing과 동기화)
+let placeSpot = null, spotDisc = null;   // ✨ 고스트 전용 초록 광원 + 바닥 발광 디스크
+function placeDim() { return state.placing ? PLACE_DIM : 1; }   // updateWeather 목표 조도에 곱해짐
+function setGroupGhostly(root, on) {   // 👻 통째로 반투명화/복원 (원래 투명도는 머티리얼에 저장)
+  root.traverse(o => {
+    if (!o.isMesh || !o.material) return;
+    for (const m of Array.isArray(o.material) ? o.material : [o.material]) {
+      if (on) {
+        if (m.userData.pmSaved === undefined) m.userData.pmSaved = { t: m.transparent, o: m.opacity };
+        m.transparent = true; m.opacity = 0.35;
+      } else if (m.userData.pmSaved !== undefined) {
+        m.transparent = m.userData.pmSaved.t; m.opacity = m.userData.pmSaved.o;
+        delete m.userData.pmSaved;
+      }
+    }
+  });
+}
+function syncPlaceFx() {   // 매 틱: 모드 전환·중간 스폰/배치된 오브젝트까지 빠짐없이 반영
+  const on = !!state.placing;
+  if (on !== placeFxLit) {   // 💡 조명은 전환 순간 즉시 반영 (이후 updateWeather 러프가 목표치 유지)
+    placeFxLit = on;
+    hemi.intensity *= on ? PLACE_DIM : 1 / PLACE_DIM;
+    sun.intensity *= on ? PLACE_DIM : 1 / PLACE_DIM;
+  }
+  for (const t of tables) if (!!t.pmGhost !== on) { setGroupGhostly(t.group, on); t.pmGhost = on; }
+  for (const c of customers) if (!!c.pmGhost !== on) { setGroupGhostly(c.group, on); c.pmGhost = on; }
+}
 const raycaster = new THREE.Raycaster();
 const pointer = new THREE.Vector2();
 
@@ -3200,6 +3229,17 @@ function startPlacing(key, isMove = false) {
   }
   cursorGroup.visible = false;
   scene.add(cursorGroup);
+  // ✨ 고스트 스포트라이트: 어두워진 맵에서 배치 지점만 밝히는 초록 광원 + 바닥 발광 디스크
+  placeSpot = new THREE.PointLight(0xa8ffd0, 1.7, 8, 1.2);
+  placeSpot.visible = false;
+  scene.add(placeSpot);
+  spotDisc = new THREE.Mesh(new THREE.CircleGeometry(1.05, 24),
+    new THREE.MeshBasicMaterial({ color: 0x59ffa0, transparent: true, opacity: 0.32,
+      depthWrite: false, blending: THREE.AdditiveBlending }));
+  spotDisc.rotation.x = -Math.PI / 2;
+  spotDisc.scale.setScalar(Math.sqrt(item.cells.length));   // 세트 크기에 비례한 광원 반경
+  spotDisc.visible = false;
+  scene.add(spotDisc);
   document.getElementById('placeHint').style.display = 'flex';
   if (editMode) editHint.style.display = 'none';   // 🧹 배치 중엔 편집 바 잠시 숨김 (같은 높이 겹침 방지)
   document.getElementById('rotateBtn').style.display = 'block';
@@ -3219,6 +3259,8 @@ function cancelPlacing() {
     cursorGroup.traverse(o => { if (o.isMesh) { o.geometry.dispose(); o.material.dispose(); } });
     cursorGroup = null;
   }
+  if (placeSpot) { scene.remove(placeSpot); if (placeSpot.dispose) placeSpot.dispose(); placeSpot = null; }   // ✨ 스포트라이트 정리
+  if (spotDisc) { scene.remove(spotDisc); spotDisc.geometry.dispose(); spotDisc.material.dispose(); spotDisc = null; }
   hidePlacementGrid();                                   // 격자 가이드 제거
   state.placing = null;
   state.hoverTile = null;
@@ -3246,10 +3288,11 @@ function updatePlacementPreview(gx, gz) {
   ghost.visible = true;
   // 🪶 고스트를 살짝 공중에 띄워 아래 가이드 박스·바닥 격자가 훤히 보이게
   ghost.position.set(wx(gx), (item.terraceOnly ? 0.09 : 0) + 0.18, wz(gz));
-  let allOk = true;
+  let allOk = true, ctrX = 0, ctrZ = 0;
   item.cells.forEach((cell, i) => {
     const [rx, rz] = rotCell(cell[0], cell[1], state.placeRot);
     const cgx = gx + rx, cgz = gz + rz;
+    ctrX += wx(cgx); ctrZ += wz(cgz);   // ✨ 세트 점유 칸들의 무게중심 = 스포트라이트 초점
     const ok = cellOkFor(item, cgx, cgz);
     if (!ok) allOk = false;
     const guide = cursorGroup.children[i];   // 🧊 타겟 타일 위 반투명 3D 가이드 박스
@@ -3258,10 +3301,23 @@ function updatePlacementPreview(gx, gz) {
     guide.material.opacity = ok ? 0.3 : 0.42;
   });
   cursorGroup.visible = true;
+  ctrX /= item.cells.length; ctrZ /= item.cells.length;
+  if (placeSpot) {   // ✨ 초록 광원·바닥 발광 디스크가 고스트를 실시간 추적 (불가 지점은 빨강 경고)
+    placeSpot.visible = true;
+    placeSpot.position.set(ctrX, 2.6, ctrZ);
+    placeSpot.color.setHex(allOk ? 0xa8ffd0 : 0xffb0a8);
+    spotDisc.visible = true;
+    spotDisc.position.set(ctrX, item.terraceOnly ? 0.12 : 0.03, ctrZ);
+    spotDisc.material.color.setHex(allOk ? 0x59ffa0 : 0xff6b6b);
+  }
   ghost.traverse(o => {
     if (o.isMesh) {
       o.material.color.setHex(allOk ? 0x7ec8a9 : 0xe03434);
       o.material.opacity = allOk ? 0.55 : 0.75;
+      if (o.material.emissive) {   // 💚 톤 다운된 배경 속 자체 발광 (Basic 계열 머티리얼 가드)
+        o.material.emissive.setHex(allOk ? 0x2fae6e : 0xd63c3c);
+        o.material.emissiveIntensity = 0.5;
+      }
     }
   });
   return allOk;
@@ -6501,10 +6557,11 @@ function updateWeather(dt) {
   else if (t > 25) tg = { h: 0xffd9b0, hi: 0.46, s: 0xff9a5e, si: 0.45, sky: 'autumn' };  // 🌇 노을
   else             tg = { h: 0x8890b8, hi: 0.30, s: 0x6a74a8, si: 0.20, sky: 'night'  };  // 🌙 밤
   const k = Math.min(1, dt * 1.6);   // 부드러운 색/강도 보간
+  const pd = placeDim();   // 💡 배치 모드 중엔 목표 조도 자체를 45%로 톤 다운 (종료 시 원상 목표 복귀)
   hemi.color.lerp(_wc.setHex(tg.h), k);
-  hemi.intensity += (tg.hi - hemi.intensity) * k;
+  hemi.intensity += (tg.hi * pd - hemi.intensity) * k;
   sun.color.lerp(_wc.setHex(tg.s), k);
-  sun.intensity += (tg.si - sun.intensity) * k;
+  sun.intensity += (tg.si * pd - sun.intensity) * k;
   if (curSky !== tg.sky) { curSky = tg.sky; setSkyTheme(tg.sky); }
   // 🌙 야간(40초 이하): 간판·조리대 조명 탁! (켜짐/꺼짐도 부드럽게)
   const night = t <= 40;
@@ -6624,6 +6681,7 @@ function tick() {
   updateEstatePops(dt);     // 🏢 부동산 기념 오브젝트 솟아오르기 연출
   updateContest(dt);        // 🏆 대회 QTE 진행 (타이머·레이스·단계 루프)
   centerTileUpdate();       // 🎯 배치 모드: 화면 중앙 타일을 실시간 배치 예정 위치로
+  syncPlaceFx();            // 💡👻 배치 모드 조명 톤 다운 + 기존 가구/손님 반투명 동기화
   updateCat(dt, time);      // 🐱 고양이 알바 순찰/수거
   updateConfetti(dt);       // 🎉 폭죽 파티클
 
