@@ -1134,6 +1134,7 @@ const wx = gx => gx - (W - 1) / 2;   // 그리드 → 월드 X
 const wz = gz => gz - 6;             // 그리드 → 월드 Z
 const SIDEWALK_Z = wz(8);            // 사람들이 걷는 인도 z = 2
 const FAR_WALK_Z = wz(11);           // 건너편 인도 z = 5
+const STROLL_PATH_Z = 6.3;           // 🌸 벚나무 산책로 — 잔디밭 벚나무 기둥(z 6.1~6.3) 사이를 관통, 도로와 완전 격리
 const DOOR_X = wx(6.5);              // 출입문 중앙 x (문 칸 gx6~7은 고정 — 폭이 넓어져도 주방 옆)
 const EDGE_X = 14;                   // 화면 밖 스폰 x (넓어진 매장+테라스 바깥)
 
@@ -5044,11 +5045,11 @@ const WALKER_EMOJIS = ['🤤', '♥', '👍'];
 function spawnWalker() {
   if (walkers.length >= 4) return;
   const dir = Math.random() < 0.5 ? 1 : -1;
-  // 🌸 경로 다원화: 60% 가게 앞 인도 / 40% 벚나무 산책로 + 생성마다 무작위 레인 오프셋
-  //    (일렬종대 겹침 방지 — 인도는 ±0.8 분산, 산책로는 벚나무 쪽으로 0~0.9 분산)
-  const strollLane = Math.random() < 0.4;
+  // 🌸 3D 좌표 완전 분리: 50% 가게 앞 인도(SIDEWALK_Z ±0.8) / 50% 벚나무 잔디 산책로(STROLL_PATH_Z ±0.3)
+  //    — 산책로는 도로에서 물리적으로 멀어진 잔디밭 벚나무 기둥 사이를 지나감 (일렬종대 완전 해소)
+  const strollLane = Math.random() < 0.5;
   const z = strollLane
-    ? FAR_WALK_Z + Math.random() * 0.9
+    ? STROLL_PATH_Z + (Math.random() - 0.5) * 0.6
     : SIDEWALK_Z + (Math.random() - 0.5) * 1.6;
   const g = buildCharacter();
   g.position.set(EDGE_X * -dir, 0, z);
@@ -5086,9 +5087,10 @@ function updateWalkers(dt) {
             menu: MENU_LEVELS[Math.floor(Math.random() * (state.menuLevel + 1))],
             influencer: false,
             speed: 1.7, state: 'arriving', timer: 0,
-            // 🌸 산책로에서 결정한 손님은 문 앞 인도까지 비스듬히 꺾어 들어오는 자연 궤적
+            // 🌸 산책로 손님 2단계 진입: ① 제자리에서 도로 인도(SIDEWALK_Z)까지 수직 상승
+            //    ② 인도를 따라 문 앞으로 직각 꺾임 (잔디/벽 대각 투과 완전 차단)
             waypoints: w.stroll
-              ? [{ x: DOOR_X + (w.group.position.x > DOOR_X ? 1.6 : -1.6), z: SIDEWALK_Z }, ...seatPath(seat)]
+              ? [{ x: w.group.position.x, z: SIDEWALK_Z }, ...seatPath(seat)]
               : seatPath(seat),
             exitDir: Math.random() < 0.5 ? 1 : -1,
           });
