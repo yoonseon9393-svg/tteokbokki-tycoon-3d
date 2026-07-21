@@ -687,9 +687,9 @@
 <div id="welcomeOverlay"></div>
 <div id="welcomePanel">
   <h2>🍢 골목길 떡볶이 타이쿤</h2>
-  <p>작은 골목길 포장마차에서 시작해<br>대한민국 최고의 요식업 왕국을<br>만들어보세요!<br><br>간판에 내걸 우리 가게의 이름은?</p>
-  <input id="shopNameInput" type="text" maxlength="7" placeholder="예: 대박맛집 (최대 7글자)">
-  <div id="nameCount">0 / 7</div>
+  <p>작은 골목길 포장마차에서 시작해<br>대한민국 최고의 떡볶이 가게를<br>만들어보세요!<br><br>우리 가게의 이름은?</p>
+  <input id="shopNameInput" type="text" maxlength="7" value="골목떡볶이" placeholder="예: 대박맛집 (최대 7글자)">
+  <div id="nameCount">5 / 7</div>
   <button id="openShopBtn">🏮 영업 개시!</button>
 </div>
 
@@ -5816,7 +5816,7 @@ shopNameInput.addEventListener('input', () => {
   document.getElementById('nameCount').textContent = [...shopNameInput.value].length + ' / 7';
 });
 document.getElementById('openShopBtn').addEventListener('click', () => {
-  const name = [...(shopNameInput.value.trim() || '떡볶이')].slice(0, 7).join('');
+  const name = [...(shopNameInput.value.trim() || '골목떡볶이')].slice(0, 7).join('');   // ✏️ 빈 입력 시 기본 간판
   state.shopName = name;
   updateSignText(name);          // 3D 간판에 실시간 반영
   state.opened = true;           // 이제부터 손님이 옵니다!
