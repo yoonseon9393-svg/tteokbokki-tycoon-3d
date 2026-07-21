@@ -680,7 +680,7 @@
   <div id="cookSidePane" style="display:none"></div>
 </div>
 
-<div id="placeHint">🎯 화면을 드래그해 중앙 칸을 맞추고, 탭해서 배치! <button id="hintDelBtn">🗑️ 철거</button> <button id="cancelPlaceBtn">✕ 취소</button></div>
+<div id="placeHint">화면을 드래그하여 맞추고, 탭해서 배치 <button id="hintDelBtn">🗑️ 철거</button> <button id="cancelPlaceBtn">✕ 종료</button></div>
 <button id="rotateBtn">🔄 회전</button>
 <!-- (❌ 우측 하단 조작 패드 완전 제거 — 🎯 중앙 고정 배치가 대체. 회전=🔄 버튼/R키, 배치=탭, 취소·철거=상단 가이드 바) -->
 
@@ -3617,7 +3617,7 @@ function beginMoveFixture(fid) {
 // 🗑️ 들어올린 가구 철거: 파괴하지 않고 📦 창고 인벤토리로 회수 → 상점에서 무료 재배치
 function demolishHeld() {
   if (!state.placing) { toast('🗑️ 편집 모드에서 가구를 먼저 선택(들어올림)해 주세요!'); return; }
-  if (!moveInfo) { toast('🗑️ 새 가구 구매 중엔 철거할 수 없어요 — ✕ 버튼으로 취소해 주세요'); return; }
+  if (!moveInfo) { toast('🗑️ 새 가구 구매 중엔 철거할 수 없어요 — ✕ 버튼으로 종료해 주세요'); return; }
   if (moveInfo.fixture) { toast('🧰 주방 기물은 필수 설비라 철거할 수 없어요 (이동만 가능)'); return; }
   const m = moveInfo; moveInfo = null;   // 취소 루틴의 원위치 복원 차단 → 그대로 철거
   state.inventory[m.key] = (state.inventory[m.key] || 0) + 1;
