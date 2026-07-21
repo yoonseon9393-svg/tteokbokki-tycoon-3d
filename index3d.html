@@ -643,7 +643,7 @@
 <!-- 🎯 미니멀 상단바: 골드 · 평점 · Day 딱 3개만 -->
 <div id="topbar">
   <div class="chip" id="goldChip">💰 0 G</div>
-  <div class="chip" id="dayChip" title="오늘의 영업시간 (9 AM ~ 9 PM)">☀️ Day 1 · 9 AM</div>
+  <div class="chip" id="dayChip" title="오늘의 영업시간 (9 AM ~ 9 PM)">🌸 1월 (1분기/봄) · Day 1 · 9 AM</div>
 </div>
 
 
@@ -5729,6 +5729,15 @@ document.getElementById('tutoSkip').addEventListener('click', () => {
 const dayPanel = document.getElementById('dayPanel');
 const dayOverlay = document.getElementById('dayOverlay');
 const dayChip = document.getElementById('dayChip');
+/* ── 📅 게임 달력: 1 Day = 1개월 · 3일 = 1분기 · 12일 = 1년 (기존 3일 분기·12일 연마감 리포트 관례와 정합)
+   1~3월 봄(1분기) / 4~6월 여름(2분기) / 7~9월 가을(3분기) / 10~12월 겨울(4분기) ── */
+function calMonth(day = state.day) { return ((day - 1) % 12) + 1; }
+function calQuarter(day = state.day) { return Math.ceil(calMonth(day) / 3); }
+function calSeason(day = state.day) { return ['봄', '여름', '가을', '겨울'][calQuarter(day) - 1]; }
+function calEmoji(day = state.day) { return ['🌸', '☀️', '🍂', '❄️'][calQuarter(day) - 1]; }
+function calLabel(day = state.day) {   // HUD용: "🌸 3월 (1분기/봄)"
+  return calEmoji(day) + ' ' + calMonth(day) + '월 (' + calQuarter(day) + '분기/' + calSeason(day) + ')';
+}
 const GRADE_COLORS = { D: '#9a8c78', C: '#8fa8c4', B: '#7ec8a9', A: '#e8a23d', S: '#ff8fab', SS: '#e5383b', SSS: '#b0713a' };
 
 // 🛵 배달 센터 해금 조건: Day 3 이상 완료 + 역대 등급 A 이상
@@ -5770,7 +5779,8 @@ function showDayReport() {
     '<div class="rRow"><span>🕶️ VIP 촬영 성공</span><b>' + rec.vip + '명</b></div>' +
     '<div class="rRow"><span>💢 실패한 손님</span><b>' + rec.failed + '명</b></div>' +
     '<div class="rRow"><span>🏆 대회 우승</span><b>' + state.contestWins + '회</b></div>';
-  if (rec.day % 3 === 0) html += '<div class="rMile">📆 1개월 마감! 최근 3일 매출 합계 ' + sum(3) + 'G</div>';
+  if (rec.day % 3 === 0) html += '<div class="rMile">📆 ' + calQuarter(rec.day) + '분기(' + calEmoji(rec.day) + ' ' +
+    calSeason(rec.day) + ') 마감! 최근 3일 매출 합계 ' + sum(3) + 'G</div>';   // 📅 달력 시스템 정합: 3일 = 1분기
   if (rec.day % 12 === 0) html += '<div class="rMile">🗓️ 1년(사계절) 마감! 연 매출 ' + sum(12) + 'G — 수고했어요 사장님!</div>';
   if (bizUnlocked()) html += '<div class="rMile">🛵 배달 주문 센터 해금 조건 달성! (상점 🎪 탭 확인)</div>';
   html += '<div class="stamp" style="color:' + GRADE_COLORS[rec.grade] + '">' + rec.grade + '</div></div>';
@@ -6409,14 +6419,33 @@ function initBgm() {   // 최초 사용자 제스처에서 1회 기동 (브라�
     const d = buf.getChannelData(0);
     for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;   // 🌧️ 화이트 노이즈 원천 (2초 루프)
     const rain = audioCtx.createBufferSource(); rain.buffer = buf; rain.loop = true;
-    const lp = audioCtx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 1100; lp.Q.value = 0.6;
+    // 🌧️ 리파이닝: 850Hz 로우패스로 자극적인 고음역 제거 → 멀리서 잔잔히 깔리는 빗줄기 베드
+    const lp = audioCtx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 850; lp.Q.value = 0.8;
     const rainGain = audioCtx.createGain(); rainGain.gain.value = 0;
-    rain.connect(lp); lp.connect(rainGain); rainGain.connect(audioCtx.destination);   // 촤아아- 채널
+    rain.connect(lp); lp.connect(rainGain); rainGain.connect(audioCtx.destination);   // 잔잔한 빗줄기 채널
     rain.start();
-    bgm = { master, rainGain, noiseBuf: buf, nextLoopAt: 0, timer: null };
+    bgm = { master, rainGain, noiseBuf: buf, nextLoopAt: 0, timer: null, dripTimer: null };
     scheduleJazzLoop();
+    scheduleRainDrips();   // 🌢 토닥토닥 빗방울 드립 레이어 기동
     applyAudioSettings(true);
   } catch (e) {}
+}
+// 🌢 토닥토닥 빗방울 드립: 0.1~0.3초 무작위 간격의 사인파 팝 톤 (rainGain 경유 → 우천 크로스페이드 자동 추종)
+function scheduleRainDrips() {
+  if (!bgm) return;
+  bgm.dripTimer = setTimeout(scheduleRainDrips, 100 + Math.random() * 200);
+  if (weatherPhase() !== 'rain' || !state.settings.bgm) return;   // 비 올 때만 실제 발음
+  const t = audioCtx.currentTime;
+  const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+  o.type = 'sine';
+  const f = 480 + Math.random() * 820;                              // 방울마다 다른 음높이
+  o.frequency.setValueAtTime(f, t);
+  o.frequency.exponentialRampToValueAtTime(f * 0.55, t + 0.09);     // 똑- 하강 피치
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.linearRampToValueAtTime(0.35 + Math.random() * 0.3, t + 0.012);   // 소프트 어택 (클릭 제거)
+  g.gain.exponentialRampToValueAtTime(0.0001, t + 0.14);            // 부드러운 감쇄
+  o.connect(g); g.connect(bgm.rainGain);                            // 베드와 같은 볼륨 버스 공유
+  o.start(t); o.stop(t + 0.16);
 }
 // 🎚️ 토글/날씨 공용 페이드: GainNode setTargetAtTime로 부드럽게
 function applyAudioSettings(quick = false) {
@@ -6667,7 +6696,7 @@ function tick() {
       showDayReport();   // 세이브 로드 복원: 보고서 단계였다면 다시 표시
     }
   }
-  dayChip.textContent = '☀️ Day ' + state.day +
+  dayChip.textContent = calLabel() + ' · Day ' + state.day +   // 📅 "🌸 3월 (1분기/봄) · Day 3 · 9 AM"
     (state.dayPhase === 'open' ? ' · ' + dayClock()   // 🕘 9 AM → 9 PM 영업시간계
      : state.dayPhase === 'closing' ? ' · 9 PM 마감 중…' : ' · 마감!');
 
