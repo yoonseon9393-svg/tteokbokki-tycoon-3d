@@ -643,7 +643,7 @@
 <!-- 🎯 미니멀 상단바: 골드 · 평점 · Day 딱 3개만 -->
 <div id="topbar">
   <div class="chip" id="goldChip">💰 0 G</div>
-  <div class="chip" id="dayChip" title="오늘의 영업시간 (9 AM ~ 9 PM)">🌸 1월 (1분기/봄) · Day 1 · 9 AM</div>
+  <div class="chip" id="dayChip" title="오늘의 영업시간 (9 AM ~ 9 PM)">🌸 1년차 1월 (봄) · 9 AM</div>
 </div>
 
 
@@ -889,6 +889,11 @@ const state = {
   sideMenus: { fried: false, kimbap: false },   // 🍱 단품 사이드 출시 상태 (요리 탭 [사이드])
   inventory: {},          // 📦 철거한 가구 창고 { key: 개수 } — 상점에서 무료 재배치
   lastEmergencyDay: -999, // 🐾 길고양이 비상금 마지막 수령 Day (7일 쿨타임)
+  /* 🗺️ 5개년 엔딩 & 2회차(NG+) 프레임워크 */
+  run: 1,                 // 현재 회차 (1 = 골목길 본점)
+  location: 'alley',      // 현재 로케이션 id (2회차: campus/downtown 예정)
+  legacy: null,           // 🎁 엔딩 시 스냅샷되는 이월 데이터 (2회차 시작 시 적용될 유산)
+  finaleShown: false,     // 🏁 Day 60 최종 평가 모달 1회 노출 플래그
 };
 
 /* ── 🍱 단품 사이드 출시 라인: 일반 손님이 확률적으로 곁들여 추가 매출 ── */
@@ -1088,6 +1093,7 @@ function saveGame() {
       realEstate: state.realEstate,
       settings: state.settings,
       marketing: state.marketing,
+      run: state.run, location: state.location, legacy: state.legacy, finaleShown: state.finaleShown,   // 🗺️ 회차/엔딩
       expandNoticed: state.expandNoticed,
       sideMenus: state.sideMenus,
       inventory: state.inventory,
@@ -3130,6 +3136,10 @@ function leavePath(seat, exitDir) {
       if (state.realEstate[id]) spawnEstateVisual(id, false);
     state.settings = Object.assign({ bgm: true, sfx: true, bgmVol: 1, sfxVol: 1 }, saved.settings || {});   // 🎵 오디오 설정 복원
     state.marketing = Object.assign({ flyerDay: 0, snsDay: 0, radio: false }, saved.marketing || {});   // 📣 홍보 복원
+    state.run = saved.run || 1;                       // 🗺️ 회차/엔딩 프레임워크 복원
+    state.location = saved.location || 'alley';
+    state.legacy = saved.legacy || null;
+    state.finaleShown = !!saved.finaleShown;
     // 🔓 확장 권한 복원 — 구 세이브는 이미 확장했거나 조건 충족 상태면 소급 인정 (팝업 없이 조용히)
     state.expandNoticed = !!saved.expandNoticed || (saved.shopLevel || 1) > 1 ||
       ((saved.day || 1) >= 3 && state.contestWins >= 1);
@@ -5729,14 +5739,16 @@ document.getElementById('tutoSkip').addEventListener('click', () => {
 const dayPanel = document.getElementById('dayPanel');
 const dayOverlay = document.getElementById('dayOverlay');
 const dayChip = document.getElementById('dayChip');
-/* ── 📅 게임 달력: 1 Day = 1개월 · 3일 = 1분기 · 12일 = 1년 (기존 3일 분기·12일 연마감 리포트 관례와 정합)
+/* ── 📅 게임 달력: 1 Day = 1개월 · 3일 = 1분기 · 12일 = 1년 · 총 60일 = 5년차 12월 마감(🏁 최종 평가)
    1~3월 봄(1분기) / 4~6월 여름(2분기) / 7~9월 가을(3분기) / 10~12월 겨울(4분기) ── */
+const FINAL_DAY = 60;   // 🏁 5개년 경영 목표 (12일 × 5년)
+function calYear(day = state.day) { return Math.floor((day - 1) / 12) + 1; }   // Day13 = 2년차
 function calMonth(day = state.day) { return ((day - 1) % 12) + 1; }
 function calQuarter(day = state.day) { return Math.ceil(calMonth(day) / 3); }
 function calSeason(day = state.day) { return ['봄', '여름', '가을', '겨울'][calQuarter(day) - 1]; }
 function calEmoji(day = state.day) { return ['🌸', '☀️', '🍂', '❄️'][calQuarter(day) - 1]; }
-function calLabel(day = state.day) {   // HUD용: "🌸 3월 (1분기/봄)"
-  return calEmoji(day) + ' ' + calMonth(day) + '월 (' + calQuarter(day) + '분기/' + calSeason(day) + ')';
+function calLabel(day = state.day) {   // HUD용: "🌸 1년차 1월 (봄)"
+  return calEmoji(day) + ' ' + calYear(day) + '년차 ' + calMonth(day) + '월 (' + calSeason(day) + ')';
 }
 const GRADE_COLORS = { D: '#9a8c78', C: '#8fa8c4', B: '#7ec8a9', A: '#e8a23d', S: '#ff8fab', SS: '#e5383b', SSS: '#b0713a' };
 
@@ -5767,6 +5779,21 @@ function closeDay() {
   showDayReport();
   updateUI(true);
 }
+/* ── 🗺️ 2회차(NG+) 로케이션 프레임워크: 5개년 엔딩 후 새 지역 개업 준비 (v7.3: 구조·플래그, 맵 전환은 차기 버전) ── */
+const NEXT_LOCATIONS = [
+  { id: 'campus',   emoji: '🎓', name: '대학가 핫플',   desc: '학생 유동인구 폭발 · 회전율 특화' },
+  { id: 'downtown', emoji: '🌆', name: '번화가 2호점', desc: '최고 객단가 · 프리미엄 상권' },
+];
+function buildLegacyData() {   // 🎁 이월 데이터 스냅샷 — 2회차 시작 시 적용될 유산
+  return {
+    run: (state.run || 1) + 1, from: state.location || 'alley',
+    seedGold: Math.round(state.gold * 0.2),          // 자산 20% 이월 시드
+    contestWins: state.contestWins,
+    regularsMet: state.regularsMet.slice(),          // 단골 도감 계승
+    research: Object.assign({}, state.research),     // 🌶️ 양념 연구 계승
+    shopName: state.shopName, bestGradeIdx: state.bestGradeIdx,
+  };
+}
 function showDayReport() {
   const rec = state.dayHistory[state.dayHistory.length - 1];
   if (!rec) return;
@@ -5783,6 +5810,21 @@ function showDayReport() {
     calSeason(rec.day) + ') 마감! 최근 3일 매출 합계 ' + sum(3) + 'G</div>';   // 📅 달력 시스템 정합: 3일 = 1분기
   if (rec.day % 12 === 0) html += '<div class="rMile">🗓️ 1년(사계절) 마감! 연 매출 ' + sum(12) + 'G — 수고했어요 사장님!</div>';
   if (bizUnlocked()) html += '<div class="rMile">🛵 배달 주문 센터 해금 조건 달성! (상점 🎪 탭 확인)</div>';
+  // 🏁 Day 60 = 5년차 12월 31일 마감: 5개년 최종 경영 평가 + 2회차 로케이션 예고
+  if (rec.day === FINAL_DAY) {
+    if (!state.finaleShown) {   // 1회만: 이월 데이터 스냅샷 + 축포
+      state.finaleShown = true;
+      state.legacy = buildLegacyData();
+      spawnConfetti(DOOR_X, wz(4));
+      saveGame();
+    }
+    html += '<div class="rMile" style="font-size:13px">🏁 <b>5개년 최종 경영 평가</b><br>' +
+      '누적 손님 ' + state.served + '명 · 총 자산 ' + state.gold.toLocaleString() + 'G<br>' +
+      '🏆 대회 우승 ' + state.contestWins + '회 · 최고 등급 ' + (state.bestGradeIdx >= 0 ? GRADES[state.bestGradeIdx] : '-') + '<br>' +
+      '「' + state.shopName + '」 5년의 골목 신화, 완주를 축하합니다! 🎉</div>' +
+      NEXT_LOCATIONS.map(l => '<div class="rMile">' + l.emoji + ' <b>' + l.name + '</b> — ' + l.desc +
+        ' <small>(2회차 개업 준비 중 · 유산 이월 확보!)</small></div>').join('');
+  }
   html += '<div class="stamp" style="color:' + GRADE_COLORS[rec.grade] + '">' + rec.grade + '</div></div>';
   document.getElementById('dayBody').innerHTML = html;
   dayPanel.style.display = 'block';
@@ -6696,7 +6738,7 @@ function tick() {
       showDayReport();   // 세이브 로드 복원: 보고서 단계였다면 다시 표시
     }
   }
-  dayChip.textContent = calLabel() + ' · Day ' + state.day +   // 📅 "🌸 3월 (1분기/봄) · Day 3 · 9 AM"
+  dayChip.textContent = calLabel() +   // 📅 "🌸 1년차 1월 (봄) · 9 AM" (연차·월·계절)
     (state.dayPhase === 'open' ? ' · ' + dayClock()   // 🕘 9 AM → 9 PM 영업시간계
      : state.dayPhase === 'closing' ? ' · 9 PM 마감 중…' : ' · 마감!');
 
