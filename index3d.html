@@ -1532,6 +1532,7 @@ function placeFixture(id, gx, gz, rot, save = true) {
   }
   f.group.position.set(wx(gx), 0, wz(gz));
   f.group.rotation.y = rot * Math.PI / 2;
+  reroutePedestrians();   // 🚧 기물 이동도 장애물 변화 — 걷던 손님 경로 즉시 재계산
   if (save) saveGame();
 }
 // 솥의 현재 월드 좌표 (피버 폭죽 등 연출용 — 이동/회전 반영)
@@ -2633,6 +2634,7 @@ function assignBenchSeats() {
     c.waitBench = bench.wait;
     c.state = 'toBench';
     c.waypoints = [{ x: DOOR_X, z: SIDEWALK_Z }, { x: DOOR_X, z: wz(6) }, { x: DOOR_X, z: wz(5) },
+      ...(gridRoute(DOOR_X, wz(5), bench.wait.x, bench.wait.z) || []),   // 🚧 가구 우회
       { x: bench.wait.x, z: bench.wait.z }];   // 문을 통해 실내 대기석으로
   }
 }
@@ -2656,7 +2658,8 @@ function serveQueue(dt) {
     c.benchRested = true;   // 쉬고 온 손님: 착석 후 대기 인내심 보너스
     setSitPose(c.group, false);
     c.group.position.y = 0;
-    c.waypoints = [{ x: seat.x, z: seat.z }];
+    c.waypoints = [...(gridRoute(c.group.position.x, c.group.position.z, seat.x, seat.z) || []),   // 🚧 대기석 → 좌석도 우회
+      { x: seat.x, z: seat.z }];
   } else {
     c.waypoints = seatPath(seat);   // 실내석은 문으로, 테라스석은 옆길로
   }
@@ -2723,6 +2726,7 @@ function placeFurniture(key, gx, gz, rot, free = false) {
     })() : null,
   });
   updateDecoRating(!free);   // 🎀 배치 즉시 데코 등급 갱신 (로드 복원 중엔 무음)
+  reroutePedestrians();      // 🚧 새 장애물 반영 — 걷던 손님 경로 즉시 재계산
   if (!free) {
     state.gold -= item.price;
     tutoAdvance(1);   // 🎓 Step1 완료: 첫 가구 구매 배치
@@ -2752,6 +2756,7 @@ function removeFurniture(table) {
   const pi = placedFurniture.indexOf(rec);
   if (pi >= 0) placedFurniture.splice(pi, 1);
   updateDecoRating(false);   // 🎀 철거 시 등급 하향도 즉시 반영 (무음)
+  reroutePedestrians();      // 🚧 장애물 해제 반영 — 걷던 손님 경로 즉시 재계산
   saveGame();
 }
 
@@ -3059,6 +3064,8 @@ function seatPath(seat) {
     { x: DOOR_X, z: SIDEWALK_Z },
     { x: DOOR_X, z: wz(6) },
     { x: DOOR_X, z: wz(5) },
+    // 🚧 실내 구간은 gridRoute BFS로 가구 점유 칸을 우회 (막히면 기존 직선 폴백)
+    ...(gridRoute(DOOR_X, wz(5), seat.x, seat.z) || []),
     { x: seat.x, z: seat.z },
   ];
 }
@@ -3070,6 +3077,8 @@ function leavePath(seat, exitDir) {
     { x: EDGE_X * exitDir, z: SIDEWALK_Z },
   ];
   return [
+    // 🚧 자리 → 문 앞까지도 가구 우회 경로로 퇴장
+    ...(gridRoute(seat.x, seat.z, DOOR_X, wz(5)) || []),
     { x: DOOR_X, z: wz(5) },
     { x: DOOR_X, z: wz(6) },
     { x: DOOR_X, z: SIDEWALK_Z },
@@ -4608,7 +4617,9 @@ function updateCustomers(dt) {
         if (st) {
           c.umbResume = { state: c.state, waypoints: c.waypoints };
           c.state = 'parkUmb';
-          c.waypoints = [{ x: st.group.position.x, z: st.group.position.z + 0.55 }];
+          const px = st.group.position.x, pz = st.group.position.z + 0.55;
+          c.waypoints = [...(gridRoute(c.group.position.x, c.group.position.z, px, pz) || []),   // 🚧 꽂이까지 가구 우회
+            { x: px, z: pz }];
         }
       }
     } else if (c.umbrella) {
@@ -4660,7 +4671,10 @@ function updateCustomers(dt) {
             c.group.rotation.x = 0;
             c.umbParked = true;   // 우산은 꽂이에 보관 완료
             c.state = c.umbResume.state;
-            c.waypoints = c.umbResume.waypoints;
+            // 🚧 꽂이 위치 기준으로 최종 목적지까지 재라우팅 (기존 잔여 직선 경로는 폴백)
+            const dest = c.umbResume.waypoints[c.umbResume.waypoints.length - 1];
+            const rr = dest ? gridRoute(c.group.position.x, c.group.position.z, dest.x, dest.z) : null;
+            c.waypoints = rr ? [...rr, { x: dest.x, z: dest.z }] : c.umbResume.waypoints;
             c.umbDone = undefined;
           }
         }
@@ -4938,6 +4952,24 @@ function gridRoute(fromX, fromZ, toX, toZ) {
     }
   }
   return pts;
+}
+// 🚧 가구 배치/철거/이동 직후 호출: 실내를 걷던 손님 경로를 새 장애물 grid로 즉시 재계산
+function reroutePedestrians() {
+  let list;
+  try { list = customers; } catch (e) { return; }   // ⚠️ 부팅 세이브 복원 단계(customers 선언 전 TDZ)엔 스킵
+  for (const c of list) {
+    if (!c.waypoints || !c.waypoints.length) continue;
+    if (c.group.position.z > wz(6) + 0.3) continue;   // 실외(인도·도로) 구간은 장애물과 무관
+    if (c.state === 'arriving' || c.state === 'toBench' || c.state === 'parkUmb') {
+      const dest = c.waypoints[c.waypoints.length - 1];
+      const rr = gridRoute(c.group.position.x, c.group.position.z, dest.x, dest.z);
+      if (rr) c.waypoints = [...rr, dest];
+    } else if (c.state === 'leaving' && !(c.seat && c.seat.terrace)) {
+      const rr = gridRoute(c.group.position.x, c.group.position.z, DOOR_X, wz(5));
+      if (rr) c.waypoints = [...rr, { x: DOOR_X, z: wz(5) }, { x: DOOR_X, z: wz(6) },
+        { x: DOOR_X, z: SIDEWALK_Z }, { x: EDGE_X * c.exitDir, z: SIDEWALK_Z }];
+    }
+  }
 }
 // 🍽️ 배달 도착 시 손님 테이블 위에 그릇/음료를 실제로 세팅 (떠날 때 함께 치움)
 function placeTableDish(c, kind) {
@@ -5745,7 +5777,7 @@ function showDayReport() {
   document.getElementById('dayBody').innerHTML = html;
   dayPanel.style.display = 'block';
   dayOverlay.style.display = 'block';
-  sfx('stamp');   // 🔊 쿵! 등급 도장
+  sfx('receipt');   // 🔊 챙-띠링✨ 레지스터 정산 차임 (둔탁한 도장음 → 맑은 2톤 교체)
 }
 // 💡 아침마다 오늘의 판도를 흔드는 돌발 이벤트 1종 무작위 발동 + 고지
 function rollDayEvent(announce = true) {
@@ -6298,6 +6330,19 @@ function sfx(type) {
       g.gain.setValueAtTime(0.16, t0);
       g.gain.exponentialRampToValueAtTime(0.001, t0 + 0.2);
       o.start(t0); o.stop(t0 + 0.22);
+    } else if (type === 'receipt') { // 🧾 챙-띠링✨ 맑은 사인파 2톤 레지스터 차임 (부드러운 감쇄)
+      o.type = 'sine';
+      o.frequency.setValueAtTime(1046.5, t0);            // C6 "챙-"
+      g.gain.setValueAtTime(0.14, t0);
+      g.gain.exponentialRampToValueAtTime(0.001, t0 + 0.4);
+      o.start(t0); o.stop(t0 + 0.42);
+      const o2 = audioCtx.createOscillator(), g2 = audioCtx.createGain();   // 완전5도 위 "띠링✨"
+      o2.type = 'sine'; o2.connect(g2); g2.connect(sfxMaster);
+      o2.frequency.setValueAtTime(1568, t0 + 0.12);      // G6
+      g2.gain.setValueAtTime(0.0001, t0 + 0.12);
+      g2.gain.linearRampToValueAtTime(0.12, t0 + 0.15);  // 클릭 노이즈 없는 소프트 어택
+      g2.gain.exponentialRampToValueAtTime(0.001, t0 + 0.6);
+      o2.start(t0 + 0.12); o2.stop(t0 + 0.62);
     }
   } catch (e) {}   // 오디오 차단/미지원 환경에서도 게임은 계속
 }
