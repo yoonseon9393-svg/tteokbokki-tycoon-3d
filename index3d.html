@@ -58,12 +58,12 @@
   .bigbtn:disabled { background: #c9c2bc; cursor: not-allowed; }
 
   /* ── 상점 패널 ───────────────────────── */
-  #shopOverlay, #menuOverlay, #labOverlay, #newsOverlay, #achvOverlay {
+  #shopOverlay, #menuOverlay, #labOverlay, #newsOverlay, #achvOverlay, #promoOverlay {
     position: fixed; inset: 0; background: rgba(70,55,45,.35);
     z-index: 29; display: none;
   }
   #menuPanel .locked, #labPanel .locked { opacity: .5; }
-  #shopPanel, #menuPanel, #labPanel, #newsPanel, #achvPanel {
+  #shopPanel, #menuPanel, #labPanel, #newsPanel, #achvPanel, #promoPanel {
     position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
     background: linear-gradient(160deg, #fff8ec, #ffeddb);
     border: 3px solid #ffd9b8; border-radius: 24px;
@@ -71,7 +71,7 @@
     box-shadow: 0 14px 40px rgba(90,60,40,.35);
     width: min(340px, 90vw); max-height: 70vh; overflow-y: auto;
   }
-  #shopPanel h3, #menuPanel h3, #labPanel h3, #newsPanel h3, #achvPanel h3 { color: #5a4a42; font-size: 17px; margin-bottom: 12px; text-align: center; }
+  #shopPanel h3, #menuPanel h3, #labPanel h3, #newsPanel h3, #achvPanel h3, #promoPanel h3 { color: #5a4a42; font-size: 17px; margin-bottom: 12px; text-align: center; }
   .cookHead { margin: 10px 0 4px; font-weight: 800; color: #b58a5a; font-size: 13px; }   /* 🍳 요리 연구소 섹션 라벨 */
   #cookTabs { display: flex; gap: 6px; margin-bottom: 10px; }
   /* 🏆 트로피 진열대 — 우승 훈장 3종 패시브 */
@@ -92,7 +92,7 @@
   .tsRow .tsState { font-size: 10px; font-weight: 800; color: #ffd166; white-space: nowrap; }
   .cookBtns { display: flex; gap: 5px; align-items: center; }                             /* 개발·업그레이드 가로 나란히 */
   .cookBtns button { font-size: 10.5px; padding: 4px 8px; white-space: nowrap; }   /* 🎚️ 개발·업그레이드도 슬림 배지 */
-  #shopClose, #menuClose, #labClose, #newsClose, #achvClose, #setClose, #bizClose {
+  #shopClose, #menuClose, #labClose, #newsClose, #achvClose, #setClose, #bizClose, #promoClose {
     position: absolute; top: 12px; right: 14px;
     border: none; background: #ffd9b8; color: #7a5c3a;
     width: 32px; height: 32px; border-radius: 50%;
@@ -515,6 +515,16 @@
   }
   #contestBtn:active { transform: scale(.92); }
   #contestBtn.ctDone { filter: grayscale(1); opacity: .6; }
+  /* 🎆 마케팅 홍보 피버 버튼 — 좌측 컬럼 최상단 (대회 버튼 위) · 피버 중엔 남은 초 카운트다운 */
+  #promoFvBtn {
+    position: fixed; left: 21px; bottom: calc(282px + env(safe-area-inset-bottom));
+    width: 48px; height: 48px; border-radius: 50%;
+    border: 3px solid #ff9fc0; cursor: pointer; z-index: 15; display: none;
+    background: linear-gradient(160deg, #ffe3f0, #ffc2d8); font-size: 19px; font-weight: 800; color: #b33e6e;
+    align-items: center; justify-content: center;
+    box-shadow: 0 4px 0 rgba(0,0,0,.13); touch-action: manipulation;
+  }
+  #promoFvBtn:active { transform: scale(.92); }
   /* ── 🏆 대회 스타디움 패널 ─────────── */
   #ctOverlay { position: fixed; inset: 0; background: rgba(30,20,14,.6); z-index: 80; display: none; }
   #ctPanel {
@@ -741,6 +751,15 @@
 </div>
 <!-- 🔥 폭풍호객 버튼 삭제 → 📣 홍보 마케팅(메뉴 탭 마켓 하단)으로 대체 -->
 <button id="quickSaveBtn" title="퀵 세이브">💾</button>
+<button id="promoFvBtn" title="마케팅 홍보 (30초 피버)">🎆</button>
+
+<!-- 🎆 마케팅 홍보 30초 피버 전용 모달 -->
+<div id="promoOverlay"></div>
+<div id="promoPanel">
+  <h3>📢 마케팅 홍보 <small style="font-weight:400;color:#a08a70">— 30초 피버</small></h3>
+  <button id="promoClose">✕</button>
+  <div id="promoFvList"></div>
+</div>
 <button id="contestBtn" title="천하제일 떡볶이 대회">🏆</button>
 <div id="emgOverlay"></div>
 <div id="emgPanel">
@@ -907,17 +926,29 @@ const SIDE_LAUNCH = [
 // 🔓 확장 기능 해금 여부 — 권한은 아침 판정에서 1회 부여되면 영구 유지
 function expandUnlocked() { return state.expandNoticed; }
 
-/* ── 📣 홍보 마케팅 3종 (폭풍호객 대체 — 마켓 하단에서 구매) ── */
-const MARKETING = [
-  { id: 'flyer', emoji: '📄', name: '전단지 배포', cost: 150,
-    desc: '골목 구석구석 정성껏 돌리는 홍보 전단.', fx: '👥 오늘 유입 ×1.2 · 🚌 버스 피버' },
-  { id: 'sns', emoji: '📱', name: 'SNS 체험단 모집', cost: 1200,
-    desc: '맛집 검증단이 우르르 몰려오는 화제성 이벤트.', fx: '🛵 오늘 배달·단골 ×1.4 · 🚌 버스 피버' },
-  { id: 'radio', emoji: '📻', name: '지역 라디오 광고', cost: 5000,
-    desc: '동네 전파를 타는 우리 가게 시그니처 멘트.', fx: '♾️ 영구 · 💰 정산 팁 +10G' },
+/* ── 🎆 30초 실시간 홍보 피버 4종 (구 상점 [📣 홍보] 탭 → 좌측 폭죽 버튼 전용 모달로 개편)
+   실행 시 30초 타이머 피버: 유입 배율 + 정산 시 차등 보너스 동전 + 전용 연출/대사 ── */
+const PROMOS = [
+  { id: 'flyer', emoji: '📄', name: '전단지 배포', cost: 500, boost: 0.4, coin: [5, 15],
+    fx: '👥 유입 +40% · 💰 동전 5~15G · 🐱 전단 살포',
+    lines: ['전단지 받고 왔어요', '고양이가 귀여워서 옴', '할인쿠폰 쓰나요?', '오늘 점심은 떡볶이다!', '소문듣고 왔어요',
+      '우와 사람 많다', '줄 서야 하나요?', '떡볶이 냄새 대박', '친구가 가보래요', '맛있겠다!'] },
+  { id: 'sns', emoji: '📱', name: 'SNS 체험단', cost: 1500, boost: 0.8, coin: [15, 35],
+    fx: '👥 유입 +80% · 💰 동전 15~35G · ✨ 인플루언서 러시',
+    lines: ['와 블로그에 올려야지', '사진부터 찍어야지!', '인스타 핫플 도착!', '조명 대박 완벽해', '스토리 찍는 중~',
+      '릴스 조회수 대박 예감', '해시태그 추천받음', '디스플레이 대박', '필터 씌우니까 예쁘다', '협찬 아니고 내돈내산!'] },
+  { id: 'radio', emoji: '📻', name: '지역 라디오', cost: 3500, boost: 1.3, coin: [35, 70],
+    fx: '👥 유입 +130% · 💰 동전 35~70G · 🚗 원정 손님',
+    lines: ['멀리서 찾아왔어요!', '라디오 방송 듣고 왔습니다', 'DJ가 극찬하던 그곳!', '차 타고 1시간 걸림', '드디어 와보네요',
+      '컬투쇼에서 들었어요', '시청자 추천 맛집!', '신호 막혀도 기분 좋음', '전국구 맛집 인정', '소문대로 대박이네'] },
+  { id: 'tourbus', emoji: '🚌', name: '떡볶이 투어 버스', cost: 8000, boost: 2.0, coin: [70, 120],
+    fx: '👥 유입 +200% · 💰 동전 70~120G · 🚌 단체 하차',
+    lines: ['이 날만을 기다렸어요', '떡볶이 5인분도 먹어요', '로제 덕후입니다', '성지순례 드디어 성공!', '버스에서 내리자마자 직진',
+      '오늘 10인분 도전', '튀김도 다 주세요', '동호회 정모 장소 완벽', '여기 떡볶이 짱이야', '가방 비워왔습니다'] },
 ];
-function mkFlyerOn() { return state.marketing.flyerDay === state.day; }
-function mkSnsOn() { return state.marketing.snsDay === state.day; }
+let promoFv = { id: null, t: 0 };   // 진행 중 피버 (30초 카운트다운 — 세이브 불필요한 순간 버프)
+function promoFvDef() { return PROMOS.find(p => p.id === promoFv.id); }
+function promoFvOn(id) { return promoFv.t > 0 && promoFv.id === id; }
 
 /* ── 🏆 트로피 진열대: 우승 횟수별 영구 패시브 훈장 3종 ── */
 const TROPHY_PERKS = [
@@ -4151,10 +4182,12 @@ function updateCatSkillBtn() {
   const emoji = { chef: '👨‍🍳', bee: '🐝', astro: '🚀' }[state.catWearing] || '🐱';
   const qsBtn = document.getElementById('quickSaveBtn');   // 💾 퀵 세이브·🏆 대회는 고양이 버튼과 노출 동기화
   const ctBtn = document.getElementById('contestBtn');
-  if (!state.opened) { catSkillBtn.style.display = 'none'; qsBtn.style.display = 'none'; ctBtn.style.display = 'none'; return; }
+  const pfBtn = document.getElementById('promoFvBtn');   // 🎆 홍보 버튼도 좌측 컬럼과 노출 동기화
+  if (!state.opened) { catSkillBtn.style.display = 'none'; qsBtn.style.display = 'none'; ctBtn.style.display = 'none'; pfBtn.style.display = 'none'; return; }
   catSkillBtn.style.display = 'flex';
   qsBtn.style.display = 'flex';
   ctBtn.style.display = 'flex';
+  pfBtn.style.display = 'flex';
   ctBtn.classList.toggle('ctDone', state.contestDay === state.day || state.dayPhase !== 'open');   // 오늘 소진/영업 외 회색
   if (!state.catHired || !state.catWearing) {
     cls = 'skillLocked';
@@ -4422,7 +4455,7 @@ function spawnInterval() {
   interval /= 1 + Math.min(0.3, state.contestWins * 0.1);   // 🏆 대회 우승 명성: 회당 유입 +10% (최대 +30%)
   if (state.contestWins >= 3) interval /= 1.15;   // 🏆 3승 [전국 맛집 인증]: 유입 템포 15% 가속
   if (weatherPhase() === 'night' && hasFurn('neonsign')) interval /= 1.3;   // 💡 네온사인: 🌙 야간 유입 30% 증가
-  if (mkFlyerOn()) interval /= 1.2 * mkEff();   // 📄 전단지 배포: 당일 유입 1.2배 (🏆 3승 시 1.44배)
+  if (promoFv.t > 0) interval /= 1 + promoFvDef().boost * mkEff();   // 🎆 홍보 피버: 유입 +40~200% (🏆 3승 시 효율 +20%)
   if (vipFeverT > 0) interval /= 3;   // 📱 VIP 대박 피버: 손님 유입 3배
   if (state.newsId === 'vacation') interval /= 2;   // 📰 학생 방학: 스폰 2배 가속
   if (dayEvent('exam')) interval /= 2.5;            // 💡 시험 기간: 학생 유입 2.5배
@@ -4521,6 +4554,7 @@ function spawnCustomer() {
       };
       decorateOrder(c);   // 🌶️ 맵기/토핑 커스텀
       customers.push(c);
+      feverGreet(c);      // 🎆 피버 손님: 전용 대사 + SNS 코디
       waitingQueue.push(c);
       return;
     }
@@ -4584,7 +4618,7 @@ function spawnCustomer() {
   if (vip || influencer) c.trait = null;   // 특수 손님은 고유 특성과 중복 금지
   // 👥 특수 단골손님 3종 (9%, 🌌 워프 시 확정): 👑 건물주는 우천/야간에 가중 등장
   if (warped === 'regular' || (!vip && !influencer && Math.random() < 0.09
-      * (mkSnsOn() ? 1.4 * mkEff() : 1)                 // 📱 체험단: 단골 1.4배 (🏆 3승 시 1.68배)
+      * (promoFvOn('sns') ? 1.4 * mkEff() : 1)          // 📱 SNS 피버: 단골 1.4배 (🏆 3승 시 1.68배)
       * (hasFurn('bear') ? 1.25 : 1))) {                // 🧸 곰인형: 특수 단골 +25%
     const wp = weatherPhase();
     const pool = (wp === 'rain' || wp === 'night')
@@ -4611,6 +4645,18 @@ function spawnCustomer() {
     }
   }
   customers.push(c);
+  feverGreet(c);   // 🎆 피버 손님: 전용 대사 + SNS 코디
+}
+// 🎆 홍보 피버 중 스폰된 손님 연출: 홍보 종류별 대사 10종 중 1개 + 📱 SNS는 화려한 인플루언서 코디
+function feverGreet(c) {
+  if (promoFv.t <= 0) return;
+  if (promoFv.id === 'sns') {   // ✨ 네온 캡 + 선글라스 — 우르르 몰려온 체험단 무리
+    const cap = cyl(0.19, 0.21, 0.1, pick([0xff5fa2, 0x8a5cff, 0x00d1c4, 0xffd166]));
+    cap.position.y = 1.16; cap.castShadow = false; c.group.add(cap);
+    const glass = box(0.24, 0.06, 0.03, 0x2c2c33);
+    glass.position.set(0, 1.0, 0.17); glass.castShadow = false; c.group.add(glass);
+  }
+  if (Math.random() < 0.55) showBubble(c.group, pick(promoFvDef().lines), 1.55, 2.0);
 }
 
 function updateCustomers(dt) {
@@ -4848,6 +4894,11 @@ function updateCustomers(dt) {
             }
           }
           dropCoin(c.seat.x + Math.sin(c.seat.ry) * 0.3, c.seat.z + Math.cos(c.seat.ry) * 0.3, income, c.influencer);
+          if (promoFv.t > 0) {   // 🎆 홍보 피버: 등급별 차등 보너스 동전 추가 드랍 (5~15/15~35/35~70/70~120G)
+            const [lo, hi] = promoFvDef().coin;
+            dropCoin(c.seat.x - Math.sin(c.seat.ry) * 0.55, c.seat.z - Math.cos(c.seat.ry) * 0.55,
+              lo + Math.floor(Math.random() * (hi - lo + 1)), hi >= 70);
+          }
           if (c.influencer) {
             spawnConfetti(c.seat.x, c.seat.z);   // 🎉 축하 폭죽!
             showBubble(c.group, '🎉 리뷰 대박 예감!', 1.55, 1.8);
@@ -5536,42 +5587,53 @@ function evolveMenu(key, item) {
   updateUI(true);
   renderMarket();
 }
-// 📣 홍보 마케팅 렌더 (상점 [📣 홍보] 탭 전용 — 요리 요소와 완전 분리)
-function renderPromo() {
-  const wrap = document.getElementById('promoList');
-  if (!wrap) return;
+/* ── 🎆 마케팅 홍보 전용 모달 (좌측 폭죽 버튼 → 30초 피버 4종 발동) ── */
+const promoPanel = document.getElementById('promoPanel');
+const promoOverlay = document.getElementById('promoOverlay');
+function renderPromoFv() {
+  const wrap = document.getElementById('promoFvList');
   wrap.innerHTML = '';
-  const mkHead = document.createElement('div');
-  mkHead.style.cssText = 'margin:2px 0 4px;font-weight:800;color:#b58a5a;font-size:13px;';
-  mkHead.textContent = '📣 홍보 마케팅 — 골목을 넘어 도시로!';
-  wrap.appendChild(mkHead);
-  for (const mk of MARKETING) {
+  for (const p of PROMOS) {
     const row = document.createElement('div');
     row.className = 'shopItem';
-    row.innerHTML = '<span class="itIcon">' + mk.emoji + '</span>' +
-      '<div class="info"><span class="itName">' + mk.name + '</span>' +
-      '<span class="itFx">' + mk.fx + '</span></div>';
+    row.innerHTML = '<span class="itIcon">' + p.emoji + '</span>' +
+      '<div class="info"><span class="itName">' + p.name + '</span>' +
+      '<span class="itFx">' + p.fx + '</span></div>';
     const btn = document.createElement('button');
-    const owned = mk.id === 'radio' ? state.marketing.radio
-      : mk.id === 'flyer' ? mkFlyerOn() : mkSnsOn();
-    btn.className = 'achReward ' + (owned ? 'done' : 'ready');
-    btn.textContent = owned ? (mk.id === 'radio' ? '✅ 방송 중' : '✅ 오늘 적용') : mk.cost.toLocaleString() + 'G';
-    if (!owned) btn.addEventListener('click', () => {
-      if (state.gold < mk.cost) { toast('💸 골드가 부족해요! (' + mk.cost.toLocaleString() + 'G 필요)'); return; }
-      state.gold -= mk.cost;
-      if (mk.id === 'flyer') state.marketing.flyerDay = state.day;
-      else if (mk.id === 'sns') state.marketing.snsDay = state.day;
-      else state.marketing.radio = true;
-      sfx('stamp');
-      launchPromoBus();   // 🚌 홍보 개시 = 래핑 버스가 가게 앞 도로를 질주 → 통과 후 손님 피버
-      toast(mk.emoji + ' ' + mk.name + ' 개시! ' + mk.fx);
-      updateUI(true);
-      saveGame();
-      renderPromo();   // 버튼 상태 즉시 갱신
-    });
+    if (promoFv.t > 0) {   // ⏳ 겹침 방지: 진행 중엔 전 항목 잠금 + 남은 시간 표기
+      btn.textContent = promoFv.id === p.id ? '⏳ ' + Math.ceil(promoFv.t) + '초' : '피버 중…';
+      btn.disabled = true;
+    } else btn.textContent = p.cost.toLocaleString() + 'G';
+    btn.addEventListener('click', () => startPromoFever(p));
     row.appendChild(btn);
     wrap.appendChild(row);
   }
+}
+function openPromoFv() {
+  if (editMode) exitEditMode();
+  cancelPlacing(); closeShop(); closeMenuBook(); closeLab();
+  renderPromoFv();
+  promoPanel.style.display = 'block';
+  promoOverlay.style.display = 'block';
+}
+function closePromoFv() { promoPanel.style.display = 'none'; promoOverlay.style.display = 'none'; }
+document.getElementById('promoFvBtn').addEventListener('click', openPromoFv);
+document.getElementById('promoClose').addEventListener('click', closePromoFv);
+promoOverlay.addEventListener('click', closePromoFv);
+function startPromoFever(p) {
+  if (promoFv.t > 0) { toast('⏳ 이미 홍보 피버가 진행 중이에요! (' + Math.ceil(promoFv.t) + '초 남음)'); return; }
+  if (state.dayPhase !== 'open') { toast('🌙 홍보는 영업시간에만 시작할 수 있어요!'); return; }
+  if (state.gold < p.cost) { toast('💸 골드가 부족해요! (' + p.cost.toLocaleString() + 'G 필요)'); return; }
+  state.gold -= p.cost;
+  promoFv = { id: p.id, t: 30 };
+  if (p.id === 'flyer') startFlyerShow();     // 🐱 고양이 전단 살포 쇼
+  if (p.id === 'tourbus') launchTourBus();    // 🚌 투어 버스 정차 + 단체 하차
+  sfx('skill');
+  spawnTimer = Math.min(spawnTimer, 0.6);     // 소문 듣고 바로 몰려오기 시작
+  toast(p.emoji + ' ' + p.name + ' 개시! 30초 피버 — ' + p.fx);
+  closePromoFv();
+  updateUI(true);
+  saveGame();
 }
 // 🥬 (구 식재료 마켓) — 레벨업/진화는 요리 연구소 통합 행(cookRow)으로 이주, 호출부 호환용 위임
 function renderMarket() { renderMenuBook(); }
@@ -5696,7 +5758,7 @@ const TUTO_DAYS = {
   1: '🛒 상점에서 가구를 구매해 매장에 배치해 보세요.',
   2: '🛋️ 편집 모드에서 가구 위치를 바꾸거나 철거해 보세요.',
   3: '🍳 요리 탭에서 새 레시피를 연구해 매출을 올려보세요.',
-  4: '🏢 사업 탭에서 버스 홍보나 알바를 고용해 보세요.',
+  4: '🎆 왼쪽 폭죽 버튼으로 30초 홍보 피버를 켜보세요.',
   5: '🏗️ 확장 탭에서 매장 부지를 늘려보세요.',
 };
 let tutoShowing = 0, tutoTimer = null, tutoDelayTimer = null;   // 현재 배너에 떠 있는 가이드의 Day
@@ -5851,7 +5913,6 @@ const shopOverlay = document.getElementById('shopOverlay');
 function openShop() {
   if (editMode) exitEditMode();
   renderLab();      // 🧪 연구 탭 내용 최신화
-  renderPromo();    // 📣 홍보 마케팅 탭 최신화
   const d = decoInfo();   // 🎀 실시간 데코 등급 (가구 합산 코스트 + 테마 믹스)
   document.getElementById('decoLine').textContent =
     '🎀 매장 데코 등급 ' + '★'.repeat(d.stars) + '☆'.repeat(6 - d.stars) +
@@ -6126,7 +6187,7 @@ document.getElementById('endingBtn').addEventListener('click', () => {
     ic.appendChild(prev);
   }
   // 🗂️ 카테고리 탭: 홀 가구 / 주방 기물 / 특별 엔터
-  const TABS = [['hall', '🪑 홀'], ['kitchen', '🧰 주방'], ['promo', '📣 홍보'], ['ent', '🎪 알바'], ['lab', '🧪 연구']];   // 한 줄 정렬 콤팩트 라벨
+  const TABS = [['hall', '🪑 홀'], ['kitchen', '🧰 주방'], ['ent', '🎪 알바'], ['lab', '🧪 연구']];   // (📣 홍보는 좌측 🎆 피버 버튼으로 독립)
   const tabBar = document.createElement('div');
   tabBar.id = 'shopTabs';
   const panes = {};
@@ -6143,7 +6204,7 @@ document.getElementById('endingBtn').addEventListener('click', () => {
   for (const [id] of TABS) wrap.appendChild(panes[id]);
   // 🧪 연구소(주방속도·자석·양념)를 상점 '연구' 탭으로 통째로 이주 (플로팅 버튼 대체)
   panes.lab.appendChild(document.getElementById('labList'));
-  panes.promo.id = 'promoList';   // 📣 홍보 마케팅 렌더 타깃 (식재료 마켓은 요리 연구소로 이사)
+  // (📣 홍보 탭 삭제 — 좌측 하단 🎆 폭죽 버튼의 30초 피버 모달로 이관)
   // 🎀 홀 가구 탭 상단: 실시간 매장 데코 등급 라벨 (openShop마다 갱신)
   const decoLine = document.createElement('div');
   decoLine.id = 'decoLine';
@@ -6589,26 +6650,80 @@ function launchPromoBus() {
   }
   b.position.set(-EDGE_X - 5, 0, wz(9) + 0.5);   // 왼쪽 화면 밖 도로에서 스폰
   scene.add(b);
-  promoBuses.push({ group: b, speed: 13, cheered: false });
+  promoBuses.push({ group: b, phase: 'in', speed: 13, stopT: 0, dropT: 0,
+    unload: 5 + Math.floor(Math.random() * 3) });   // 🚪 단체 손님 5~7명 탑승
   sfx('scooter');   // 🔊 부아앙~
 }
+const launchTourBus = launchPromoBus;   // 🎆 투어 버스 피버 진입점 (별칭)
 function updatePromoBuses(dt) {
   for (let i = promoBuses.length - 1; i >= 0; i--) {
     const b = promoBuses[i];
-    b.group.position.x += b.speed * dt;   // 슝~ 등속 질주
-    b.group.position.y = Math.abs(Math.sin(b.group.position.x * 2.2)) * 0.035;   // 통통 서스펜션
-    if (!b.cheered && b.group.position.x > DOOR_X) {   // 가게 정면 통과 순간 빵빠레
-      b.cheered = true;
-      spawnConfetti(DOOR_X, SIDEWALK_Z);
-      showBubble(b.group, '📣 골목 최고 맛집!', 1.9, 1.6);
+    if (b.phase === 'in') {   // 🚌 슝 하고 진입 → 가게 정문 앞 급정차
+      b.group.position.x += b.speed * dt;
+      b.group.position.y = Math.abs(Math.sin(b.group.position.x * 2.2)) * 0.035;   // 통통 서스펜션
+      if (b.group.position.x >= DOOR_X - 0.4) {
+        b.phase = 'stop'; b.stopT = 2.8; b.group.position.y = 0;
+        spawnConfetti(DOOR_X, SIDEWALK_Z);
+        showBubble(b.group, '🚌 떡볶이 투어 도착!', 1.9, 1.8);
+      }
+    } else if (b.phase === 'stop') {   // 🅿️ 정차 — 0.35초 간격 단체 하차
+      b.stopT -= dt; b.dropT -= dt;
+      if (b.unload > 0 && b.dropT <= 0) {
+        b.dropT = 0.35; b.unload--;
+        const before = customers.length;
+        spawnCustomer();
+        if (customers.length > before) {   // 방금 스폰된 손님을 버스 문 앞으로 순간 배치 (행인 폴백은 제외)
+          const nc = customers[customers.length - 1];
+          nc.group.position.set(b.group.position.x - 0.8 + Math.random() * 1.6, 0, wz(9) - 0.45);
+        }
+      }
+      if (b.stopT <= 0 && b.unload <= 0) { b.phase = 'out'; sfx('scooter'); }   // 다 내리면 출발
+    } else {   // 🏁 가속하며 오른쪽 화면 밖으로
+      b.speed = Math.min(17, b.speed + dt * 10);
+      b.group.position.x += b.speed * dt;
+      b.group.position.y = Math.abs(Math.sin(b.group.position.x * 2.2)) * 0.035;
+      if (b.group.position.x > EDGE_X + 5) { removeCharacter(b.group); promoBuses.splice(i, 1); }
     }
-    if (b.group.position.x > EDGE_X + 5) {   // 반대편 소실 → 피버 개시!
-      removeCharacter(b.group);
-      promoBuses.splice(i, 1);
-      promoRushLeft = 6 + Math.floor(Math.random() * 3);   // 6~8명 무더기 러시
-      spawnTimer = 0.15;
-      toast('🔥 홍보 대성공! 소문 듣은 손님들이 사방에서 몰려옵니다!');
+  }
+}
+/* ── 🐱 전단지 살포 쇼: 임시 홍보 고양이가 가게 앞에서 폴짝이며 종이 파티클을 흩날림 (30초) ── */
+let flyerShow = null;   // { cat, t, throwT, papers[] }
+function startFlyerShow() {
+  if (flyerShow) return;
+  const c = buildCat();   // 알바 고양이와 별개의 임시 홍보 요원 (쇼 종료 시 퇴근)
+  c.group.position.set(DOOR_X - 1.7, 0, SIDEWALK_Z);
+  flyerShow = { cat: c, t: 30, throwT: 0, papers: [] };
+}
+function updateFlyerShow(dt, time) {
+  if (!flyerShow) return;
+  flyerShow.t -= dt;
+  const g = flyerShow.cat.group;
+  g.position.y = Math.abs(Math.sin(time * 6)) * 0.12;   // 폴짝폴짝
+  g.rotation.y += dt * 1.3;                             // 빙글 돌며 사방에 배포
+  flyerShow.throwT -= dt;
+  if (flyerShow.t > 0 && flyerShow.throwT <= 0) {       // 0.25초마다 전단 1장 투척
+    flyerShow.throwT = 0.25;
+    const p = box(0.14, 0.005, 0.18, 0xfffdf4);
+    p.castShadow = false;
+    p.position.set(g.position.x, 0.75, g.position.z);
+    p.userData.v = { x: (Math.random() - 0.5) * 2.4, y: 1.5 + Math.random() * 1.2, z: (Math.random() - 0.5) * 2.4,
+      rx: Math.random() * 6, rz: Math.random() * 6 };
+    scene.add(p);
+    flyerShow.papers.push(p);
+  }
+  for (let i = flyerShow.papers.length - 1; i >= 0; i--) {   // 팔랑팔랑 낙하 → 바닥에 닿으면 소멸
+    const p = flyerShow.papers[i], v = p.userData.v;
+    v.y -= dt * 3.2;
+    p.position.x += v.x * dt; p.position.y += v.y * dt; p.position.z += v.z * dt;
+    p.rotation.x += v.rx * dt; p.rotation.z += v.rz * dt;
+    if (p.position.y <= 0.02) {
+      scene.remove(p); p.geometry.dispose(); p.material.dispose();
+      flyerShow.papers.splice(i, 1);
     }
+  }
+  if (flyerShow.t <= 0 && !flyerShow.papers.length) {   // 쇼 종료 + 잔여 전단까지 정리되면 퇴근
+    removeCharacter(g);
+    flyerShow = null;
   }
 }
 
@@ -6716,7 +6831,7 @@ function tick() {
       // 🛵 배달 주문 스폰 (배달 센터 설치 + 이전 주문 완료 시, 18초 주기)
       deliveryTimer -= dt;
       if (deliveryTimer <= 0) {
-        deliveryTimer = (dayEvent('snshot') ? 12 : 18) / (mkSnsOn() ? 1.4 * mkEff() : 1);   // 💡 SNS·📱 체험단: 배달 주기 단축 (🏆 3승 효율 UP)
+        deliveryTimer = (dayEvent('snshot') ? 12 : 18) / (promoFvOn('sns') ? 1.4 * mkEff() : 1);   // 💡 SNS 피버: 배달 주기 단축 (🏆 3승 효율 UP)
         const dv = tables.find(t => t.key === 'delivery');
         if (dv && !deliveryOrder) spawnDeliveryOrder(dv);
       }
@@ -6781,7 +6896,8 @@ function tick() {
   updatePetals(dt, time);   // 🌸 벚꽃잎 흩날림
   updateWeather(dt);        // 🌦️ 날씨/조명 전환 + 빗줄기 + 야간 포인트 조명
   updateScooters(dt);       // 🏍️ 배달 오토바이 출발 애니메이션
-  updatePromoBuses(dt);     // 🚌 홍보 버스 질주 + 피버 트리거
+  updatePromoBuses(dt);     // 🚌 투어 버스 진입·정차·단체 하차·출발
+  updateFlyerShow(dt, time);// 🐱 전단지 살포 쇼 + 종이 파티클
   updateEstatePops(dt);     // 🏢 부동산 기념 오브젝트 솟아오르기 연출
   updateContest(dt);        // 🏆 대회 QTE 진행 (타이머·레이스·단계 루프)
   centerTileUpdate();       // 🎯 배치 모드: 화면 중앙 타일을 실시간 배치 예정 위치로
@@ -6789,6 +6905,20 @@ function tick() {
   updateCat(dt, time);      // 🐱 고양이 알바 순찰/수거
   updateConfetti(dt);       // 🎉 폭죽 파티클
 
+  // 🎆 홍보 피버 진행 (30초) — 버튼이 남은 초 카운트다운으로 변신
+  if (promoFv.t > 0) {
+    promoFv.t -= dt;
+    if (promoFv.t <= 0) {
+      promoFv = { id: null, t: 0 };
+      toast('🎆 홍보 피버 종료! 효과가 쏠쏠했다면 다음 홍보도 노려보세요');
+      if (promoPanel.style.display === 'block') renderPromoFv();   // 모달 열려 있으면 버튼 즉시 해제
+    }
+  }
+  {
+    const pb = document.getElementById('promoFvBtn');
+    const txt = promoFv.t > 0 ? String(Math.ceil(promoFv.t)) : '🎆';
+    if (pb.textContent !== txt) pb.textContent = txt;
+  }
   // 📱 VIP 대박 피버 진행
   if (vipFeverT > 0) {
     vipFeverT -= dt;
