@@ -6052,7 +6052,7 @@ document.getElementById('bgmVolSlider').addEventListener('input', e => {
 });
 document.getElementById('sfxVolSlider').addEventListener('input', e => {
   state.settings.sfxVol = Math.min(1, Math.max(0, parseFloat(e.target.value) || 0));
-  if (sfxMaster) sfxMaster.gain.setTargetAtTime(state.settings.sfxVol, audioCtx.currentTime, 0.05);
+  if (sfxMaster) sfxMaster.gain.setTargetAtTime(state.settings.sfxVol * SFX_BOOST, audioCtx.currentTime, 0.05);   // 🔊 상향 배율 동기
 });
 document.getElementById('bgmVolSlider').addEventListener('change', () => saveGame());
 document.getElementById('sfxVolSlider').addEventListener('change', () => { saveGame(); sfx('serve'); });   // 놓는 순간 미리듣기
@@ -6461,6 +6461,7 @@ const clock = new THREE.Clock();
 /* ── 🔊 상황별 신스 효과음 (Web Audio — 파일 없이 가벼운 톤 생성) ── */
 let audioCtx = null;
 let sfxMaster = null;   // 🎚️ 효과음 마스터 볼륨 노드 (슬라이더가 실시간 제어)
+const SFX_BOOST = 2.2;  // 🔊 효과음 전체 기본 볼륨 배율 (작게 들리던 문제 해결 — 슬라이더 1.0 = 이 배율)
 function sfx(type) {
   if (!state.settings.sfx) return;   // 🔊 설정 탭에서 효과음 OFF 시 전부 뮤트
   try {
@@ -6468,7 +6469,7 @@ function sfx(type) {
     if (audioCtx.state === 'suspended') audioCtx.resume();
     if (!sfxMaster) {   // 모든 효과음이 이 마스터를 거쳐 나감 → 볼륨 일괄 제어
       sfxMaster = audioCtx.createGain();
-      sfxMaster.gain.value = Math.min(1, state.settings.sfxVol ?? 1);
+      sfxMaster.gain.value = Math.min(1, state.settings.sfxVol ?? 1) * SFX_BOOST;   // 🔊 기본 볼륨 대폭 상향
       sfxMaster.connect(audioCtx.destination);
     }
     const t0 = audioCtx.currentTime;
@@ -6616,8 +6617,8 @@ function applyAudioSettings(quick = false) {
   const wp = weatherPhase();
   const calm = wp === 'rain' || wp === 'night';                     // 🌧️🌙 감성 모드: BGM 40%
   const vol = Math.min(1, Math.max(0, state.settings.bgmVol ?? 1)); // 🎚️ 슬라이더 볼륨 (1.0 캡)
-  const bgmVol = state.settings.bgm ? 0.16 * (calm ? 0.4 : 1) * vol : 0;
-  const rainVol = state.settings.bgm && wp === 'rain' ? 0.12 * vol : 0;   // 빗소리도 배경음 볼륨 추종
+  const bgmVol = state.settings.bgm ? 0.34 * (calm ? 0.4 : 1) * vol : 0;   // 🔊 BGM 기본 볼륨 대폭 상향 (0.16 → 0.34)
+  const rainVol = state.settings.bgm && wp === 'rain' ? 0.22 * vol : 0;   // 빗소리도 배경음 볼륨 추종 (🔊 상향)
   const tc = quick ? 0.02 : 0.8;
   bgm.master.gain.setTargetAtTime(bgmVol, t, tc);
   bgm.rainGain.gain.setTargetAtTime(rainVol, t, tc);
@@ -6874,6 +6875,9 @@ function tick() {
   requestAnimationFrame(tick);
   const dt = Math.min(clock.getDelta(), 0.05);
   const time = clock.elapsedTime;
+  // ⏸️ 편집/배치 모드 = 게임 전체 일시정지: 시간·스폰·손님·날씨·피버 등 게임플레이 루프 동결
+  //    (렌더링·카메라·고스트 회전·배치 프리뷰·스팀 같은 앰비언스만 계속 — 종료 즉시 재개)
+  const paused = editMode || !!state.placing;
 
   // 🎵 날씨 전환 감지 → BGM 40% 페이드 + 빗소리 ASMR 크로스페이드 (전환 시 1회)
   if (bgm) {
@@ -6889,8 +6893,8 @@ function tick() {
     fitCamera();
   }
 
-  // ☀️ 일일 영업 타이머 & 마감 흐름
-  if (state.opened) {
+  // ☀️ 일일 영업 타이머 & 마감 흐름 (⏸️ 편집 중엔 시간 정지)
+  if (state.opened && !paused) {
     if (state.dayPhase === 'open') {
       if (!contest) state.dayTimer -= dt * DAY_TIME_SCALE;   // 🕘 9AM→9PM 영업 타이머 — 실제 60초/일 (🏆 대회 중엔 일시 정지)
       if (state.dayTimer <= 0) {
@@ -6915,8 +6919,8 @@ function tick() {
     (state.dayPhase === 'open' ? ' · ' + dayClock()   // 🕘 9 AM → 9 PM 영업시간계
      : state.dayPhase === 'closing' ? ' · 9 PM 마감 중…' : ' · 마감!');
 
-  // 🏢🎀 방치 수익: 부동산 투자 + 데코 등급 방치 팁이 매초 골드 자동 적립 (마감 중에도 흐름)
-  if (state.opened) {
+  // 🏢🎀 방치 수익: 부동산 투자 + 데코 등급 방치 팁이 매초 골드 자동 적립 (마감 중에도 흐름 · ⏸️ 편집 중 정지)
+  if (state.opened && !paused) {
     const estInc = estateIncome() + decoInfo().tip + (state.achClaimed.includes('dept') ? 25 : 0);   // 🏬 백화점 점령 +25G
     if (estInc > 0) {
       estatePayTimer -= dt;
@@ -6933,9 +6937,9 @@ function tick() {
     }
   }
 
-  // 손님 스폰
-  spawnTimer -= dt;
-  if (spawnTimer <= 0) {
+  // 손님 스폰 (⏸️ 편집 중 정지)
+  if (!paused) spawnTimer -= dt;
+  if (!paused && spawnTimer <= 0) {
     spawnTimer = spawnInterval();   // 🪑 의자 수에 비례해 자동 조절 (+25% ~ +50%)
     if (promoRushLeft > 0) { promoRushLeft--; spawnTimer = 0.3 + Math.random() * 0.25; }   // 🚌 버스 피버: 초고속 연쇄 스폰
     if (state.opened && state.dayPhase === 'open') {   // 창업 후 + 영업시간에만 손님이 옴
@@ -6948,34 +6952,38 @@ function tick() {
       }
     }
   }
-  // 행인 스폰
-  walkerTimer -= dt;
-  if (walkerTimer <= 0) {
-    walkerTimer = 3 + Math.random() * 5;
-    spawnWalker();
+  // 행인 스폰 (⏸️ 편집 중 정지)
+  if (!paused) {
+    walkerTimer -= dt;
+    if (walkerTimer <= 0) {
+      walkerTimer = 3 + Math.random() * 5;
+      spawnWalker();
+    }
   }
 
-  updateCustomers(dt);
-  updateCookServing(dt);   // 🍱 주방장 사이드 픽업/배달
-  serveQueue(dt);     // 웨이팅 줄에서 한 명씩 간격을 두고 입장
-  updateWalkers(dt);
-  updateBubbles(dt);
-  updateCoins(dt, time);
-  updatePoppingCoins(dt);
-  updatePetals(dt, time);   // 🌸 벚꽃잎 흩날림
-  updateWeather(dt);        // 🌦️ 날씨/조명 전환 + 빗줄기 + 야간 포인트 조명
-  updateScooters(dt);       // 🏍️ 배달 오토바이 출발 애니메이션
-  updatePromoBuses(dt);     // 🚌 투어 버스 진입·정차·단체 하차·출발
-  updateFlyerShow(dt, time);// 🐱 전단지 살포 쇼 + 종이 파티클
-  updateEstatePops(dt);     // 🏢 부동산 기념 오브젝트 솟아오르기 연출
-  updateContest(dt);        // 🏆 대회 QTE 진행 (타이머·레이스·단계 루프)
-  centerTileUpdate();       // 🎯 배치 모드: 화면 중앙 타일을 실시간 배치 예정 위치로
+  if (!paused) {   // ⏸️ 게임플레이 메인 루프 — 편집/배치 중엔 통째로 동결
+    updateCustomers(dt);
+    updateCookServing(dt);   // 🍱 주방장 사이드 픽업/배달
+    serveQueue(dt);     // 웨이팅 줄에서 한 명씩 간격을 두고 입장
+    updateWalkers(dt);
+    updateBubbles(dt);
+    updateCoins(dt, time);
+    updatePoppingCoins(dt);
+    updatePetals(dt, time);   // 🌸 벚꽃잎 흩날림
+    updateWeather(dt);        // 🌦️ 날씨/조명 전환 + 빗줄기 + 야간 포인트 조명
+    updateScooters(dt);       // 🏍️ 배달 오토바이 출발 애니메이션
+    updatePromoBuses(dt);     // 🚌 투어 버스 진입·정차·단체 하차·출발
+    updateFlyerShow(dt, time);// 🐱 전단지 살포 쇼 + 종이 파티클
+    updateEstatePops(dt);     // 🏢 부동산 기념 오브젝트 솟아오르기 연출
+    updateContest(dt);        // 🏆 대회 QTE 진행 (타이머·레이스·단계 루프)
+    updateCat(dt, time);      // 🐱 고양이 알바 순찰/수거
+  }
+  centerTileUpdate();       // 🎯 배치 모드: 화면 중앙 타일을 실시간 배치 예정 위치로 (일시정지 무관)
   syncPlaceFx();            // 💡👻 배치 모드 조명 톤 다운 + 기존 가구/손님 반투명 동기화
-  updateCat(dt, time);      // 🐱 고양이 알바 순찰/수거
-  updateConfetti(dt);       // 🎉 폭죽 파티클
+  updateConfetti(dt);       // 🎉 폭죽 파티클 (배치 완료 축포는 편집 중에도 재생)
 
-  // 🎆 홍보 피버 진행 (30초) — 버튼이 남은 초 카운트다운으로 변신
-  if (promoFv.t > 0) {
+  // 🎆 홍보 피버 진행 (30초) — 버튼이 남은 초 카운트다운으로 변신 (⏸️ 편집 중 타이머 정지)
+  if (!paused && promoFv.t > 0) {
     promoFv.t -= dt;
     if (promoFv.t <= 0) {
       promoFv = { id: null, t: 0 };
@@ -6997,13 +7005,13 @@ function tick() {
       if (bn.textContent !== bt) bn.textContent = bt;
     }
   }
-  // 📱 VIP 대박 피버 진행
-  if (vipFeverT > 0) {
+  // 📱 VIP 대박 피버 진행 (⏸️ 편집 중 정지)
+  if (!paused && vipFeverT > 0) {
     vipFeverT -= dt;
     if (vipFeverT <= 0) endVipFever();
   }
-  // 🐱 필살기 게이지 충전 & 발동 시간 소진
-  if (state.opened && state.catHired && state.dayPhase === 'open') {
+  // 🐱 필살기 게이지 충전 & 발동 시간 소진 (⏸️ 편집 중 정지)
+  if (!paused && state.opened && state.catHired && state.dayPhase === 'open') {
     if (catSkillActiveT > 0) {
       catSkillActiveT -= dt;
       if (catSkillActiveT <= 0) { catSkillActiveT = 0; catSkillId = null; }
