@@ -5818,7 +5818,7 @@ newsOverlay.addEventListener('click', closeNews);
    (구 4단계 스텝 시스템 전면 교체 — 한 번에 몰아서 뜨는 답답함 제거) ── */
 const TUTO_DAYS = {
   1: '🛒 상점에서 가구를 구매해 매장에 배치해 보세요.',
-  2: '🛋️ 편집 모드에서 가구 위치를 바꾸거나 철거해 보세요.',
+  2: '🛠️ 1일차 영업이 종료되었어요! 이제 추가 테이블을 놓거나, 편집 모드에서 가구 위치를 바꾸거나 철거해 보세요.',
   3: '🍳 요리 탭에서 새 레시피를 연구해 매출을 올려보세요.',
   4: '🎆 왼쪽 폭죽 버튼으로 30초 홍보 피버를 켜보세요.',
   5: '🏗️ 확장 탭에서 매장 부지를 늘려보세요.',
@@ -6928,8 +6928,10 @@ function tick() {
         if (dv && !deliveryOrder) spawnDeliveryOrder(dv);
       }
     } else if (state.dayPhase === 'closing') {
-      // 잔여 손님·서빙이 모두 끝나면 마감 보고서
-      if (!customers.length && !cookWorker.job && !(helperWorker && helperWorker.job)) closeDay();
+      // 🚪 문턱 통과 즉시 마감: '실내(앞벽 안쪽)에 남은 손님'만 체크 —
+      //    마지막 손님이 문을 나서는 순간 정산 (인도를 걸어가는 퇴장 행렬은 대기하지 않음)
+      const inStore = customers.some(c => !(c.state === 'leaving' && c.group.position.z > wz(6) + 0.15));
+      if (!inStore && !cookWorker.job && !(helperWorker && helperWorker.job)) closeDay();
     } else if (state.dayPhase === 'report' && dayPanel.style.display !== 'block') {
       showDayReport();   // 세이브 로드 복원: 보고서 단계였다면 다시 표시
     }
