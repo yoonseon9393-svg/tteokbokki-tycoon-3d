@@ -9,6 +9,7 @@
   html, body {
     width: 100%; height: 100%; overflow: hidden;
     font-family: 'Segoe UI', 'Malgun Gothic', sans-serif;
+    word-break: keep-all; overflow-wrap: break-word;   /* 🔤 전역 어절 단위 한글 줄바꿈 (모든 토스트·배너·팝업 상속) */
     touch-action: none;                 /* 브라우저 스크롤/핀치 제스처 차단 */
     overscroll-behavior: none;          /* 당겨서 새로고침 차단 */
     -webkit-user-select: none; user-select: none;
@@ -3639,6 +3640,7 @@ let editMode = false;
 const editHint = document.getElementById('editHint');
 function enterEditMode() {
   cancelPlacing(); closeShop(); closeMenuBook(); closeLab(); hideFurniPop();
+  if (tutoShowing === 2) dismissTuto();   // 🎯 Day 2 가이드: 편집 모드 진입 = 행동 완수
   editMode = true;
   editHint.style.display = 'flex';
   refreshTuto();   // 🎓 편집 중엔 일일 가이드 배너 잠시 숨김
@@ -5519,6 +5521,7 @@ function cookSelect(tab) {
 document.getElementById('cookTabMain').addEventListener('click', () => cookSelect('main'));
 document.getElementById('cookTabSide').addEventListener('click', () => cookSelect('side'));
 function openMenuBook() {   // 🍳 요리 연구소: [메뉴]/[사이드] 2대 탭
+  if (tutoShowing === 3) dismissTuto();   // 🎯 Day 3 가이드: 요리 탭 열기 = 행동 완수
   if (editMode) exitEditMode();
   cancelPlacing(); closeShop();
   renderTrophyShelf();  // 🏆 트로피 진열대 최신화
@@ -5650,6 +5653,7 @@ function renderPromoFv() {
   }
 }
 function openPromoFv() {
+  if (tutoShowing === 4) dismissTuto();   // 🎯 Day 4 가이드: 홍보 버튼 열기 = 행동 완수
   if (editMode) exitEditMode();
   cancelPlacing(); closeShop(); closeMenuBook(); closeLab();
   renderPromoFv();
@@ -5801,7 +5805,7 @@ const TUTO_DAYS = {
   4: '🎆 왼쪽 폭죽 버튼으로 30초 홍보 피버를 켜보세요.',
   5: '🏗️ 확장 탭에서 매장 부지를 늘려보세요.',
 };
-let tutoShowing = 0, tutoTimer = null, tutoDelayTimer = null;   // 현재 배너에 떠 있는 가이드의 Day
+let tutoShowing = 0, tutoDelayTimer = null;   // 현재 배너에 떠 있는 가이드의 Day (시간 초과 자동 닫힘 없음)
 function refreshTuto() {   // 가시성 조율: 배치/편집 중엔 잠시 숨겨 상단 겹침 방지 (종료하면 복귀)
   const el = document.getElementById('tutoGuide');
   const show = tutoShowing > 0 && !state.placing && !editMode;
@@ -5823,7 +5827,7 @@ function refreshTuto() {   // 가시성 조율: 배치/편집 중엔 잠시 숨�
     arrow.style.top = (r.top - 48) + 'px';
   }
 }
-function dismissTuto() { tutoShowing = 0; clearTimeout(tutoTimer); tutoTimer = null; refreshTuto(); }
+function dismissTuto() { tutoShowing = 0; refreshTuto(); }   // 지시 행동 완수(각 open 훅) 또는 ✕로만 닫힘
 function maybeShowDailyTuto() {   // 개장/새 아침마다 호출: 오늘 몫 가이드 1개만, 평생 1회
   const d = state.day;
   if (!state.opened || state.dayPhase !== 'open') return;   // 마감/정산 중엔 안 띄움
@@ -5833,8 +5837,7 @@ function maybeShowDailyTuto() {   // 개장/새 아침마다 호출: 오늘 몫 
   clearTimeout(tutoDelayTimer);
   tutoDelayTimer = setTimeout(() => {   // 🌅 개장 토스트·돌발 이벤트 토스트(1.6s)가 지나간 뒤 등장
     tutoShowing = d;
-    refreshTuto();
-    tutoTimer = setTimeout(dismissTuto, 9000);   // ⏳ 9초 뒤 스스로 퇴장 — 플레이 방해 최소화
+    refreshTuto();   // 🔒 자동 닫힘 없음 — 지시된 행동을 완수할 때까지 배너·딤·화살표 영구 유지
   }, 3200);
 }
 function tutoAdvance() {}   // (구 스텝 시스템 호출부 호환용 no-op — 동전 수집 등 빈발 이벤트가 배너를 끄면 안 됨)
@@ -6173,6 +6176,7 @@ function openPanel(id) {
   else if (id === 'edit') { editMode ? exitEditMode() : enterEditMode(); }
   else if (id === 'menu') openMenuBook();   // 🍳 요리 연구소 독립 패널 (상점과 완전 분리)
   else if (id === 'expand') {
+    if (tutoShowing === 5) dismissTuto();   // 🎯 Day 5 가이드: 확장 탭 확인 = 행동 완수 (잠금 안내를 봐도 인정)
     if (!expandUnlocked()) { toast('🔒 가게 확장은 Day 3 이상 + 🏆 전국 요리 대회 우승 후 해금됩니다!'); return; }
     renderExpand(); expandPanel.style.display = 'block'; expandOverlay.style.display = 'block';
   }
