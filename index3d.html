@@ -4612,6 +4612,7 @@ function drawVipGauge(c, ratio) {
 
 function spawnCustomer() {
   if (tutoSub === TUTO_SUB_DONE) { tutoSub = null; refreshTuto(); }   // 🎉 첫 손님 등장 = 영업 개시 완수 → 가이드 퇴장
+  showTutoEvent('firstGuest');   // 👨‍🍳 Day 1 첫 손님: 자동 서빙 안내 (1회)
   const dir = Math.random() < 0.5 ? 1 : -1;
   // 빈 의자 찾기 — 단, 이미 웨이팅 줄이 있으면 새 손님도 공정하게 줄 뒤에 섬
   let seat = null;
@@ -4984,6 +4985,7 @@ function updateCustomers(dt) {
             }
           }
           dropCoin(c.seat.x + Math.sin(c.seat.ry) * 0.3, c.seat.z + Math.cos(c.seat.ry) * 0.3, income, c.influencer);
+          showTutoEvent('firstGold');   // 💰 Day 1 첫 정산: 골드 모으기 안내 (1회)
           if (promoFv.t > 0) {   // 🎆 홍보 피버: 등급별 차등 보너스 동전 추가 드랍 (5~15/15~35/35~70/70~120G)
             const [lo, hi] = promoFvDef().coin;
             dropCoin(c.seat.x - Math.sin(c.seat.ry) * 0.55, c.seat.z - Math.cos(c.seat.ry) * 0.55,
@@ -5859,6 +5861,26 @@ let tutoSub = null;                                    // 세부 단계 문구 (
 let tutoTablePlaced = false;   // 첫 테이블 설치 완수 여부 — 기존 세이브 조건과 무관하게 Day 1 배치 시 세션당 1회 노출
 const TUTO_SUB_PLACE = '좋아요! 원하는 위치에 테이블을 놓고 확인을 눌러보세요. 손님이 식사할 자리가 됩니다!';
 const TUTO_SUB_DONE = '첫 테이블 설치 완료! 👏 잠시 후 첫 손님이 찾아오니 맛있게 떡볶이를 대접해 보세요!';
+/* 💡 Day 1 상황별 1회성 이벤트 가이드 — 3.5초 자동 퇴장, 각각 딱 1번 (tutoSub 단일 배너 레이어 공유) */
+const TUTO_EVENTS = {
+  firstGuest:  '👨‍🍳 주방장이 주문을 받고 자동으로 서빙까지 완료해 줍니다!',
+  firstGold:   '💰 손님이 식사를 마치면 골드가 쌓여요. 차곡차곡 모아 가게를 확장해 보세요!',
+  firstRain:   '🌧️ 톡톡 비가 내리기 시작했어요! 빗소리와 함께 낭만적인 영업을 이어가 보세요.',
+  closingSoon: '⏰ 저녁 9시가 되면 영업이 마감돼요! 마지막 손님까지 정성껏 맞아주세요.',
+};
+const tutoEventSeen = {};   // 1회 발동 플래그 (Day 1 한정)
+let tutoEventTimer = null;
+function showTutoEvent(id) {
+  if (state.day !== 1 || tutoEventSeen[id]) return;
+  if (tutoSub === TUTO_SUB_PLACE || tutoSub === TUTO_SUB_DONE) return;   // 영구 배치 가이드 우선 (미소모 — 다음 기회에)
+  tutoEventSeen[id] = true;
+  tutoSub = TUTO_EVENTS[id];   // tutoShowing은 보존 — 이벤트 퇴장 후 일일 가이드 자연 복귀 (표시는 항상 1개)
+  refreshTuto();
+  clearTimeout(tutoEventTimer);
+  tutoEventTimer = setTimeout(() => {   // ⏳ 3.5초 뒤 자연 퇴장
+    if (tutoSub === TUTO_EVENTS[id]) { tutoSub = null; refreshTuto(); }
+  }, 3500);
+}
 function refreshTuto() {   // 가시성 조율: 배치/편집 중엔 일일 가이드 숨김 — 단, 배치 세부 멘트(tutoSub)는 배치 중에도 표시
   const el = document.getElementById('tutoGuide');
   // 🚨 중복(겹침) 방지: tutoSub 활성 중엔 일일 가이드(TUTO_DAYS)를 완전히 배제 — 배너는 항상 단 1개 소스
@@ -7095,6 +7117,11 @@ function tick() {
   }
   updateConfetti(dt);       // 🎉 폭죽 파티클 (배치 완료 축포는 편집 중에도 재생)
 
+  // 💡 Day 1 상황별 이벤트 가이드: 🌧️ 첫 비 / ⏰ 5 PM 마감 임박 (각 1회 — showTutoEvent 내부 가드)
+  if (!paused && state.dayPhase === 'open') {
+    if (weatherPhase() === 'rain') showTutoEvent('firstRain');
+    if (state.dayTimer <= 40) showTutoEvent('closingSoon');   // 🕔 t=40 = 5 PM (마감 4시간 전)
+  }
   // 🎆 홍보 피버 진행 (30초) — 버튼이 남은 초 카운트다운으로 변신 (⏸️ 편집 중 타이머 정지)
   if (!paused && promoFv.t > 0) {
     promoFv.t -= dt;
