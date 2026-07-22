@@ -684,7 +684,7 @@
 <!-- 🎯 미니멀 상단바: 골드 · 평점 · Day 딱 3개만 -->
 <div id="topbar">
   <div class="chip" id="goldChip">💰 0 G</div>
-  <div class="chip" id="dayChip" title="오늘의 영업시간 (9 AM ~ 9 PM)">🌸 1년차 1월 (봄) · 9 AM</div>
+  <div class="chip" id="dayChip" title="오늘의 영업시간 (9 AM ~ 9 PM)">🌸 1년차 1월 (봄) · 1일차 · 9 AM</div>
 </div>
 
 
@@ -2714,7 +2714,25 @@ function assignBenchSeats() {
       { x: bench.wait.x, z: bench.wait.z }];   // 문을 통해 실내 대기석으로
   }
 }
+// 🌇 마감 벨: 아직 자리 못 잡은 대기 손님(줄·대기석·이동 중)을 전원 즉시 정중 귀가
+//    — 홀에서 식사 중인 손님만 남겨 마감 정산이 지연 없이 도달하게 함
+function dismissWaiters() {
+  for (const c of customers) {
+    if (c.seat || c.state === 'leaving') continue;   // 좌석 배정자(식사 진행)와 퇴장 중은 그대로
+    if (c.waitBench) { c.waitBench.taken = false; c.waitBench = null; setSitPose(c.group, false); }
+    c.group.position.y = 0;
+    c.group.rotation.x = 0;   // ☂️ 우산 꽂는 모션 중이었어도 자세 원복
+    const p = c.group.position, dir = c.exitDir || 1;
+    c.state = 'leaving';
+    c.waypoints = p.z < wz(6) + 0.3   // 실내(대기석 등)면 문으로 우회 퇴장, 실외면 인도 따라 퇴장
+      ? [...(gridRoute(p.x, p.z, DOOR_X, wz(5)) || []), { x: DOOR_X, z: wz(5) }, { x: DOOR_X, z: wz(6) },
+         { x: DOOR_X, z: SIDEWALK_Z }, { x: EDGE_X * dir, z: SIDEWALK_Z }]
+      : [{ x: p.x, z: SIDEWALK_Z }, { x: EDGE_X * dir, z: SIDEWALK_Z }];
+  }
+  waitingQueue.length = 0;   // 줄 전원 해산
+}
 function serveQueue(dt) {
+  if (state.dayPhase !== 'open') return;   // 🌇 마감 중 신규 입장 완전 차단 (홀 손님만 마무리)
   assignBenchSeats();
   queueAdmitCooldown -= dt;
   if (!waitingQueue.length || queueAdmitCooldown > 0) return;
@@ -6738,7 +6756,7 @@ function updatePromoBuses(dt) {
       }
     } else if (b.phase === 'stop') {   // 🅿️ 정차 — 0.35초 간격 단체 하차
       b.stopT -= dt; b.dropT -= dt;
-      if (b.unload > 0 && b.dropT <= 0) {
+      if (b.unload > 0 && b.dropT <= 0 && state.dayPhase === 'open') {   // 🌇 마감이면 하차 중단
         b.dropT = 0.2; b.unload--;   // ⚡ 0.2초 간격 초고속 하차 — 우르르 쏟아짐
         const before = customers.length;
         spawnCustomer();
@@ -6899,6 +6917,7 @@ function tick() {
       if (!contest) state.dayTimer -= dt * DAY_TIME_SCALE;   // 🕘 9AM→9PM 영업 타이머 — 실제 60초/일 (🏆 대회 중엔 일시 정지)
       if (state.dayTimer <= 0) {
         state.dayPhase = 'closing';
+        dismissWaiters();   // 🚨 대기열·대기석 손님 즉시 정중 귀가 — 마감 꼬리 무한 연장 차단
         toast('🌇 오늘 영업 종료! 홀에 남은 손님을 마무리하고 정산할게요');
       }
       // 🛵 배달 주문 스폰 (배달 센터 설치 + 이전 주문 완료 시, 18초 주기)
@@ -6915,7 +6934,7 @@ function tick() {
       showDayReport();   // 세이브 로드 복원: 보고서 단계였다면 다시 표시
     }
   }
-  dayChip.textContent = calLabel() +   // 📅 "🌸 1년차 1월 (봄) · 9 AM" (연차·월·계절)
+  dayChip.textContent = calLabel() + ' · ' + state.day + '일차' +   // 📅 "🌸 1년차 1월 (봄) · 1일차 · 9 AM"
     (state.dayPhase === 'open' ? ' · ' + dayClock()   // 🕘 9 AM → 9 PM 영업시간계
      : state.dayPhase === 'closing' ? ' · 9 PM 마감 중…' : ' · 마감!');
 
@@ -6952,8 +6971,8 @@ function tick() {
       }
     }
   }
-  // 행인 스폰 (⏸️ 편집 중 정지)
-  if (!paused) {
+  // 행인 스폰 (⏸️ 편집 중 정지 · 🌇 마감 중 신규 행인도 중단)
+  if (!paused && state.dayPhase !== 'closing') {
     walkerTimer -= dt;
     if (walkerTimer <= 0) {
       walkerTimer = 3 + Math.random() * 5;
