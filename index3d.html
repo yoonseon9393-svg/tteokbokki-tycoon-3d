@@ -151,6 +151,7 @@
     border: none; background: #e05a5a; color: #fff; border-radius: 999px;
     padding: 5px 13px; font-weight: 800; font-size: 12px; cursor: pointer;
     touch-action: manipulation;
+    white-space: nowrap; flex-shrink: 0;   /* 📐 '✕ 종료' 세로 줄바꿈 방지 — 가로 한 줄 고정 */
   }
   #rotateBtn {
     position: fixed; right: 16px; bottom: calc(96px + env(safe-area-inset-bottom));
@@ -352,6 +353,7 @@
     border: none; background: #d9832a; color: #fff; border-radius: 999px;
     padding: 5px 13px; font-weight: 800; font-size: 12px; cursor: pointer;
     touch-action: manipulation;
+    white-space: nowrap; flex-shrink: 0;   /* 📐 '🗑️ 철거' 세로 줄바꿈 방지 — 가로 한 줄 고정 */
   }
   /* (📖 에피소드 인트로 CSS 삭제 — epRise는 안내 카드 등장 연출용으로 유지) */
   @keyframes epRise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
@@ -436,6 +438,18 @@
     padding: 8px 18px; font-weight: 800; font-size: 13px; cursor: pointer;
     touch-action: manipulation; box-shadow: 0 3px 10px rgba(40,90,60,.35);
   }
+  /* ── 🎯 Day 1 튜토리얼 스포트라이트: 상점 버튼만 밝히는 컷아웃 딤 + 통통 화살표 ─────────── */
+  #tutoDim {   /* 투명 구멍(버튼 자리) + 거대 box-shadow로 사방을 어둡게 — 클릭은 그대로 통과 */
+    position: fixed; display: none; pointer-events: none; z-index: 20;
+    border-radius: 22px;
+    box-shadow: 0 0 0 9999px rgba(20,14,10,.55), 0 0 20px 5px rgba(255,209,102,.65);
+  }
+  #tutoArrow {
+    position: fixed; display: none; pointer-events: none; z-index: 21;
+    font-size: 30px; filter: drop-shadow(0 3px 6px rgba(0,0,0,.35));
+    animation: tutoBob .55s ease-in-out infinite alternate;
+  }
+  @keyframes tutoBob { from { transform: translateY(0); } to { transform: translateY(10px); } }
   /* ── 🎓 상황 맞춤형 실시간 튜토리얼 가이드 ─────────── */
   #tutoGuide {
     position: fixed; top: calc(128px + env(safe-area-inset-top)); left: 50%;
@@ -481,6 +495,7 @@
     position: fixed; bottom: 140px; left: 50%; transform: translateX(-50%);
     background: rgba(66,58,52,.9); color: #fff; border-radius: 999px;
     padding: 9px 20px; font-size: 14px; font-weight: 700;
+    width: max-content; max-width: 92vw;   /* 💬 짧은 문구는 줄바꿈 없이 한 줄, 긴 문구만 화면 폭에서 랩 */
     z-index: 9999;   /* 🛠️ 상점/패널(z 30)에 가려지던 버그 수정 — 항상 최상위 */
     opacity: 0; transition: opacity .25s; pointer-events: none;
   }
@@ -683,6 +698,8 @@
 </div>
 <div id="editHint"><button id="editDoneBtn">✅ 편집 완료</button></div><!-- 🧹 설명 줄글 제거 — 완료 버튼만 유지 -->
 <div id="tutoGuide"><span id="tutoText"></span><button id="tutoSkip" title="가이드 건너뛰기">✕</button></div>
+<div id="tutoDim"></div><!-- 🎯 Day1 스포트라이트: 상점 버튼 컷아웃 딤 -->
+<div id="tutoArrow">⬇️</div>
 
 <div id="shopOverlay"></div>
 <div id="shopPanel">
@@ -5789,7 +5806,22 @@ function refreshTuto() {   // 가시성 조율: 배치/편집 중엔 잠시 숨�
   const el = document.getElementById('tutoGuide');
   const show = tutoShowing > 0 && !state.placing && !editMode;
   el.style.display = show ? 'flex' : 'none';
+  el.style.zIndex = '21';   // 🎯 스포트라이트 딤(z20)보다 위에서 항상 읽히게
   if (show) document.getElementById('tutoText').textContent = TUTO_DAYS[tutoShowing];
+  // 🎯 Day 1 전용 스포트라이트: 하단 [🛒 상점] 버튼만 밝히는 컷아웃 딤 + ⬇️ 통통 화살표
+  const spot = show && tutoShowing === 1;
+  const dim = document.getElementById('tutoDim'), arrow = document.getElementById('tutoArrow');
+  dim.style.display = spot ? 'block' : 'none';
+  arrow.style.display = spot ? 'block' : 'none';
+  if (spot) {
+    const r = document.getElementById('shopBtn').getBoundingClientRect();
+    dim.style.left = (r.left - 6) + 'px';           // 버튼보다 6px 여유 있는 골드 링 구멍
+    dim.style.top = (r.top - 6) + 'px';
+    dim.style.width = (r.width + 12) + 'px';
+    dim.style.height = (r.height + 12) + 'px';
+    arrow.style.left = (r.left + r.width / 2 - 15) + 'px';   // 버튼 정중앙 위에서 아래를 가리킴
+    arrow.style.top = (r.top - 48) + 'px';
+  }
 }
 function dismissTuto() { tutoShowing = 0; clearTimeout(tutoTimer); tutoTimer = null; refreshTuto(); }
 function maybeShowDailyTuto() {   // 개장/새 아침마다 호출: 오늘 몫 가이드 1개만, 평생 1회
@@ -5935,6 +5967,7 @@ document.getElementById('storyNext').addEventListener('click', closeStory);
 const shopOverlay = document.getElementById('shopOverlay');
 function openShop() {
   if (editMode) exitEditMode();
+  if (tutoShowing === 1) dismissTuto();   // 🎯 상점을 열면 Day 1 스포트라이트·화살표 자연 퇴장
   renderLab();      // 🧪 연구 탭 내용 최신화
   const d = decoInfo();   // 🎀 실시간 데코 등급 (가구 합산 코스트 + 테마 믹스)
   document.getElementById('decoLine').textContent =
@@ -5984,7 +6017,7 @@ document.getElementById('openShopBtn').addEventListener('click', () => {
   rollDayEvent(false);   // 💡 첫날 돌발 이벤트는 조용히 적용 (문구 없음)
   maybeShowDailyTuto();  // 🎓 Day 1 상점 가이드 (토스트 지나간 뒤 1회)
   // 📖 에피소드 인트로 삭제 — 자금 안내는 개시 토스트 뒤에 바로 이어서
-  setTimeout(() => toast('💰 초기 운영자금 3,000G 지급 — 요식업 왕국의 첫걸음을 내디뎌 보세요!'), 2500);
+  setTimeout(() => toast('💰 초기 운영자금 3,000G 지급!'), 2500);   // ✏️ 한 줄 컴팩트 안내
   saveGame();
 });
 
