@@ -4565,6 +4565,7 @@ function spawnInterval() {
   interval /= 1 + Math.min(0.3, state.contestWins * 0.1);   // 🏆 대회 우승 명성: 회당 유입 +10% (최대 +30%)
   if (state.contestWins >= 3) interval /= 1.15;   // 🏆 3승 [전국 맛집 인증]: 유입 템포 15% 가속
   if (weatherPhase() === 'night' && hasFurn('neonsign')) interval /= 1.3;   // 💡 네온사인: 🌙 야간 유입 30% 증가
+  if (state.day === 1) interval *= 2;   // 📉 Day 1: 스폰 간격 2배 = 유입 50% (튜토리얼 여유 확보)
   if (promoFv.t > 0) interval /= 1 + promoFvDef().boost * mkEff();   // 🎆 홍보 피버: 유입 +40~200% (🏆 3승 시 효율 +20%)
   if (vipFeverT > 0) interval /= 3;   // 📱 VIP 대박 피버: 손님 유입 3배
   if (state.newsId === 'vacation') interval /= 2;   // 📰 학생 방학: 스폰 2배 가속
@@ -4665,8 +4666,12 @@ function spawnCustomer() {
       };
       decorateOrder(c);   // 🌶️ 맵기/토핑 커스텀
       customers.push(c);
-      feverGreet(c);      // 🎆 피버 손님: 전용 대사 + SNS 코디
+      feverGreet(c);      // 🎆 피버 손님: 전용 대사 + SNS 코디 / 평시 호기심 대사
       waitingQueue.push(c);
+      // 🧍‍♂️ 대기 손님 3명 달성 순간: 테이블 추가 배치 팁 (1회 — 배치 가이드에 양보되면 미소모 재시도)
+      if (!queue3Tipped && waitingQueue.length >= 3 &&
+          showEventBanner('대기 손님이 많아졌어요! 테이블을 추가 배치해 더 많은 손님을 받아보세요.'))
+        queue3Tipped = true;
       return;
     }
     const g = buildCharacter();
@@ -4758,9 +4763,15 @@ function spawnCustomer() {
   customers.push(c);
   feverGreet(c);   // 🎆 피버 손님: 전용 대사 + SNS 코디
 }
-// 🎆 홍보 피버 중 스폰된 손님 연출: 홍보 종류별 대사 10종 중 1개 + 📱 SNS는 화려한 인플루언서 코디
+// 💬 가게로 걸어오는 손님 호기심 대사 5종 (평시 스폰 연출)
+const PASSER_LINES = ['새로 생긴 식당인가?', '떡볶이 가게인가?', '여기 맛있는지 궁금한데',
+  '출출한데 하나 먹고 갈까?', '우와, 떡볶이 냄새 좋다!'];
+// 🎆 스폰 손님 인사 연출: 피버 중엔 홍보 대사 10종 + 📱 SNS 코디, 평시엔 호기심 대사 5종 랜덤
 function feverGreet(c) {
-  if (promoFv.t <= 0) return;
+  if (promoFv.t <= 0) {
+    showBubble(c.group, pick(PASSER_LINES), 1.55, 2.0);   // 💬 걸어오는 동안 머리 위 말풍선
+    return;
+  }
   if (promoFv.id === 'sns') {   // ✨ 네온 캡 + 선글라스 — 우르르 몰려온 체험단 무리
     const cap = cyl(0.19, 0.21, 0.1, pick([0xff5fa2, 0x8a5cff, 0x00d1c4, 0xffd166]));
     cap.position.y = 1.16; cap.castShadow = false; c.group.add(cap);
@@ -5945,16 +5956,19 @@ function maybeShowDailyTuto() {   // 개장/새 아침마다 호출: 오늘 몫 
   }, 3200);
 }
 function tutoAdvance() {}   // (구 스텝 시스템 호출부 호환용 no-op — 동전 수집 등 빈발 이벤트가 배너를 끄면 안 됨)
-// 📢 범용 이벤트 배너 (Day 무관 — ☔ 장마 시작 등): tutoSub 단일 레이어 공유, 자동 퇴장
+// 📢 범용 이벤트 배너 (Day 무관 — ☔ 장마 시작·🧍 대기 팁 등): tutoSub 단일 레이어 공유, 자동 퇴장
+//    반환값 = 실제 표시 여부 (영구 배치 가이드에 양보되면 false → 호출부가 1회성 플래그를 미소모)
 function showEventBanner(txt, dur = 4500) {
-  if (tutoSub === TUTO_SUB_PLACE || tutoSub === TUTO_SUB_DONE) return;   // 영구 배치 가이드 우선
+  if (tutoSub === TUTO_SUB_PLACE || tutoSub === TUTO_SUB_DONE) return false;   // 영구 배치 가이드 우선
   tutoSub = txt;
   refreshTuto();
   clearTimeout(tutoEventTimer);
   tutoEventTimer = setTimeout(() => {
     if (tutoSub === txt) { tutoSub = null; refreshTuto(); }
   }, dur);
+  return true;
 }
+let queue3Tipped = false;   // 🧍‍♂️ 대기 3명 달성 배너 1회성 플래그
 document.getElementById('tutoSkip').addEventListener('click', dismissTuto);   // ✕ = 오늘 가이드 닫기
 
 /* ── ☀️ 일일 장사 타이머 & 마감 정산 메타 루프 ─────────────── */
