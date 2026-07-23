@@ -472,6 +472,8 @@
     animation: tutoPop .35s ease-out;
   }
   @keyframes tutoPop { from { transform: translateX(-50%) translateY(-8px); opacity: 0; } }
+  /* 🎨 배치 모드 중엔 상단 배치 안내 바(placeHint, 모바일 3줄 랩 시 ~190px)와 절대 안 겹치게 아래로 */
+  #tutoGuide.belowHint { top: calc(206px + env(safe-area-inset-top)); }
   #tutoSkip {
     border: none; background: #f1e5d3; color: #8a745c; border-radius: 50%;
     width: 24px; height: 24px; font-size: 11px; font-weight: 800; cursor: pointer;
@@ -5891,6 +5893,7 @@ function refreshTuto() {   // 가시성 조율: 배치/편집 중엔 일일 가�
   const show = !!msg && !editMode && (!state.placing || !!tutoSub);
   el.style.display = show ? 'flex' : 'none';
   el.style.zIndex = '21';   // 🎯 스포트라이트 딤(z20)보다 위에서 항상 읽히게
+  el.classList.toggle('belowHint', show && !!state.placing);   // 🎨 배치 안내 바(placeHint)와 겹침 방지 — 아래로 이동
   if (show) document.getElementById('tutoText').textContent = msg;
   // 🎯 Day 1 전용 스포트라이트: 하단 [🛒 상점] 버튼만 밝히는 컷아웃 딤 + ⬇️ 통통 화살표 (세부 단계 중엔 없음)
   const spot = show && tutoShowing === 1 && !tutoSub;
@@ -6899,10 +6902,18 @@ function updateFlyerShow(dt, time) {
 
 /* ── 🌦️ 실시간 날씨 & 감성 야간 조명 시스템 ─────────────────
    하루 120초: ☀️ 화창(120~80s) → 🌧️ 우천(80~40s) → 🌇 노을(40~25s) → 🌙 야간(25~0s) */
+/* ☔ 우천 편성 분석: 기본 스케줄은 '매일 고정' — t>80 맑음(9AM~1PM) → 80~40 비(1PM~5PM) → 40 이하 노을·밤 (확률 없음)
+   Day 1 예외: 시작 직후 비 오는 어색함 방지 — 오후 2시(t=70) 이후부터만, 세션당 30% 확률 당첨 시에만 우천 */
+let day1RainLuck = Math.random() < 0.3;   // 🌧️ Day 1 우천 추첨 (세션 1회)
+function rainScheduled(t) {
+  if (t > 80 || t <= 40) return false;                    // 우천 시간대(1~5 PM) 밖
+  if (state.day === 1) return day1RainLuck && t <= 70;    // Day 1: 2 PM 이후 + 30% 당첨 시만
+  return true;                                            // Day 2+: 기존 고정 편성 유지
+}
 function weatherPhase() {
   const t = state.dayTimer;
   if (t > 80) return 'sunny';
-  if (t > 40) return 'rain';
+  if (t > 40) return rainScheduled(t) ? 'rain' : 'sunny';   // ☀️ 비 없는 오후는 맑음 유지
   return 'night';   // 노을~밤 (야간 영업 단계)
 }
 // 🌙 야간 포인트 조명: 간판 근처 + 주방 조리대 (평소엔 강도 0으로 꺼둠)
@@ -6964,7 +6975,9 @@ function updateWeather(dt) {
   // 시간대별 목표 조명값 (hemi 색/강도, sun 색/강도, 하늘 테마)
   let tg;
   if (t > 80)      tg = { h: 0xfffdf8, hi: 0.52, s: 0xfffcf5, si: 0.55, sky: 'spring' };  // ☀️ 화창
-  else if (t > 40) tg = { h: 0xd6dfe9, hi: 0.40, s: 0x9fb2c4, si: 0.28, sky: 'rain'   };  // 🌧️ 우천
+  else if (t > 40) tg = rainScheduled(t)
+    ? { h: 0xd6dfe9, hi: 0.40, s: 0x9fb2c4, si: 0.28, sky: 'rain'   }    // 🌧️ 우천
+    : { h: 0xfffdf8, hi: 0.50, s: 0xffefd8, si: 0.50, sky: 'spring' };   // ☀️ 비 없는 맑은 오후 (Day 1 예외)
   else if (t > 25) tg = { h: 0xffd9b0, hi: 0.46, s: 0xff9a5e, si: 0.45, sky: 'autumn' };  // 🌇 노을
   else             tg = { h: 0x8890b8, hi: 0.30, s: 0x6a74a8, si: 0.20, sky: 'night'  };  // 🌙 밤
   const k = Math.min(1, dt * 1.6);   // 부드러운 색/강도 보간
