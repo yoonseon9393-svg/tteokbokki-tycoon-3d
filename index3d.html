@@ -132,6 +132,20 @@
     box-shadow: 0 1px 0 rgba(122,92,58,.18);
   }
   .shopItem button:hover { background: #ffc94d; }
+  /* 🛒 Day 1 배치 튜토: '2인 테이블' 카드 하이라이트 + 구매 버튼을 가리키는 포인팅 손가락 */
+  .shopItem.tutoTarget {
+    position: relative;
+    outline: 3px solid #ffd166; outline-offset: -1px;
+    box-shadow: 0 0 14px 3px rgba(255,209,102,.55);
+    animation: feverPulse .9s ease-in-out infinite alternate;
+  }
+  .shopItem.tutoTarget::after {
+    content: '👉'; position: absolute; right: 84px; top: 50%;
+    font-size: 24px; pointer-events: none; z-index: 2;
+    filter: drop-shadow(0 2px 4px rgba(0,0,0,.3));
+    animation: tutoPoint .5s ease-in-out infinite alternate;
+  }
+  @keyframes tutoPoint { from { transform: translate(-5px, -50%); } to { transform: translate(4px, -50%); } }
   /* 🗂️ 상점 카테고리 탭 */
   #shopTabs { display: flex; gap: 6px; margin-bottom: 10px; }
   .shopTabBtn {
@@ -3402,6 +3416,10 @@ function startPlacing(key, isMove = false) {
   closeShop();
   placeNudge = { x: 0, z: 0 };   // 🎯 중앙 고정 배치 시작 — 화면 중앙 타일이 곧 배치 예정 위치
   centerTileUpdate();
+  {   // 🛒 구매 버튼을 눌러 배치가 시작되면 2인 테이블 가이드 연출 즉시 해제
+    const cr = document.getElementById('coupleRow');
+    if (cr) cr.classList.remove('tutoTarget');
+  }
   // 🪑 Day 1 첫 배치 가이드: 상점에서 가구를 고르는 순간 배치 안내 멘트로 전환 (배치 중에도 표시)
   if (!isMove && state.day === 1 && !tutoTablePlaced) {
     tutoShowing = 0;   // 🚨 일일 가이드 잔여분 정리 — 세부 가이드와 절대 중복 표시 금지
@@ -5942,12 +5960,16 @@ function refreshTuto() {   // 가시성 조율: 배치/편집 중엔 일일 가�
   el.classList.toggle('belowHint', show && !!state.placing);   // 🎨 배치 안내 바(placeHint)와 겹침 방지 — 아래로 이동
   if (show) document.getElementById('tutoText').textContent = msg;
   // ⏱️ 모든 튜토·일차·이벤트 배너 공용: 새 문구가 뜨면 5초 자동 퇴장 타이머 재설정 (0.6초 페이드아웃)
+  // 📌 예외: Day 1 극초반 '가구 배치' 가이드(배치 안내 멘트 or 첫 설치 전 환영 가이드)는
+  //         실제 설치 완료까지 영구 유지 — 타이머 미장착
   if (show) {
     if (msg !== tutoLastMsg) {
       tutoLastMsg = msg;
       clearTimeout(tutoAutoTimer);
       el.style.transition = ''; el.style.opacity = '';   // 새 배너는 또렷하게 시작
-      tutoAutoTimer = setTimeout(() => {
+      const sticky = tutoSub === TUTO_SUB_PLACE ||
+        (state.day === 1 && !tutoSub && tutoShowing === 1 && placedFurniture.length === 0);
+      if (!sticky) tutoAutoTimer = setTimeout(() => {
         if (el.style.display === 'none') return;   // 이미 닫혔으면(✕ 등) 무시
         el.style.transition = 'opacity .6s';
         el.style.opacity = '0';
@@ -6161,6 +6183,9 @@ function openShop() {
     (d.tip ? ' · 매초 +' + d.tip + 'G 방치 팁' : ' · 가구를 채워 등급을 올려보세요');
   shopPanel.style.display = 'block';
   shopOverlay.style.display = 'block';
+  // 🛒 Day 1 배치 튜토 진행 중(첫 설치 전)이면 '2인 테이블' 카드에 하이라이트+👉 가이드
+  const cr = document.getElementById('coupleRow');
+  if (cr) cr.classList.toggle('tutoTarget', state.day === 1 && placedFurniture.length === 0);
 }
 function closeShop() {
   shopPanel.style.display = 'none';
@@ -6484,6 +6509,7 @@ document.getElementById('endingBtn').addEventListener('click', () => {
     if (item.fixture) continue;   // 🧰 기물은 아래 정보 행으로 별도 표시
     const row = document.createElement('div');
     row.className = 'shopItem';
+    if (key === 'couple') row.id = 'coupleRow';   // 🛒 Day 1 배치 튜토 가이드 타깃 (2인 테이블)
     row.innerHTML =   // 🎨 [큰 이모지 배지 | 이름 + 핵심 효과 1줄] 컴팩트 카드 (줄글 desc 미노출)
       '<span class="itIcon">' + item.emoji + '</span>' +
       '<div class="info"><span class="itName">' + item.name + '</span>' +
