@@ -474,6 +474,7 @@
   @keyframes tutoPop { from { transform: translateX(-50%) translateY(-8px); opacity: 0; } }
   /* 🎨 배치 모드 중엔 상단 배치 안내 바(placeHint, 모바일 3줄 랩 시 ~190px)와 절대 안 겹치게 아래로 */
   #tutoGuide.belowHint { top: calc(206px + env(safe-area-inset-top)); }
+  #tutoGuide { word-break: keep-all; overflow-wrap: break-word; }   /* 🔤 튜토·이벤트 배너 어절 줄바꿈 명시 */
   #tutoSkip {
     border: none; background: #f1e5d3; color: #8a745c; border-radius: 50%;
     width: 24px; height: 24px; font-size: 11px; font-weight: 800; cursor: pointer;
@@ -507,6 +508,7 @@
     background: rgba(66,58,52,.9); color: #fff; border-radius: 999px;
     padding: 9px 20px; font-size: 14px; font-weight: 700;
     width: max-content; max-width: 92vw;   /* 💬 짧은 문구는 줄바꿈 없이 한 줄, 긴 문구만 화면 폭에서 랩 */
+    word-break: keep-all; overflow-wrap: break-word;   /* 🔤 '오늘의 돌발' 등 어절 단위 줄바꿈 명시 보장 */
     z-index: 9999;   /* 🛠️ 상점/패널(z 30)에 가려지던 버그 수정 — 항상 최상위 */
     opacity: 0; transition: opacity .25s; pointer-events: none;
   }
@@ -1055,7 +1057,8 @@ const REGULARS = [
 ];
 const GRADES = ['D', 'C', 'B', 'A', 'S', 'SS', 'SSS'];
 const DAY_LENGTH = 120;       // 하루 영업 내부 단위 120 (날씨 단계·시간계 임계값의 기준 스케일)
-const DAY_TIME_SCALE = 2;     // ⏱️ 실시간 배속: 120단위 ÷ 2배속 = 실제 60초 = 게임 12시간 (1초 = 12분)
+const DAY_TIME_SCALE = 120 / 90;   // ⏱️ 실시간 배속: 120단위 ÷ (4/3) = 실제 90초 = 게임 12시간 (1초 = 8분)
+                                   //    시간 이벤트 임계값(5 PM = t 40 등)은 내부 단위 기준이라 자동 정합
 // 🕘 영업 시간계: 남은 영업시간 비율을 12시간(9AM→9PM)에 분할 맵핑
 function dayClock() {
   const prog = Math.min(1, Math.max(0, 1 - state.dayTimer / DAY_LENGTH));
@@ -1743,6 +1746,23 @@ buildCherryTree(-3.1, 6.3, 0.9);
 buildCherryTree(0.3, 6.15, 1.15);
 buildCherryTree(3.6, 6.3, 0.92);
 buildCherryTree(6.2, 6.1, 1.05);
+
+/* ── 🍂 계절별 가게 앞 나무·흩날림 비주얼: 잎뭉치 색 + 파티클 팔레트를 계절마다 교체 ──
+   봄 🌸 벚꽃 핑크 / 여름 🌿 싱그러운 초록 / 가을 🍁 붉은 단풍 / 겨울 ⛄ 눈 쌓인 흰 나무 */
+const SEASON_LOOK = {
+  '봄':   { tree: [0xffc4d6, 0xffdce8], petals: [0xffc4d6, 0xffb3c9, 0xffdce8] },
+  '여름': { tree: [0x6fbf73, 0x94d998], petals: [0x8fd9a8, 0xa8e6b0, 0x7cc47f] },
+  '가을': { tree: [0xe07a3f, 0xd9534f], petals: [0xe8a24a, 0xd9534f, 0xc46a2e] },
+  '겨울': { tree: [0xeef3f7, 0xdde8f2], petals: [0xffffff, 0xeaf2fa, 0xdfe8f0] },
+};
+function applySeason() {
+  const s = calSeason(state.day);
+  if (ENV.season === s) return;   // 계절 유지 시 매 호출 무비용
+  ENV.season = s;
+  const look = SEASON_LOOK[s];
+  ENV.trees.forEach(t => t.foliage.forEach((m, i) => m.material.color.setHex(look.tree[i % look.tree.length])));
+  ENV.petals.forEach((p, i) => p.mesh.material.color.setHex(look.petals[i % look.petals.length]));
+}
 
 // 🌸 은은하게 휘날리는 벚꽃잎 파티클 (평화롭게 딱 30장)
 function resetPetal(p, randomHeight = false) {
@@ -3284,6 +3304,7 @@ function leavePath(seat, exitDir) {
     placeFurniture('couple', 4, 3, 0, true);
   }
   updateSignText(state.shopName);   // 간판에 가게 이름 반영
+  applySeason();                    // 🍂 세이브 복원 직후 현재 계절 비주얼 즉시 반영
   // 🎓 일일 가이드는 스크립트 전체 평가가 끝난 뒤로 지연 호출 — TUTO_DAYS(뒤쪽 선언) TDZ로
   //    영업 중 세이브 부팅이 통째로 죽던 치명 버그 수정 (v7.4 잠복 → v7.6 검거)
   setTimeout(maybeShowDailyTuto, 0);
@@ -5924,6 +5945,16 @@ function maybeShowDailyTuto() {   // 개장/새 아침마다 호출: 오늘 몫 
   }, 3200);
 }
 function tutoAdvance() {}   // (구 스텝 시스템 호출부 호환용 no-op — 동전 수집 등 빈발 이벤트가 배너를 끄면 안 됨)
+// 📢 범용 이벤트 배너 (Day 무관 — ☔ 장마 시작 등): tutoSub 단일 레이어 공유, 자동 퇴장
+function showEventBanner(txt, dur = 4500) {
+  if (tutoSub === TUTO_SUB_PLACE || tutoSub === TUTO_SUB_DONE) return;   // 영구 배치 가이드 우선
+  tutoSub = txt;
+  refreshTuto();
+  clearTimeout(tutoEventTimer);
+  tutoEventTimer = setTimeout(() => {
+    if (tutoSub === txt) { tutoSub = null; refreshTuto(); }
+  }, dur);
+}
 document.getElementById('tutoSkip').addEventListener('click', dismissTuto);   // ✕ = 오늘 가이드 닫기
 
 /* ── ☀️ 일일 장사 타이머 & 마감 정산 메타 루프 ─────────────── */
@@ -6057,6 +6088,9 @@ document.getElementById('nextDayBtn').addEventListener('click', () => {
   rollDailyNews();   // 새 영업일 = 새 트렌드 확인 기회 (실제 날짜 기준 유지)
   rollDayEvent();    // 💡 새 아침 = 새 돌발 이벤트
   toast('🌅 Day ' + state.day + ' 영업 시작! 오늘도 대박 나세요!');
+  applySeason();   // 🍂 계절이 바뀌었으면 나무·꽃잎 비주얼 교체
+  if (calMonth(state.day) === 4)   // ☔ 여름(4월) 진입 첫 아침: 장마철 개시 알림
+    setTimeout(() => showEventBanner('☔ 여름 장마철이 시작되었어요! 당분간 매일 비가 내립니다.'), 3200);
   maybeShowDailyTuto();   // 🎓 새 아침 = 오늘 몫 일일 가이드 1개 (Day 2~5, 1회씩)
   grantExpandIfReady();   // 🔓 Day 3+ & 🏆 대회 우승 → 아침에 확장 권한 부여 (중개인 카드)
   updateUI(true);
@@ -6700,7 +6734,7 @@ function initBgm() {   // 최초 사용자 제스처에서 1회 기동 (브라�
 function scheduleRainDrips() {
   if (!bgm) return;
   bgm.dripTimer = setTimeout(scheduleRainDrips, 100 + Math.random() * 200);
-  if (weatherPhase() !== 'rain' || !state.settings.bgm) return;   // 비 올 때만 실제 발음
+  if (weatherPhase() !== 'rain' || !state.settings.bgm || precipToday() === 'snow') return;   // 비 올 때만 발음 (❄️ 눈은 무음)
   const t = audioCtx.currentTime;
   const o = audioCtx.createOscillator(), g = audioCtx.createGain();
   o.type = 'sine';
@@ -6721,7 +6755,7 @@ function applyAudioSettings(quick = false) {
   const calm = wp === 'rain' || wp === 'night';                     // 🌧️🌙 감성 모드: BGM 40%
   const vol = Math.min(1, Math.max(0, state.settings.bgmVol ?? 1)); // 🎚️ 슬라이더 볼륨 (1.0 캡)
   const bgmVol = state.settings.bgm ? 0.34 * (calm ? 0.4 : 1) * vol : 0;   // 🔊 BGM 기본 볼륨 대폭 상향 (0.16 → 0.34)
-  const rainVol = state.settings.bgm && wp === 'rain' ? 0.22 * vol : 0;   // 빗소리도 배경음 볼륨 추종 (🔊 상향)
+  const rainVol = state.settings.bgm && wp === 'rain' && precipToday() !== 'snow' ? 0.22 * vol : 0;   // 빗소리 (❄️ 눈 오는 날은 무음)
   const tc = quick ? 0.02 : 0.8;
   bgm.master.gain.setTargetAtTime(bgmVol, t, tc);
   bgm.rainGain.gain.setTargetAtTime(rainVol, t, tc);
@@ -6902,13 +6936,18 @@ function updateFlyerShow(dt, time) {
 
 /* ── 🌦️ 실시간 날씨 & 감성 야간 조명 시스템 ─────────────────
    하루 120초: ☀️ 화창(120~80s) → 🌧️ 우천(80~40s) → 🌇 노을(40~25s) → 🌙 야간(25~0s) */
-/* ☔ 우천 편성 분석: 기본 스케줄은 '매일 고정' — t>80 맑음(9AM~1PM) → 80~40 비(1PM~5PM) → 40 이하 노을·밤 (확률 없음)
-   Day 1 예외: 시작 직후 비 오는 어색함 방지 — 오후 2시(t=70) 이후부터만, 세션당 30% 확률 당첨 시에만 우천 */
-let day1RainLuck = Math.random() < 0.3;   // 🌧️ Day 1 우천 추첨 (세션 1회)
+/* 🌦️ 계절 날씨 편성 (v9.0) — 강수 시간대는 공통 1 PM~5 PM (t 80~40):
+   Day 1 무조건 맑음 · 🌸🍂 봄/가을 주 2일 비(day%7∈{2,5}) · ☔ 여름(4~6월) 장마 매일 비 · ❄️ 겨울(10~12월) 주 3일 눈(day%7∈{1,3,5}) */
+function precipToday(day = state.day) {
+  if (day === 1) return null;                        // Day 1 무조건 맑음 고정
+  const m = calMonth(day), w = day % 7;
+  if (m >= 4 && m <= 6) return 'rain';               // ☔ 여름 장마철: 매일 비
+  if (m >= 10) return (w === 1 || w === 3 || w === 5) ? 'snow' : null;   // ❄️ 겨울: 주 3일 눈
+  return (w === 2 || w === 5) ? 'rain' : null;       // 🌸🍂 봄/가을: 주 2일 비
+}
 function rainScheduled(t) {
-  if (t > 80 || t <= 40) return false;                    // 우천 시간대(1~5 PM) 밖
-  if (state.day === 1) return day1RainLuck && t <= 70;    // Day 1: 2 PM 이후 + 30% 당첨 시만
-  return true;                                            // Day 2+: 기존 고정 편성 유지
+  if (t > 80 || t <= 40) return false;   // 강수 시간대(1~5 PM) 밖
+  return precipToday() !== null;
 }
 function weatherPhase() {
   const t = state.dayTimer;
@@ -6967,6 +7006,7 @@ const closedSign = (() => {
   return sp;
 })();
 let curSky = 'spring';
+let rainLook = 'rain';   // 🌧️❄️ 강수 파티클 현재 룩 (rain/snow — 전환 시 1회 일괄 교체)
 const _wc = new THREE.Color();
 const _gv = new THREE.Vector3();   // 🔄✔️ 고스트 추종 버튼용 투영 벡터 (프레임당 재사용)
 function updateWeather(dt) {
@@ -6975,9 +7015,11 @@ function updateWeather(dt) {
   // 시간대별 목표 조명값 (hemi 색/강도, sun 색/강도, 하늘 테마)
   let tg;
   if (t > 80)      tg = { h: 0xfffdf8, hi: 0.52, s: 0xfffcf5, si: 0.55, sky: 'spring' };  // ☀️ 화창
-  else if (t > 40) tg = rainScheduled(t)
-    ? { h: 0xd6dfe9, hi: 0.40, s: 0x9fb2c4, si: 0.28, sky: 'rain'   }    // 🌧️ 우천
-    : { h: 0xfffdf8, hi: 0.50, s: 0xffefd8, si: 0.50, sky: 'spring' };   // ☀️ 비 없는 맑은 오후 (Day 1 예외)
+  else if (t > 40) tg = !rainScheduled(t)
+    ? { h: 0xfffdf8, hi: 0.50, s: 0xffefd8, si: 0.50, sky: 'spring' }    // ☀️ 강수 없는 맑은 오후
+    : precipToday() === 'snow'
+      ? { h: 0xe9eef6, hi: 0.48, s: 0xcdd8e6, si: 0.32, sky: 'rain' }    // ❄️ 강설 (밝은 회백)
+      : { h: 0xd6dfe9, hi: 0.40, s: 0x9fb2c4, si: 0.28, sky: 'rain' };   // 🌧️ 우천
   else if (t > 25) tg = { h: 0xffd9b0, hi: 0.46, s: 0xff9a5e, si: 0.45, sky: 'autumn' };  // 🌇 노을
   else             tg = { h: 0x8890b8, hi: 0.30, s: 0x6a74a8, si: 0.20, sky: 'night'  };  // 🌙 밤
   const k = Math.min(1, dt * 1.6);   // 부드러운 색/강도 보간
@@ -6993,12 +7035,22 @@ function updateWeather(dt) {
   nightSignLight.intensity += (li - nightSignLight.intensity) * Math.min(1, dt * 3);
   nightPotLight.intensity = nightSignLight.intensity;
   if (night) { const p = potWorldPos(); nightPotLight.position.set(p.x, 1.9, p.z); }   // 솥이 이사해도 추적
-  // 🌧️ 빗줄기 낙하
+  // 🌧️❄️ 강수 파티클 낙하 (겨울엔 같은 파티클 풀을 눈송이 룩으로 전환)
   const raining = weatherPhase() === 'rain';
   rainGroup.visible = raining;
   if (raining) {
+    const snow = precipToday() === 'snow';
+    if (rainLook !== (snow ? 'snow' : 'rain')) {   // 룩 전환은 1회만 (색·형태 일괄 교체)
+      rainLook = snow ? 'snow' : 'rain';
+      for (const d of rainDrops) {
+        d.material.color.setHex(snow ? 0xffffff : 0xaac4dd);
+        d.material.opacity = snow ? 0.9 : 0.55;
+        d.scale.set(snow ? 2.4 : 1, snow ? 0.16 : 1, snow ? 2.4 : 1);   // ❄️ 짧고 통통한 플레이크
+      }
+    }
     for (const d of rainDrops) {
-      d.position.y -= dt * 11;
+      d.position.y -= dt * (rainLook === 'snow' ? 2.4 : 11);            // 눈은 사뿐사뿐
+      if (rainLook === 'snow') d.position.x += Math.sin(d.position.y * 2.3) * dt * 0.7;   // 좌우 하늘하늘
       if (d.position.y < 0.2) {
         d.position.set(-12 + Math.random() * 24, 8 + Math.random() * 2, -13 + Math.random() * 19);
       }
