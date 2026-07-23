@@ -134,18 +134,19 @@
   .shopItem button:hover { background: #ffc94d; }
   /* 🛒 Day 1 배치 튜토: '2인 테이블' 카드 하이라이트 + 구매 버튼을 가리키는 포인팅 손가락 */
   .shopItem.tutoTarget {
-    position: relative;
+    position: relative; z-index: 5;   /* 형제 카드 위로 — 글로우·손가락이 절대 안 가려지게 */
     outline: 3px solid #ffd166; outline-offset: -1px;
-    box-shadow: 0 0 14px 3px rgba(255,209,102,.55);
+    background: #fff7dd;
+    box-shadow: 0 0 14px 3px rgba(255,209,102,.6);
     animation: feverPulse .9s ease-in-out infinite alternate;
   }
   .shopItem.tutoTarget::after {
     content: '👉'; position: absolute; right: 84px; top: 50%;
-    font-size: 24px; pointer-events: none; z-index: 2;
-    filter: drop-shadow(0 2px 4px rgba(0,0,0,.3));
+    font-size: 26px; pointer-events: none; z-index: 40;   /* 상점 레이어 최상단 보장 */
+    filter: drop-shadow(0 2px 4px rgba(0,0,0,.35));
     animation: tutoPoint .5s ease-in-out infinite alternate;
   }
-  @keyframes tutoPoint { from { transform: translate(-5px, -50%); } to { transform: translate(4px, -50%); } }
+  @keyframes tutoPoint { from { transform: translate(-6px, -50%); } to { transform: translate(5px, -50%); } }
   /* 🗂️ 상점 카테고리 탭 */
   #shopTabs { display: flex; gap: 6px; margin-bottom: 10px; }
   .shopTabBtn {
@@ -2880,6 +2881,7 @@ function placeFurniture(key, gx, gz, rot, free = false) {
       tutoTablePlaced = true;
       tutoSub = TUTO_SUB_DONE;
       refreshTuto();
+      spawnTimer = Math.min(spawnTimer, 2);   // 🛑→▶️ 배치 완료 즉시 손님 스폰 루프 가동 (첫 손님 곧 등장)
     }
     tutoAdvance(1);   // 🎓 Step1 완료: 첫 가구 구매 배치
     updateUI(true);
@@ -3313,9 +3315,9 @@ function leavePath(seat, exitDir) {
       placeFurniture(f.key, f.gx, f.gz, f.rot || 0, true);
     }
   } else {
-    // 첫 접속: 기본 시작 가구 = 2인용 커플 세트 1개 (Lv1 아담한 매장 중앙)
+    // 첫 접속: 빈 매장에서 시작 — Day 1 튜토리얼이 2인 테이블 '구매→배치'를 직접 안내 (v9.5: 기본 지급 제거)
+    //          가구 0개 동안은 손님 스폰 차단 + 상점 2인 테이블 가이드가 발동하는 전제 조건
     state.opened = false;
-    placeFurniture('couple', 4, 3, 0, true);
   }
   updateSignText(state.shopName);   // 간판에 가게 이름 반영
   applySeason();                    // 🍂 세이브 복원 직후 현재 계절 비주얼 즉시 반영
@@ -4653,6 +4655,7 @@ function drawVipGauge(c, ratio) {
 }
 
 function spawnCustomer() {
+  if (placedFurniture.length === 0) return;   // 🛑 첫 테이블 배치 전엔 손님 스폰 완전 차단 (버스 하차·워프 포함 전 경로)
   if (tutoSub === TUTO_SUB_DONE) { tutoSub = null; refreshTuto(); }   // 🎉 첫 손님 등장 = 영업 개시 완수 → 가이드 퇴장
   const dir = Math.random() < 0.5 ? 1 : -1;
   // 빈 의자 찾기 — 단, 이미 웨이팅 줄이 있으면 새 손님도 공정하게 줄 뒤에 섬
@@ -6183,9 +6186,16 @@ function openShop() {
     (d.tip ? ' · 매초 +' + d.tip + 'G 방치 팁' : ' · 가구를 채워 등급을 올려보세요');
   shopPanel.style.display = 'block';
   shopOverlay.style.display = 'block';
-  // 🛒 Day 1 배치 튜토 진행 중(첫 설치 전)이면 '2인 테이블' 카드에 하이라이트+👉 가이드
+  refreshCoupleGuide();   // 🛒 Day 1 첫 설치 전이면 '2인 테이블' 가이드 강제 보장
+}
+// 🛒 Day 1 배치 튜토 가이드: 첫 가구 미설치 상태면 2인 테이블 카드 하이라이트+👉 (탭 전환·재오픈 모두 커버)
+function refreshCoupleGuide() {
   const cr = document.getElementById('coupleRow');
-  if (cr) cr.classList.toggle('tutoTarget', state.day === 1 && placedFurniture.length === 0);
+  if (!cr) return;
+  const on = state.day === 1 && placedFurniture.length === 0 && !state.placing;
+  cr.classList.toggle('tutoTarget', on);
+  if (on && shopPanel.style.display === 'block')
+    cr.scrollIntoView({ block: 'center', behavior: 'smooth' });   // 목록 어디 있어도 눈앞으로
 }
 function closeShop() {
   shopPanel.style.display = 'none';
@@ -6503,6 +6513,7 @@ document.getElementById('endingBtn').addEventListener('click', () => {
       panes[tid].style.display = tid === id ? 'block' : 'none';
       tabBar.children[i].classList.toggle('active', tid === id);
     });
+    if (id === 'hall') refreshCoupleGuide();   // 🛒 홀 탭으로 돌아올 때마다 2인 테이블 가이드 재보장
   }
   // 구매형 가구 → 카테고리별 배분 (기본 hall)
   for (const [key, item] of Object.entries(SHOP_ITEMS)) {
@@ -7208,7 +7219,7 @@ function tick() {
   if (!paused && spawnTimer <= 0) {
     spawnTimer = spawnInterval();   // 🪑 의자 수에 비례해 자동 조절 (+25% ~ +50%)
     if (promoRushLeft > 0) { promoRushLeft--; spawnTimer = 0.3 + Math.random() * 0.25; }   // 🚌 버스 피버: 초고속 연쇄 스폰
-    if (state.opened && state.dayPhase === 'open') {   // 창업 후 + 영업시간에만 손님이 옴
+    if (state.opened && state.dayPhase === 'open' && placedFurniture.length > 0) {   // 창업 후 + 영업시간 + 🛑 첫 가구 배치 후에만 손님이 옴
       // 🧑‍🤝‍🧑 의자 수에 비례한 단체 손님: 매장이 클수록 2~4명씩 몰려옴
       const groupSize = spawnGroupSize();
       for (let gi = 0; gi < groupSize; gi++) {
