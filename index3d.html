@@ -973,6 +973,7 @@ const state = {
   dayHistory: [],     // 일별 마감 기록 (월/분기 정산용, 최근 24일)
   tutorialStep: 0,    // (구 스텝 튜토리얼 잔재 — 세이브 호환용 보존)
   tutoSeen: [],       // 🎓 일자별 가이드 노출 완료 Day 목록 (Day 1~5 각 1회)
+  hasShownTableTutorial: false,   // 🧍‍♂️ Day 1 대기 3명 '테이블 추가' 팁 — 평생 1회 (세이브 유지)
   research: {},       // 🌶️ 양념 연구소 완료 여부 { gochujang, capsaicin, goldjjajang }
   deliveryCount: 0,   // 🛵 누적 배달 완료 건수 (업적용)
   sGradeCount: 0,     // ⭐ S등급 이상 마감 횟수 (업적용)
@@ -1201,6 +1202,7 @@ function saveGame() {
       bestGradeIdx: state.bestGradeIdx, dayHistory: state.dayHistory,
       tutorialStep: state.tutorialStep,
       tutoSeen: state.tutoSeen,   // 🎓 일자별 가이드 1회 노출 플래그
+      hasShownTableTutorial: state.hasShownTableTutorial,   // 🧍‍♂️ 대기 3명 팁 평생 1회
       menuStats: state.menuStats,
       dayEventId: state.dayEventId, regularsMet: state.regularsMet,
       realEstate: state.realEstate,
@@ -3281,6 +3283,7 @@ function leavePath(seat, exitDir) {
     // 🎓 튜토리얼: 기록 없으면 기존(이미 오픈한) 유저는 완료 처리
     state.tutorialStep = typeof saved.tutorialStep === 'number' ? saved.tutorialStep : (state.opened ? 5 : 0);
     state.tutoSeen = Array.isArray(saved.tutoSeen) ? saved.tutoSeen : [];   // 🎓 일자별 가이드 플래그 복원
+    state.hasShownTableTutorial = !!saved.hasShownTableTutorial;   // 🧍‍♂️ 대기 3명 팁 1회성 복원
     state.research = saved.research || {};
     state.deliveryCount = saved.deliveryCount || 0;
     state.sGradeCount = saved.sGradeCount || 0;
@@ -4710,10 +4713,12 @@ function spawnCustomer() {
       customers.push(c);
       feverGreet(c);      // 🎆 피버 손님: 전용 대사 + SNS 코디 / 평시 호기심 대사
       waitingQueue.push(c);
-      // 🧍‍♂️ 대기 손님 3명 달성 순간: 테이블 추가 배치 팁 — 기존 배너와 무관하게 강제 출력 (1회)
-      if (!queue3Tipped && waitingQueue.length >= 3 &&
-          showEventBanner('대기 손님이 많아졌어요! 테이블을 추가 배치해 더 많은 손님을 받아보세요.', true))
-        queue3Tipped = true;   // 실제 화면 출력 완료 후에만 기록
+      // 🧍‍♂️ Day 1 한정 · 평생 1회: 대기 3명 도달 순간 테이블 추가 팁 (영구 저장 플래그 — 리로드·이후 날짜 재노출 완전 차단)
+      if (state.day === 1 && !state.hasShownTableTutorial && waitingQueue.length >= 3 &&
+          showEventBanner('대기 손님이 많아졌어요! 테이블을 추가 배치해 더 많은 손님을 받아보세요.', true)) {
+        state.hasShownTableTutorial = true;   // 실제 화면 출력 완료 후에만 기록
+        saveGame();
+      }
       return;
     }
     const g = buildCharacter();
@@ -6049,7 +6054,6 @@ function showEventBanner(txt, force = false) {
   refreshTuto();   // ⏱️ 5초 자동 퇴장은 refreshTuto 중앙 타이머가 일괄 관리
   return true;
 }
-let queue3Tipped = false;   // 🧍‍♂️ 대기 3명 달성 배너 1회성 플래그
 document.getElementById('tutoSkip').addEventListener('click', dismissTuto);   // ✕ = 오늘 가이드 닫기
 
 /* ── ☀️ 일일 장사 타이머 & 마감 정산 메타 루프 ─────────────── */
