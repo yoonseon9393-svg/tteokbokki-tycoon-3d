@@ -1067,7 +1067,7 @@ function estateIncome() {   // 보유 투자처의 초당 수익 합계
 
 /* ── 💡 일일 돌발 이벤트 & 👥 특수 단골손님 데이터 ── */
 const DAY_EVENTS = [
-  { id: 'exam',   emoji: '📚', title: '인근 학교 시험 기간!',   desc: '학생 유입 2.5배! 단, 대기 인내심이 1.5배 빨리 닳아요' },
+  { id: 'exam',   emoji: '📚', title: '인근 학교 시험 기간!',   desc: '학생 유입 2.5배! 단, 사이드 주문 대기가 1.5배 빨리 닳아요' },
   { id: 'snshot', emoji: '📱', title: 'SNS 맛집 트렌드 노출!',  desc: '배달 주문 주기 18→12초 대폭 단축!' },
   { id: 'costup', emoji: '📉', title: '재료 공급가 폭등의 날…', desc: '팁 골드 누락… 대신 식재료 마켓 비용 10% 할인!' },
 ];
@@ -2553,7 +2553,7 @@ function buildSmartStove() {   // 📟 디지털 스마트 가스레인지
 const SHOP_ITEMS = {
   goldstatue: {
     name: '황금 떡볶이 조형물', emoji: '🏆', price: 0, theme: 'champ',
-    desc: '천하제일 대회 우승을 증명하는 황금빛 진품 트로피.', fx: '🎀 데코 +6000 · 우승 기념 무료',
+    desc: '천하제일 대회 우승을 증명하는 황금빛 진품 트로피.', fx: '💰 매초 방치 골드 대폭 증가 · 우승 기념 무료',
     build: buildGoldStatue, cells: [[0, 0]], seats: [],
     needsContest: true,   // 🔒 대회 1회 우승 시 해금
   },
@@ -2565,7 +2565,7 @@ const SHOP_ITEMS = {
   },
   arcade: {
     name: '레트로 네오 오락기', emoji: '🕹️', price: 8500, theme: 'champ',
-    desc: '기다림도 놀이가 되는 레트로 감성 오락기.', fx: '⏳ 대기 인내심 ×1.4',
+    desc: '기다림도 놀이가 되는 레트로 감성 오락기.', fx: '🍱 사이드 주문 대기 여유 +40%',
     build: buildArcade, cells: [[0, 0]], seats: [], needsWins: 2,
   },
   bear: {
@@ -2627,7 +2627,7 @@ const SHOP_ITEMS = {
   },
   bench: {
     name: '대기석', emoji: '🛋️', price: 220, theme: 'classic',
-    desc: '기다리는 시간도 설레게 만드는 대기 의자.', fx: '⏳ 대기 손님 착석 · 인내심 +15%',
+    desc: '기다리는 시간도 설레게 만드는 대기 의자.', fx: '🛋️ 대기 손님 실제 착석 · 🍱 주문 여유 +15%',
     build: buildBenchSet, cells: [[0, 0]], seats: [],
     waitSeat: { x: 0, z: 0.02, ry: Math.PI },   // 🪑 웨이팅 손님이 실제로 앉는 대기 좌석
   },
@@ -2639,14 +2639,14 @@ const SHOP_ITEMS = {
   // ── 🌳 클래식 나무 테마: 프리미엄 라인업 (가구 패시브: 인내심↑ · 팁 확률↑) ──
   bamboo: {
     name: '대나무 1인석', emoji: '🎋', price: 450, theme: 'classic',
-    desc: '싱그러운 대숲 감성을 담은 최고급 1인석.', fx: '🪑 1인 · ⏳ +10% · 💰 팁↑',
+    desc: '싱그러운 대숲 감성을 담은 최고급 1인석.', fx: '🪑 1인 · 🍱 주문 여유 +10% · 💰 팁↑',
     build: buildBambooSet, cells: [[0, 0]],
     seats: [{ x: 0, z: 0.33, ry: Math.PI }],
     passive: { patience: 0.10, tip: 0.08, tipGold: 15 },
   },
   pyeongsang: {
     name: '레트로 감성 평상', emoji: '🍉', price: 900, theme: 'classic',
-    desc: '온 가족이 옹기종기 둘러앉아 정을 나누는 평상.', fx: '🪑 4인 · ⏳ +15% · 💰 대박 팁',
+    desc: '온 가족이 옹기종기 둘러앉아 정을 나누는 평상.', fx: '🪑 4인 · 🍱 여유 +15% · 💰 대박 팁',
     build: buildPyeongsangSet, cells: [[0, 0], [1, 0], [0, 1], [1, 1]],
     seats: [
       { x: -0.05, z: 0.5, ry: Math.PI / 2 },
@@ -2658,7 +2658,7 @@ const SHOP_ITEMS = {
   },
   palace: {
     name: '황금 궁궐 4인 테이블', emoji: '👑', price: 2400, theme: 'classic',
-    desc: '수랏상 부럽지 않은 금장 원탁의 품격.', fx: '🪑 4인 · ⏳ +20% · 💰 고액 팁',
+    desc: '수랏상 부럽지 않은 금장 원탁의 품격.', fx: '🪑 4인 · 🍱 여유 +20% · 💰 고액 팁',
     build: buildPalaceSet, cells: [[0, 0], [1, 0], [0, 1], [1, 1]],
     seats: [
       { x: -0.18, z: 0.5, ry: Math.PI / 2 },
@@ -2671,14 +2671,14 @@ const SHOP_ITEMS = {
   // ── 🌆 사이버 펑크 네온 테마: 하이엔드 라인업 ──
   capsule: {
     name: '네온 캡슐 1인석', emoji: '🛸', price: 1100, theme: 'cyber',
-    desc: '미래에서 온 나만의 1인 전용 캡슐 포드.', fx: '🪑 1인 · ⏳ +12% · 💰 팁↑',
+    desc: '미래에서 온 나만의 1인 전용 캡슐 포드.', fx: '🪑 1인 · 🍱 여유 +12% · 💰 팁↑',
     build: buildCapsuleSet, cells: [[0, 0]],
     seats: [{ x: 0, z: 0.33, ry: Math.PI }],
     passive: { patience: 0.12, tip: 0.12, tipGold: 20 },
   },
   neonbar: {
     name: '사이버 펑크 네온 바', emoji: '🍸', price: 1500, theme: 'cyber',
-    desc: '네온이 흐르는 시티팝 감성 스탠딩 바.', fx: '🪑 2인 · ⏳ +15% · 💰 팁↑',
+    desc: '네온이 흐르는 시티팝 감성 스탠딩 바.', fx: '🪑 2인 · 🍱 여유 +15% · 💰 팁↑',
     build: buildNeonBarSet, cells: [[0, 0], [1, 0]],
     seats: [
       { x: 0, z: 0.33, ry: Math.PI },
@@ -2688,7 +2688,7 @@ const SHOP_ITEMS = {
   },
   limo: {
     name: 'VIP 전용 리무진 시트', emoji: '🚘', price: 3800, theme: 'cyber',
-    desc: '리무진에서 옮겨온 듯한 최상급 가죽 시트.', fx: '🪑 2인 · ⏳ +25% · 💰 최고급 팁',
+    desc: '리무진에서 옮겨온 듯한 최상급 가죽 시트.', fx: '🪑 2인 · 🍱 주문 여유 +25% · 💰 최고급 팁',
     build: buildLimoSet, cells: [[0, 0], [1, 0]],
     seats: [
       { x: 0.1, z: 0.06, ry: 0 },
@@ -2748,8 +2748,9 @@ function updateDecoRating(announce = true) {
   const d = decoInfo();
   if (d.stars !== lastDecoStars) {
     if (announce && lastDecoStars >= 0 && d.stars > lastDecoStars)
-      toast('🎀 매장 데코 등급 상승! ' + '★'.repeat(d.stars) + '☆'.repeat(6 - d.stars) +
-        (d.tip ? ' — 매초 +' + d.tip + 'G 방치 팁!' : ''));
+      toast(d.tip > 0
+        ? '💰 매장 업그레이드! 자동 방치 골드가 매초 +' + d.tip + 'G로 올랐어요!'
+        : '🪑 매장이 한층 근사해졌어요! 가구를 더 채우면 매초 방치 골드가 쌓입니다');
     lastDecoStars = d.stars;
   }
 }
@@ -6207,10 +6208,10 @@ function openShop() {
   if (editMode) exitEditMode();
   if (tutoShowing === 1) dismissTuto();   // 🎯 상점을 열면 Day 1 스포트라이트·화살표 자연 퇴장
   renderLab();      // 🧪 연구 탭 내용 최신화
-  const d = decoInfo();   // 🎀 실시간 데코 등급 (가구 합산 코스트 + 테마 믹스)
-  document.getElementById('decoLine').textContent =
-    '🎀 매장 데코 등급 ' + '★'.repeat(d.stars) + '☆'.repeat(6 - d.stars) +
-    (d.tip ? ' · 매초 +' + d.tip + 'G 방치 팁' : ' · 가구를 채워 등급을 올려보세요');
+  const d = decoInfo();   // 💰 방치 골드 산정 (가구 합산 코스트 + 테마 믹스 — 내부 지표)
+  document.getElementById('decoLine').textContent = d.tip > 0
+    ? '💰 자동 방치 골드: 매초 +' + d.tip + 'G — 가구를 채울수록 증가!'
+    : '💰 가구를 채우면 매초 자동 방치 골드가 쌓여요!';
   shopPanel.style.display = 'block';
   shopOverlay.style.display = 'block';
   refreshCoupleGuide();   // 🛒 Day 1 첫 설치 전이면 '2인 테이블' 가이드 강제 보장
