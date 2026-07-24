@@ -953,6 +953,7 @@ const state = {
   shopLevel: 1,      // 🏗️ 가게 확장 레벨 (1~3): 2=테라스, 3=알전구+테라스 확장
   catHired: false,   // 🐱 고양이 알바생 고용 여부 (동전 자동 수거 도우미)
   contestWins: 0,    // 🏆 천하제일 떡볶이 대회 누적 우승 (확장 해금·유입 가속 담당)
+  contestBuffDay: 0, // 🥇 우승 당일 손님 스폰 1.2배 버프 (해당 Day 한정)
   contestDay: 0,     // 🏆 마지막으로 대회에 도전한 Day (하루 1회 제한)
   sideLevel: -1,     // 🥤 사이드 메뉴 해금 단계 (-1=없음, 0~2 = SIDE_MENUS 인덱스)
   labKitchen: 0,     // 🧪 주방 속도 강화 레벨 (0~5): 주방장 이동속도 +15%/Lv
@@ -1186,7 +1187,7 @@ function saveGame() {
       opened: state.opened,
       shopLevel: state.shopLevel,
       catHired: state.catHired,
-      contestWins: state.contestWins, contestDay: state.contestDay,
+      contestWins: state.contestWins, contestDay: state.contestDay, contestBuffDay: state.contestBuffDay,
       sideLevel: state.sideLevel,
       labKitchen: state.labKitchen,
       labCat: state.labCat,
@@ -3260,6 +3261,7 @@ function leavePath(seat, exitDir) {
     state.catHired = !!saved.catHired;
     state.contestWins = saved.contestWins || 0;   // 🏆 대회 전적 복원
     state.contestDay = saved.contestDay || 0;
+    state.contestBuffDay = saved.contestBuffDay || 0;   // 🥇 우승 당일 버프 복원
     state.sideLevel = Math.min(saved.sideLevel !== undefined ? saved.sideLevel : -1, SIDE_MENUS.length - 1);
     state.labKitchen = Math.min(Math.max(saved.labKitchen || 0, 0), 5);
     state.labCat = Math.min(Math.max(saved.labCat || 0, 0), 5);
@@ -4384,7 +4386,7 @@ function startContest() {
   if (contest) return;
   if (state.day < 7) { toast('🏆 천하제일 떡볶이 대회는 7일차부터 참가할 수 있습니다!'); return; }   // 🔒 Day 7 해금
   if (state.dayPhase !== 'open') { toast('🏆 대회는 영업시간(9AM~9PM)에만 열려요!'); return; }
-  if (state.contestDay === state.day) { toast('🏆 오늘 대회는 이미 끝났어요 — 내일 다시 도전하세요!'); return; }
+  if (state.contestDay === state.day) { toast('🏆 오늘 대회는 이미 참가했습니다. 내일 다시 도전해 주세요!'); return; }   // 1일 1회
   state.contestDay = state.day;   // 하루 1회
   const target = contestTarget();
   contest = { phase: 'slice', t: CT_LIMIT, score: 0, stages: { slice: 0, sauce: 0, boil: 0 },
@@ -4473,21 +4475,27 @@ function finishContest() {
   const detail = '🔪 칼질 ' + contest.stages.slice + ' · 🌶️ 양념 ' + contest.stages.sauce +
     ' · 🔥 화력 ' + contest.stages.boil + ' → 합산 ' + contest.score +
     ' × 배율 ' + contestMult().toFixed(2) + ' = <b>' + finalScore + '점</b>';
-  if (win) {
-    const prize = state.contestWins === 0 ? 3000 : state.contestWins === 1 ? 10000 : 10000 + (state.contestWins - 1) * 5000;
+  if (win) {   // 🥇 1등: 상금 1,000G + 당일 손님 스폰 1.2배 버프
+    const prize = 1000;
     const firstWin = state.contestWins === 0;
     state.contestWins++;
     state.gold += prize;
+    state.contestBuffDay = state.day;   // 🥇 당일 한정 손님 유입 1.2배 (spawnInterval 연동)
     spawnConfetti(wx(6.5), wz(3)); sfx('skill');
-    wrap.innerHTML = '<div class="ctTrophy">🏆</div><b style="font-size:17px;color:#ffd166">우승! 천하제일 떡볶이!</b><br>' +
+    toast('🏆 대회 우승! 오늘 방문 손님 수가 증가합니다!');
+    wrap.innerHTML = '<div class="ctTrophy">🥇</div><b style="font-size:17px;color:#ffd166">우승! 천하제일 떡볶이!</b><br>' +
       detail + '<div class="ctFb">💰 우승 상금 <b>+' + prize.toLocaleString() + 'G</b>' +
+      '<br>👥 오늘 방문 손님 스폰 속도 <b>1.2배</b> 버프 적용!' +
       (firstWin ? '<br>🎁 특전: 「🏆 황금 떡볶이 조형물」 해금! (상점 🪑 홀 탭 · 무료 지급)' : '') +
       (firstWin && state.day >= 3 ? '<br>🔓 영토 확장 권한 획득!' : '') + '</div>' +
       '<button class="ctBig" id="ctCloseBtn">🎉 영업으로 복귀</button>';
     refreshCatShopLocks();   // 🏆 조형물 잠금 해제 반영
     grantExpandIfReady();
     updateUI(true);
-  } else {
+  } else {   // 🥈🥉 2·3등: 차등 상금 + 취약 단계 코칭
+    const rank = finalScore > Math.min(contest.r1, contest.r2) ? 2 : 3;
+    const prize = rank === 2 ? 500 : 200;
+    state.gold += prize;
     const ratio = { slice: contest.stages.slice / 120, sauce: contest.stages.sauce / 100, boil: contest.stages.boil / 130 };
     const weak = Object.keys(ratio).sort((a, b) => ratio[a] - ratio[b])[0];
     const advice = {
@@ -4495,10 +4503,12 @@ function finishContest() {
       sauce: '🌶️ 양념 커맨드가 늦었습니다. 화살표를 침착하게 순서대로 입력해 보세요!',
       boil: '🔥 불조절 점수가 부족했습니다. 주방 화력을 업그레이드하거나 요리 레벨을 올린 뒤 내일 다시 도전하세요!',
     }[weak];
-    wrap.innerHTML = '<div class="ctTrophy">📋</div><b style="font-size:16px;color:#e5383b">아쉬운 패배… 정산 리포트</b><br>' +
-      detail + '<div class="ctFb">' + advice +
+    wrap.innerHTML = '<div class="ctTrophy">' + (rank === 2 ? '🥈' : '🥉') + '</div>' +
+      '<b style="font-size:16px;color:' + (rank === 2 ? '#d9dee6' : '#d9832a') + '">' + rank + '등 입상! 정산 리포트</b><br>' +
+      detail + '<div class="ctFb">💰 입상 상금 <b>+' + prize + 'G</b><br>' + advice +
       '<br>💡 확장(×0.15/Lv)과 🧪 주방 속도 강화(×0.1/Lv)가 최종 배율을 올려줍니다.</div>' +
       '<button class="ctBig" id="ctCloseBtn">💪 내일 재도전</button>';
+    updateUI(true);
   }
   ctShow('result');
   saveGame();
@@ -4593,6 +4603,7 @@ function spawnInterval() {
   const boost = Math.min(0.5, Math.max(0.25, 0.25 + (seats - 2) * 0.02));
   let interval = (5 + Math.random() * 3) / (1 + boost);   // 기본 5~8초를 보너스만큼 단축
   interval /= 1 + Math.min(0.3, state.contestWins * 0.1);   // 🏆 대회 우승 명성: 회당 유입 +10% (최대 +30%)
+  if (state.contestBuffDay === state.day) interval /= 1.2;   // 🥇 우승 당일: 손님 스폰 속도 1.2배 버프
   if (state.contestWins >= 3) interval /= 1.15;   // 🏆 3승 [전국 맛집 인증]: 유입 템포 15% 가속
   if (weatherPhase() === 'night' && hasFurn('neonsign')) interval /= 1.3;   // 💡 네온사인: 🌙 야간 유입 30% 증가
   if (state.day === 1) interval *= 2;   // 📉 Day 1: 스폰 간격 2배 = 유입 50% (튜토리얼 여유 확보)
@@ -6175,8 +6186,8 @@ document.getElementById('nextDayBtn').addEventListener('click', () => {
   applySeason();   // 🍂 계절이 바뀌었으면 나무·꽃잎 비주얼 교체
   if (calMonth(state.day) === 4)   // ☔ 여름(4월) 진입 첫 아침: 장마철 개시 알림
     setTimeout(() => showEventBanner('☔ 여름 장마철이 시작되었어요! 당분간 매일 비가 내립니다.'), 3200);
-  if (state.day === 7)   // 🏆 Day 7 아침: 대회 해금 안내 (트로피 버튼 바운스는 updateCatSkillBtn이 동기)
-    setTimeout(() => showEventBanner('🏆 천하제일 떡볶이 대회가 개최되었습니다! 트로피 버튼을 눌러 최고 떡볶이집에 도전해 보세요!'), 3200);
+  if (state.day === 7)   // 🏆 Day 7 아침: 대회 개막 안내 (트로피 버튼 바운스는 updateCatSkillBtn이 동기)
+    setTimeout(() => showEventBanner('🏆 [천하제일 떡볶이 대회] 개막! 매일 참가하여 우승 상금 1,000G와 손님 폭주 버프를 획득해 보세요!'), 3200);
   maybeShowDailyTuto();   // 🎓 새 아침 = 오늘 몫 일일 가이드 1개 (Day 2~5, 1회씩)
   grantExpandIfReady();   // 🔓 Day 3+ & 🏆 대회 우승 → 아침에 확장 권한 부여 (중개인 카드)
   updateUI(true);
