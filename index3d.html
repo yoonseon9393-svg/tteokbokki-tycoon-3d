@@ -214,6 +214,40 @@
   }
   #openShopBtn:active { transform: translateY(3px); box-shadow: none; }
 
+  /* ── 👨‍🍳 주방장 커스텀 팝업 (창업 2단계) ─────────────────── */
+  #chefOverlay { position: fixed; inset: 0; background: rgba(70,55,45,.45); z-index: 40; display: none; }
+  #chefPanel {
+    position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    background: linear-gradient(160deg, #fff8ec, #ffe9f0);
+    border: 3px solid #ffc9d8; border-radius: 26px;
+    padding: 22px 22px 20px; z-index: 41; display: none;
+    box-shadow: 0 16px 44px rgba(90,60,40,.4);
+    width: min(340px, 90vw); text-align: center;
+  }
+  #chefPanel h2 { color: #e0708f; font-size: 19px; margin-bottom: 4px; }
+  #chefPanel .chefSub { color: #7a6a5c; font-size: 12.5px; margin-bottom: 10px; }
+  #chefPvBox {
+    width: 150px; height: 190px; margin: 0 auto 12px; border-radius: 18px;
+    background: linear-gradient(180deg, #fff3da, #ffe3d0); border: 2px solid #ffd9b8;
+    display: flex; align-items: center; justify-content: center; font-size: 64px; overflow: hidden;
+  }
+  .chefRow { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+  .chefRow .crLabel { font-size: 12.5px; font-weight: 800; color: #7a5c3a; width: 74px; text-align: left; white-space: nowrap; }
+  .chefChips { display: flex; gap: 7px; flex: 1; justify-content: flex-end; }
+  .chefChip {
+    width: 30px; height: 30px; border-radius: 50%; cursor: pointer;
+    border: 3px solid rgba(0,0,0,.12); box-shadow: 0 2px 5px rgba(90,60,40,.2);
+    touch-action: manipulation; padding: 0; transition: transform .08s;
+  }
+  .chefChip.on { border-color: #ff7fa0; transform: scale(1.16); box-shadow: 0 0 0 3px rgba(255,127,160,.25); }
+  #chefStartBtn {
+    width: 100%; border: none; cursor: pointer; border-radius: 16px; margin-top: 4px;
+    padding: 14px; font-size: 16px; font-weight: 800; color: #fff;
+    background: linear-gradient(135deg, #ff9f68, #ff7fa0);
+    box-shadow: 0 4px 0 rgba(0,0,0,.15); touch-action: manipulation; transition: transform .08s;
+  }
+  #chefStartBtn:active { transform: translateY(3px); box-shadow: none; }
+
   /* ── 🔄 처음부터 다시 시작 ─────────────────── */
   #resetBtn {
     position: fixed; top: calc(12px + env(safe-area-inset-top)); right: 12px;
@@ -747,6 +781,15 @@
   <div id="nameCount">5 / 7</div>
   <button id="openShopBtn">🏮 영업 개시!</button>
 </div>
+<!-- 👨‍🍳 창업 2단계: 주방장 외형 커스텀 (이름 입력 직후, 완료 시 그랜드 오픈) -->
+<div id="chefOverlay"></div>
+<div id="chefPanel">
+  <h2>👨‍🍳 나만의 주방장을 꾸며보세요!</h2>
+  <div class="chefSub">색상 칩을 눌러 마음에 드는 모습을 골라보세요</div>
+  <div id="chefPvBox">👨‍🍳</div>
+  <div id="chefRows"></div>
+  <button id="chefStartBtn">✨ 이 모습으로 영업 개시!</button>
+</div>
 
 <!-- 🎯 우측 플로팅 버튼 전면 제거 → 하단 ⚙️ 설정 허브로 통합 -->
 <div id="setOverlay"></div>
@@ -925,6 +968,7 @@ const state = {
   helperHired: false, // 👩‍🍳 주방 보조 알바생 (사이드/음료 서빙 전담)
   catCostumes: [],    // 🐱 보유한 코스튬 id 목록
   catWearing: null,   // 🐱 현재 장착 중인 코스튬 id (null = 기본)
+  chefLook: { hat: 0, clothes: 0, hair: 0 },   // 👨‍🍳 주방장 외형 커스텀 (CHEF_LOOK_ROWS 팔레트 인덱스)
   // ☀️ 일일 장사 메타 루프
   day: 1,             // 현재 일차
   daysDone: 0,        // 완료한 영업일 수 (해금 조건용)
@@ -1142,6 +1186,7 @@ function saveGame() {
       helperHired: state.helperHired,
       catCostumes: state.catCostumes,
       catWearing: state.catWearing,
+      chefLook: state.chefLook,   // 👨‍🍳 주방장 외형 커스텀
       day: state.day, daysDone: state.daysDone, dayPhase: state.dayPhase, dayTimer: state.dayTimer,
       dayGold: state.dayGold, dayServed: state.dayServed, dayVip: state.dayVip, dayFailed: state.dayFailed,
       bestGradeIdx: state.bestGradeIdx, dayHistory: state.dayHistory,
@@ -1957,7 +2002,8 @@ function buildCharacter() {
     g.add(eye);
   }
   g.add(legL, legR, body, armL, armR, head, hairM, hairB);
-  g.userData.anim = { legL, legR, armL, armR, head, t: Math.random() * 10 };
+  // (body·hairM·hairB 참조도 보관 — 👨‍🍳 주방장 외형 커스텀 리컬러용, 애니메이션엔 미사용)
+  g.userData.anim = { legL, legR, armL, armR, head, body, hairM, hairB, t: Math.random() * 10 };
   scene.add(g);
   return g;
 }
@@ -1981,6 +2027,26 @@ cook.rotation.y = 0; // 손님 쪽(+z)을 바라봄
 const cookHat = cyl(0.2, 0.22, 0.22, 0xffffff);
 cookHat.position.y = 1.18;
 cook.add(cookHat);
+/* ── 👨‍🍳 주방장 외형 커스텀: 모자/조리복/머리 색 팔레트 (state.chefLook 인덱스 참조) ── */
+const CHEF_LOOK_ROWS = [
+  { key: 'hat',     label: '🧢 모자',   colors: [0xffffff, 0x2e2e2e, 0xff5d5d, 0xffb3c8, 0x7fd8c8] },   // 화이트/블랙/레드/핑크/민트
+  { key: 'clothes', label: '👕 조리복', colors: [0xffffff, 0x2f2f35, 0xe8d9b8, 0x7da7e0, 0x9fd8a0] },   // 화이트/블랙/베이지/블루/그린
+  { key: 'hair',    label: '💇 머리',   colors: [0x2e2e2e, 0x8a5a3b, 0xe8c56a, 0x7a2e3e, 0x9aa0a8] },   // 블랙/브라운/블론드/버건디/그레이
+];
+function chefLookColor(key) {
+  const def = CHEF_LOOK_ROWS.find(r => r.key === key);
+  return def.colors[(state.chefLook || {})[key]] ?? def.colors[0];   // 인덱스 이상 시 기본색 폴백
+}
+// 파츠 맵 리컬러 — 게임 속 실제 주방장과 커스텀 팝업 미리보기 모델이 공용
+function applyChefLookTo(p) {
+  p.hat.material.color.setHex(chefLookColor('hat'));
+  for (const m of p.hair) m.material.color.setHex(chefLookColor('hair'));
+  for (const m of p.cloth) m.material.color.setHex(chefLookColor('clothes'));
+}
+function applyChefLook() {   // 선택 팔레트를 실제 주방장 메쉬(모자·상하의·머리)에 100% 반영
+  const a = cook.userData.anim;
+  applyChefLookTo({ hat: cookHat, hair: [a.hairM, a.hairB], cloth: [a.body, a.armL, a.armR, a.legL, a.legR] });
+}
 // 🙌 서빙 슬롯: 양손(하단 2) + 트레이 타워(상단 2) = 인당 최대 4개 캐리
 // parent = 부착할 캐릭터 (주방장/주방 보조 공용)
 function makeHandItem(parent, x, y = 0.68) {
@@ -3224,6 +3290,7 @@ function leavePath(seat, exitDir) {
     state.helperHired = !!saved.helperHired;   // 👩‍🍳 스폰은 tick에서 지연 처리
     state.catCostumes = Array.isArray(saved.catCostumes) ? saved.catCostumes : [];
     state.catWearing = saved.catWearing || null;
+    state.chefLook = saved.chefLook || { hat: 0, clothes: 0, hair: 0 };   // 👨‍🍳 외형 복원 (구 세이브는 기본 화이트)
     state.day = saved.day || 1;
     state.daysDone = saved.daysDone || 0;
     state.dayPhase = saved.dayPhase || 'open';
@@ -6171,15 +6238,113 @@ document.getElementById('openShopBtn').addEventListener('click', () => {
   const name = [...(shopNameInput.value.trim() || '골목떡볶이')].slice(0, 7).join('');   // ✏️ 빈 입력 시 기본 간판
   state.shopName = name;
   updateSignText(name);          // 3D 간판에 실시간 반영
-  state.opened = true;           // 이제부터 손님이 옵니다!
   welcomePanel.style.display = 'none';
   welcomeOverlay.style.display = 'none';
-  toast('🎊 「' + name + '」 그랜드 오픈!');
+  openChefCustom();   // 🎨 이름 확정 → 주방장 꾸미기 단계 (완료 버튼이 grandOpen 호출)
+});
+// 🎊 그랜드 오픈 확정 — 이름 입력 → 주방장 커스텀을 모두 마친 뒤 호출
+function grandOpen() {
+  state.opened = true;           // 이제부터 손님이 옵니다!
+  toast('🎊 「' + state.shopName + '」 그랜드 오픈!');
   state.tutorialStep = 5;    // (구 스텝 시스템 잔재 — 완료값 고정 저장)
   maybeShowDailyTuto();  // 🎓 Day 1 상점 가이드 (토스트 지나간 뒤 1회)
   // 📖 에피소드 인트로 삭제 — 자금 안내는 개시 토스트 뒤에 바로 이어서
   setTimeout(() => toast('💰 초기 운영자금 3,000G 지급!'), 2500);   // ✏️ 한 줄 컴팩트 안내
   saveGame();
+}
+
+/* ── 👨‍🍳 주방장 커스텀 팝업: 색상 칩 선택 → 미니 3D 미리보기 실시간 반영 ── */
+const chefPanel = document.getElementById('chefPanel');
+const chefOverlay = document.getElementById('chefOverlay');
+let chefPv = null;   // { r, sc, cam, model, on } — 팝업이 열려 있는 동안만 존재하는 미니 렌더러
+function buildChefModel() {   // 미리보기 전용 미니피규어 — 실제 주방장과 동일 규격(buildCharacter 사양) + 모자
+  const g = new THREE.Group();
+  const legL = box(0.15, 0.3, 0.17, 0xffffff); legL.position.set(-0.1, 0.15, 0);
+  const legR = box(0.15, 0.3, 0.17, 0xffffff); legR.position.set(0.1, 0.15, 0);
+  const body = box(0.42, 0.42, 0.26, 0xffffff); body.position.y = 0.51;
+  const armL = box(0.11, 0.36, 0.14, 0xffffff); armL.position.set(-0.28, 0.53, 0);
+  const armR = box(0.11, 0.36, 0.14, 0xffffff); armR.position.set(0.28, 0.53, 0);
+  const head = box(0.34, 0.32, 0.3, SKIN); head.position.y = 0.9;
+  const hairM = box(0.38, 0.14, 0.34, 0x2e2e2e); hairM.position.y = 1.08;
+  const hairB = box(0.38, 0.18, 0.1, 0x2e2e2e); hairB.position.set(0, 0.95, -0.13);
+  const hat = cyl(0.2, 0.22, 0.22, 0xffffff); hat.position.y = 1.18;
+  for (const ex of [-0.08, 0.08]) {
+    const eye = box(0.045, 0.05, 0.02, 0x333333);
+    eye.position.set(ex, 0.92, 0.155); eye.castShadow = false; g.add(eye);
+  }
+  g.add(legL, legR, body, armL, armR, head, hairM, hairB, hat);
+  return { g, parts: { hat, hair: [hairM, hairB], cloth: [body, armL, armR, legL, legR] } };
+}
+function renderChefChips() {   // 3행(모자/조리복/머리) × 5색 동그라미 칩 — 선택 칩은 핑크 링 강조
+  const wrap = document.getElementById('chefRows');
+  wrap.textContent = '';
+  for (const row of CHEF_LOOK_ROWS) {
+    const r = document.createElement('div'); r.className = 'chefRow';
+    const lb = document.createElement('span'); lb.className = 'crLabel'; lb.textContent = row.label;
+    const chips = document.createElement('div'); chips.className = 'chefChips';
+    row.colors.forEach((col, i) => {
+      const b = document.createElement('button');
+      b.className = 'chefChip' + (state.chefLook[row.key] === i ? ' on' : '');
+      b.style.background = '#' + col.toString(16).padStart(6, '0');
+      b.addEventListener('click', () => {
+        state.chefLook[row.key] = i;
+        renderChefChips();                                  // 선택 링 갱신
+        if (chefPv) applyChefLookTo(chefPv.model.parts);    // 🖼️ 미리보기 즉시 리컬러
+        applyChefLook();                                    // 게임 속 실제 주방장도 실시간 반영
+      });
+      chips.appendChild(b);
+    });
+    r.appendChild(lb); r.appendChild(chips);
+    wrap.appendChild(r);
+  }
+}
+function openChefCustom() {
+  renderChefChips();
+  chefPanel.style.display = 'block';
+  chefOverlay.style.display = 'block';
+  const holder = document.getElementById('chefPvBox');
+  try {   // 🖼️ 팝업 전용 미니 WebGL 렌더러 — 생성 실패(저사양·컨텍스트 고갈) 시 이모지 폴백
+    const r = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    r.setSize(150, 190);
+    r.outputColorSpace = THREE.SRGBColorSpace;
+    const sc = new THREE.Scene();
+    sc.add(new THREE.HemisphereLight(0xfffdf6, 0xd8c7b0, 1.15));
+    const sun = new THREE.DirectionalLight(0xfff3e0, 1.2);
+    sun.position.set(2, 4, 3); sc.add(sun);
+    const cam = new THREE.PerspectiveCamera(34, 150 / 190, 0.1, 20);
+    cam.position.set(0, 0.98, 2.55); cam.lookAt(0, 0.6, 0);
+    const model = buildChefModel();
+    sc.add(model.g);
+    applyChefLookTo(model.parts);   // 현재 선택 팔레트로 초기화
+    holder.textContent = '';
+    holder.appendChild(r.domElement);
+    chefPv = { r, sc, cam, model, on: true };
+    (function spin() {   // 천천히 회전하는 실시간 미리보기 루프 (팝업 닫히면 자동 종료)
+      if (!chefPv || !chefPv.on) return;
+      chefPv.model.g.rotation.y += 0.014;
+      chefPv.r.render(chefPv.sc, chefPv.cam);
+      requestAnimationFrame(spin);
+    })();
+  } catch (e) { holder.textContent = '👨‍🍳'; chefPv = null; }
+}
+function closeChefCustom() {
+  chefPanel.style.display = 'none';
+  chefOverlay.style.display = 'none';
+  if (chefPv) {   // 🖼️ 미니 WebGL 컨텍스트 즉시 반납 — 다회 사용 시 컨텍스트 고갈 방지
+    chefPv.on = false;
+    chefPv.model.g.traverse(o => {
+      if (o.geometry) o.geometry.dispose();
+      if (o.material) o.material.dispose();
+    });
+    chefPv.r.dispose();
+    if (chefPv.r.forceContextLoss) chefPv.r.forceContextLoss();
+    chefPv = null;
+  }
+}
+document.getElementById('chefStartBtn').addEventListener('click', () => {
+  closeChefCustom();
+  applyChefLook();   // 최종 선택을 실제 주방장에 확정 반영
+  grandOpen();
 });
 
 /* ── 🔄 처음부터 다시 시작 (확인 후 세이브 삭제 + 재시작) ── */
@@ -7281,6 +7446,7 @@ function tick() {
 
   renderer.render(scene, camera);
 }
+applyChefLook();   // 👨‍🍳 세이브(또는 기본) 외형 팔레트를 실제 주방장 메쉬에 부팅 반영
 tick();
 </script>
 </body>
