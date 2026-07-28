@@ -7251,13 +7251,17 @@ function tick() {
     updateCustomers(dt);
     updateCookServing(dt);   // 🍱 주방장 사이드 픽업/배달
     serveQueue(dt);     // 웨이팅 줄에서 한 명씩 간격을 두고 입장
-    // 🧍‍♂️ [상시 검사] Day 1 대기 팁 배너 — 조건 충족 프레임에 '즉시' 발동 (평생 1회):
+    // 🧍‍♂️ [상시 검사] Day 1 대기 팁 배너 — 3조건 동시 충족 프레임에 '즉시' 발동 (평생 1회):
+    //    ① Day 1 · 미노출  ② 배치된 식사 테이블 전 좌석 만석(식사/주문 손님이 앉아 있음)  ③ 줄 서기 대기 3명 이상
     //    이 블록은 !paused(편집·배치 아님)에서만 돌므로 배너가 반드시 보이는 상태에서 소모됨.
-    //    편집 중 3명이 됐어도 플래그를 아껴뒀다가 편집을 나오는 즉시 발동.
-    if (state.day === 1 && state.hasShownTableTutorial !== true && waitingQueue.length >= 3 &&
-        showEventBanner('대기 손님이 많아졌어요! 테이블을 추가 배치해 더 많은 손님을 받아보세요.', true)) {
-      state.hasShownTableTutorial = true;   // 실제 화면 출력 완료 후에만 기록
-      saveGame();                           // 즉시 저장 — 리로드·이후 날짜 재노출 원천 차단
+    if (state.day === 1 && state.hasShownTableTutorial !== true && waitingQueue.length >= 3) {
+      const allSeatsFull = tables.some(t => t.seats.length > 0) &&       // 좌석 가구가 존재하고
+        tables.every(t => t.seats.every(s => s.taken));                  // 그 좌석이 전부 사용 중일 때
+      if (allSeatsFull &&
+          showEventBanner('대기 손님이 많아졌어요! 테이블을 추가 배치해 더 많은 손님을 받아보세요.', true)) {
+        state.hasShownTableTutorial = true;   // 실제 화면 출력 완료 후에만 기록
+        saveGame();                           // 즉시 저장 — 리로드·이후 날짜 재노출 원천 차단
+      }
     }
     updateWalkers(dt);
     updateBubbles(dt);
