@@ -4625,6 +4625,30 @@ function drawVipGauge(c, ratio) {
   tex.needsUpdate = true;
 }
 
+// 🚶 입구 옆 웨이팅 줄 직행 스폰 — 만석 분기 + 🎯 Day 1 3 PM 튜토 강제 연출 공용
+function spawnQueueCustomer() {
+  const dir = Math.random() < 0.5 ? 1 : -1;
+  const g = buildCharacter();
+  g.position.set(EDGE_X * -dir - dir * Math.random() * 1.8, 0, SIDEWALK_Z);   // 일행끼리 겹치지 않게 간격
+  const spot = queueSpot(waitingQueue.length);
+  const c = {
+    group: g, seat: null,
+    menu: MENU_LEVELS[Math.floor(Math.random() * (state.menuLevel + 1))],
+    side: rollSide(),
+    speed: 1.7,
+    state: 'toQueue',
+    timer: 0,
+    queueIndex: waitingQueue.length,
+    bubbleTimer: 3 + Math.random() * 4,
+    waypoints: [{ x: spot.x, z: SIDEWALK_Z }, spot],
+    exitDir: Math.random() < 0.5 ? 1 : -1,
+  };
+  decorateOrder(c);   // 🌶️ 맵기/토핑 커스텀
+  customers.push(c);
+  feverGreet(c);      // 🎆 피버 손님: 전용 대사 + SNS 코디 / 평시 호기심 대사
+  waitingQueue.push(c);
+}
+
 function spawnCustomer() {
   if (placedFurniture.length === 0) return;   // 🛑 첫 테이블 배치 전엔 손님 스폰 완전 차단 (버스 하차·워프 포함 전 경로)
   if (tutoSub === TUTO_SUB_DONE) { tutoSub = null; refreshTuto(); }   // 🎉 첫 손님 등장 = 영업 개시 완수 → 가이드 퇴장
@@ -4641,27 +4665,7 @@ function spawnCustomer() {
   // 빈 의자가 없으면: 입구 옆 웨이팅 줄에 서고 (최대 4명), 줄도 꽉 찼으면 그냥 지나감
   if (!seat) {
     if (waitingQueue.length < queueCap()) {
-      const g = buildCharacter();
-      g.position.set(EDGE_X * -dir - dir * Math.random() * 1.8, 0, SIDEWALK_Z);   // 일행끼리 겹치지 않게 간격
-      const spot = queueSpot(waitingQueue.length);
-      const c = {
-        group: g, seat: null,
-        menu: MENU_LEVELS[Math.floor(Math.random() * (state.menuLevel + 1))],
-        side: rollSide(),
-        speed: 1.7,
-        state: 'toQueue',
-        timer: 0,
-        queueIndex: waitingQueue.length,
-        bubbleTimer: 3 + Math.random() * 4,
-        waypoints: [{ x: spot.x, z: SIDEWALK_Z }, spot],
-        exitDir: Math.random() < 0.5 ? 1 : -1,
-      };
-      decorateOrder(c);   // 🌶️ 맵기/토핑 커스텀
-      customers.push(c);
-      feverGreet(c);      // 🎆 피버 손님: 전용 대사 + SNS 코디 / 평시 호기심 대사
-      waitingQueue.push(c);
-      // (🧍‍♂️ 대기 팁 배너 검사는 v10.3부터 tick 상시 검사로 이동 — 푸시 순간 편집/배치 중이라
-      //  배너가 안 보이는 채 플래그만 소모되거나 타이밍을 놓치던 문제 해결)
+      spawnQueueCustomer();
       return;
     }
     const g = buildCharacter();
@@ -7155,14 +7159,16 @@ function tick() {
     updateCustomers(dt);
     updateCookServing(dt);   // 🍱 주방장 사이드 픽업/배달
     serveQueue(dt);     // 웨이팅 줄에서 한 명씩 간격을 두고 입장
-    // 🧍‍♂️ [상시 검사] Day 1 대기 팁 배너 — 3조건 동시 충족 프레임에 '즉시' 발동 (평생 1회):
-    //    ① Day 1 · 미노출  ② 배치된 식사 테이블 전 좌석 만석(식사/주문 손님이 앉아 있음)  ③ 줄 서기 대기 3명 이상
-    //    이 블록은 !paused(편집·배치 아님)에서만 돌므로 배너가 반드시 보이는 상태에서 소모됨.
-    if (state.day === 1 && state.hasShownTableTutorial !== true && waitingQueue.length >= 3) {
-      const allSeatsFull = tables.some(t => t.seats.length > 0) &&       // 좌석 가구가 존재하고
-        tables.every(t => t.seats.every(s => s.taken));                  // 그 좌석이 전부 사용 중일 때
-      if (allSeatsFull &&
-          showEventBanner('대기 손님이 많아졌어요! 테이블을 추가 배치해 더 많은 손님을 받아보세요.', true)) {
+    // 🧍‍♂️🎯 Day 1 오후 3시 확정 튜토 배너 — 시각 도달 즉시 무조건 발동 (평생 1회):
+    //    구 복합 조건(전 좌석 만석 + 큐 ≥3 자연 충족 대기) 폐기 → 대기 손님이 3명 미만이면
+    //    강제 스폰 연출로 즉시 3명을 맞추고 배너를 force 출력. 이 블록은 !paused(편집·배치 아님)
+    //    에서만 돌므로 배너가 반드시 보이는 상태에서 소모됨. (첫 테이블 배치 전엔 스폰 전면
+    //    차단 규칙 유지 — 미배치로 3 PM을 넘겼다면 배치 후 첫 프레임에 발동)
+    if (state.day === 1 && !state.hasShownTableTutorial && state.opened &&
+        state.dayPhase === 'open' && placedFurniture.length > 0 &&
+        state.dayTimer <= DAY_LENGTH / 2) {   // 🕒 dayClock 맵핑 기준 오후 3시(내부 t 60) 도달
+      while (waitingQueue.length < 3) spawnQueueCustomer();   // 🚶 부족분 즉시 줄 세우기 (3명 연출)
+      if (showEventBanner('대기 손님이 많아졌어요! 테이블을 추가 배치해 더 많은 손님을 받아보세요.', true)) {
         state.hasShownTableTutorial = true;   // 실제 화면 출력 완료 후에만 기록
         saveGame();                           // 즉시 저장 — 리로드·이후 날짜 재노출 원천 차단
       }
