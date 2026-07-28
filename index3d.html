@@ -4626,21 +4626,23 @@ function drawVipGauge(c, ratio) {
 }
 
 // 🚶 입구 옆 웨이팅 줄 직행 스폰 — 만석 분기 + 🎯 Day 1 3 PM 튜토 강제 연출 공용
-function spawnQueueCustomer() {
+//    snap=true면 걸어오는 지연 없이 줄 자리에 '즉시 서 있는' 상태로 생성 (배너와 동시 노출 보장)
+function spawnQueueCustomer(snap = false) {
   const dir = Math.random() < 0.5 ? 1 : -1;
   const g = buildCharacter();
-  g.position.set(EDGE_X * -dir - dir * Math.random() * 1.8, 0, SIDEWALK_Z);   // 일행끼리 겹치지 않게 간격
   const spot = queueSpot(waitingQueue.length);
+  if (snap) { g.position.set(spot.x, 0, spot.z); g.rotation.y = Math.PI; }   // 📍 줄 자리 즉시 스냅 + 입구 바라보기
+  else g.position.set(EDGE_X * -dir - dir * Math.random() * 1.8, 0, SIDEWALK_Z);   // 일행끼리 겹치지 않게 간격
   const c = {
     group: g, seat: null,
     menu: MENU_LEVELS[Math.floor(Math.random() * (state.menuLevel + 1))],
     side: rollSide(),
     speed: 1.7,
-    state: 'toQueue',
+    state: snap ? 'waiting' : 'toQueue',   // 스냅 손님은 걷기 단계 생략 — 곧장 대기 상태
     timer: 0,
     queueIndex: waitingQueue.length,
     bubbleTimer: 3 + Math.random() * 4,
-    waypoints: [{ x: spot.x, z: SIDEWALK_Z }, spot],
+    waypoints: snap ? [] : [{ x: spot.x, z: SIDEWALK_Z }, spot],
     exitDir: Math.random() < 0.5 ? 1 : -1,
   };
   decorateOrder(c);   // 🌶️ 맵기/토핑 커스텀
@@ -5362,7 +5364,7 @@ function updateWorkerServing(w, dt, kinds) {
           placeTableDish(t.c, t.kind);            // 🍽️ 테이블 세팅 (그릇 소스 색 = 주문 메뉴 색)
           if (t.kind === 'main') t.c.mainServed = true;   // 🍲 이제부터 식사 타이머 시작
           else t.c.sideServed = true;                     // 💰 정산 때 세트 보너스 지급
-          showBubble(ch, taskTag(t) + ' 나왔어요~!', 1.5, 1.4);
+          showBubble(ch, '맛있게 드세요!', 1.5, 1.4);   // 👨‍🍳 어떤 주문(세트/종류/단품)에도 어울리는 범용 서빙 인사
         }
         j.di++;
         startNextDelivery(w);   // 남은 손의 음식을 다음 목적지로
@@ -7167,7 +7169,7 @@ function tick() {
     if (state.day === 1 && !state.hasShownTableTutorial && state.opened &&
         state.dayPhase === 'open' && placedFurniture.length > 0 &&
         state.dayTimer <= DAY_LENGTH / 2) {   // 🕒 dayClock 맵핑 기준 오후 3시(내부 t 60) 도달
-      while (waitingQueue.length < 3) spawnQueueCustomer();   // 🚶 부족분 즉시 줄 세우기 (3명 연출)
+      while (waitingQueue.length < 3) spawnQueueCustomer(true);   // 🚶 부족분을 줄 자리에 '즉시 스냅' — 배너와 동시에 3명이 눈앞에 서 있음
       if (showEventBanner('대기 손님이 많아졌어요! 테이블을 추가 배치해 더 많은 손님을 받아보세요.', true)) {
         state.hasShownTableTutorial = true;   // 실제 화면 출력 완료 후에만 기록
         saveGame();                           // 즉시 저장 — 리로드·이후 날짜 재노출 원천 차단
