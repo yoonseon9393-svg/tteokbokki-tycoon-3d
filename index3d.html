@@ -223,6 +223,7 @@
     padding: 22px 22px 20px; z-index: 41; display: none;
     box-shadow: 0 16px 44px rgba(90,60,40,.4);
     width: min(340px, 90vw); text-align: center;
+    max-height: 88vh; overflow-y: auto;   /* 📱 낮은 화면에서도 8종 그리드가 잘리지 않게 */
   }
   #chefPanel h2 { color: #e0708f; font-size: 19px; margin-bottom: 4px; }
   #chefPanel .chefSub { color: #7a6a5c; font-size: 12.5px; margin-bottom: 10px; }
@@ -231,17 +232,20 @@
     background: linear-gradient(180deg, #fff3da, #ffe3d0); border: 2px solid #ffd9b8;
     display: flex; align-items: center; justify-content: center; font-size: 64px; overflow: hidden;
   }
-  .chefRow { display: flex; align-items: center; gap: 7px; margin-bottom: 10px; }
-  .chefRow .crLabel { font-size: 12.5px; font-weight: 800; color: #7a5c3a; width: 62px; text-align: left; white-space: nowrap; }
-  .crArrow {
-    width: 34px; height: 34px; border-radius: 50%; border: none; cursor: pointer; flex-shrink: 0;
-    background: linear-gradient(135deg, #ff9f68, #ff7fa0); color: #fff; font-size: 13px; font-weight: 800;
-    box-shadow: 0 2px 0 rgba(0,0,0,.12); touch-action: manipulation; transition: transform .08s;
+  #chefTabs { display: flex; gap: 5px; margin-bottom: 9px; }
+  .chefTabBtn {
+    flex: 1; border: none; cursor: pointer; border-radius: 999px;
+    padding: 7px 2px; font-size: 11.5px; font-weight: 800; color: #a08a78;
+    background: #f6ece2; touch-action: manipulation; white-space: nowrap;
   }
-  .crArrow:active { transform: translateY(2px); box-shadow: none; }
-  .crVal { flex: 1; text-align: center; line-height: 1.25; min-width: 0; }
-  .crVal b { display: block; font-size: 12.5px; color: #5a4a42; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .crVal small { font-size: 10px; color: #b3a294; font-weight: 700; }
+  .chefTabBtn.on { background: linear-gradient(135deg, #ff9f68, #ff7fa0); color: #fff; box-shadow: 0 2px 6px rgba(255,127,160,.35); }
+  #chefRows { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 6px; }
+  .chefOpt {
+    border: 2px solid #ffd9b8; border-radius: 12px; cursor: pointer;
+    padding: 8px 4px; font-size: 11.5px; font-weight: 800; color: #7a5c3a;
+    background: #fffdf8; touch-action: manipulation; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .chefOpt.on { background: linear-gradient(135deg, #ff9f68, #ff7fa0); border-color: #ff7fa0; color: #fff; }
   #chefStartBtn {
     width: 100%; border: none; cursor: pointer; border-radius: 16px; margin-top: 4px;
     padding: 14px; font-size: 16px; font-weight: 800; color: #fff;
@@ -787,8 +791,9 @@
 <div id="chefOverlay"></div>
 <div id="chefPanel">
   <h2>👨‍🍳 나만의 주방장을 꾸며보세요!</h2>
-  <div class="chefSub">◀ ▶ 버튼으로 마음에 드는 테마를 골라보세요</div>
+  <div class="chefSub">세트로 한 번에, 또는 모자·의상 믹스매치!</div>
   <div id="chefPvBox">👨‍🍳</div>
+  <div id="chefTabs"></div>
   <div id="chefRows"></div>
   <button id="chefStartBtn">✨ 이 모습으로 영업 개시!</button>
 </div>
@@ -2028,41 +2033,31 @@ cook.position.set(wx(2), 0, wz(1));
 cook.rotation.y = 0; // 손님 쪽(+z)을 바라봄
 /* ── 👨‍🍳 주방장 외형 커스텀: 테마 모자 5종 × 테마 의상 5종 + 머리 색 (state.chefLook 인덱스 참조)
    (구 cookHat 고정 실린더는 폐기 — 모자는 테마 파츠 시스템이 전담 조립) ── */
-const CHEF_HAIR_COLORS = [0x2e2e2e, 0x8a5a3b, 0xe8c56a, 0x7a2e3e, 0x9aa0a8];   // 블랙/브라운/블론드/버건디/그레이
-const CHEF_HAIR_NAMES = ['블랙', '브라운', '블론드', '버건디', '그레이'];
+const CHEF_HAIR_COLORS = [0x2e2e2e, 0x8a5a3b, 0xe8c56a, 0x7a2e3e, 0x9aa0a8];   // 블랙/브라운/블론드/버건디/그레이 (세이브 hair 인덱스 유지용)
 const sph = (r, col, seg = 12) => {   // 테마 파츠용 구체 헬퍼 (box/cyl과 동일한 mat 규약)
   const m = new THREE.Mesh(new THREE.SphereGeometry(r, seg, Math.max(6, seg - 2)), mat(col));
   m.castShadow = true; return m;
 };
-// 🧢 모자 테마 5종 — build(g)가 머리 위 파츠를 조립 (캐릭터 로컬 좌표: 머리 상단 y≈1.06)
+// 🧢 모자 테마 8종 — build(g)가 머리 위 파츠를 조립 (캐릭터 로컬 좌표: 머리 상단 y≈1.06)
+//    인덱스 = 세트 번호와 1:1 대응 (0 클래식 … 7 닌자)
 const CHEF_HATS = [
   { name: '클래식 셰프모자', build: g => {
     const base = cyl(0.19, 0.21, 0.1, 0xffffff); base.position.y = 1.16;
     const puff = cyl(0.23, 0.2, 0.16, 0xfffdf6); puff.position.y = 1.28;   // 위로 부풀린 클래식 토크
     g.add(base, puff);
   } },
-  { name: '계란후라이', build: g => {
-    const white = cyl(0.28, 0.3, 0.05, 0xfffdf4, 9);   // 낮은 세그먼트 = 자연스러운 흰자 너울
-    white.position.y = 1.15;
-    const yolk = sph(0.1, 0xffc933); yolk.scale.y = 0.72; yolk.position.y = 1.2;   // 🍳 노른자
-    g.add(white, yolk);
-  } },
-  { name: '달팽이 모자', build: g => {
-    const shell = sph(0.17, 0xc98a5a); shell.position.set(0, 1.25, -0.03);   // 🐌 소용돌이 껍질
-    const swirl = new THREE.Mesh(new THREE.TorusGeometry(0.1, 0.032, 8, 16), mat(0x8a5a3b));
-    swirl.position.set(0, 1.25, 0.13); swirl.castShadow = true;   // 정면 나선 무늬
-    g.add(shell, swirl);
-    for (const sx of [-0.09, 0.09]) {   // 더듬이 2개 (앞으로 살짝 기울임 + 핑크 방울 끝)
-      const ant = cyl(0.015, 0.015, 0.2, 0x8a5a3b, 6);
-      ant.position.set(sx, 1.19, 0.12); ant.rotation.x = -0.55;
-      const tip = sph(0.032, 0xffb3c8, 8); tip.position.set(sx, 1.28, 0.17);
-      g.add(ant, tip);
+  { name: '공룡 머리', build: g => {
+    const dome = sph(0.22, 0x8fd77f, 14); dome.scale.set(1, 0.75, 1); dome.position.y = 1.12;   // 🦖 후드 돔
+    const jaw = box(0.2, 0.07, 0.14, 0x8fd77f); jaw.position.set(0, 1.1, 0.19);   // 윗턱 챙
+    g.add(dome, jaw);
+    for (const sx of [-0.09, 0.09]) {   // 머리 위로 볼록 솟은 눈
+      const eye = sph(0.05, 0xffffff, 10); eye.position.set(sx, 1.27, 0.07);
+      const pupil = sph(0.022, 0x333333, 8); pupil.position.set(sx, 1.28, 0.11); pupil.castShadow = false;
+      g.add(eye, pupil);
     }
-  } },
-  { name: '민트 샤워캡', build: g => {
-    const dome = sph(0.23, 0x9fe8dc, 14); dome.scale.set(1, 0.62, 1); dome.position.y = 1.12;   // 봉긋한 돔
-    const band = cyl(0.215, 0.215, 0.05, 0x5fc7b4); band.position.y = 1.09;   // 조임 밴드
-    g.add(dome, band);
+    const fin = new THREE.Mesh(new THREE.ConeGeometry(0.05, 0.1, 4), mat(0x5cb85c));
+    fin.position.set(0, 1.3, -0.1); fin.rotation.x = -0.3; fin.castShadow = true;   // 뒤통수 지느러미
+    g.add(fin);
   } },
   { name: '고양이 귀 머리띠', build: g => {
     const band = cyl(0.197, 0.197, 0.045, 0x4a3547); band.position.y = 1.11;
@@ -2075,11 +2070,60 @@ const CHEF_HATS = [
       g.add(ear, inner);
     }
   } },
+  { name: '병아리 모자', build: g => {
+    const dome = sph(0.21, 0xffe066, 14); dome.scale.set(1, 0.7, 1); dome.position.y = 1.13;   // 🐥 노랑 돔
+    const beak = new THREE.Mesh(new THREE.ConeGeometry(0.045, 0.09, 8), mat(0xf2a33c));
+    beak.position.set(0, 1.13, 0.22); beak.rotation.x = Math.PI / 2; beak.castShadow = true;   // 앞 부리
+    const crest = new THREE.Mesh(new THREE.ConeGeometry(0.03, 0.07, 6), mat(0xf2c94c));
+    crest.position.y = 1.31; crest.castShadow = true;   // 정수리 삐죽 깃털
+    g.add(dome, beak, crest);
+    for (const sx of [-0.07, 0.07]) {   // 콕 찍은 눈
+      const eye = sph(0.02, 0x333333, 8); eye.position.set(sx, 1.19, 0.19); eye.castShadow = false;
+      g.add(eye);
+    }
+  } },
+  { name: '달팽이 껍질', build: g => {
+    const shell = sph(0.17, 0xc98a5a); shell.position.set(0, 1.25, -0.03);   // 🐌 소용돌이 껍질
+    const swirl = new THREE.Mesh(new THREE.TorusGeometry(0.1, 0.032, 8, 16), mat(0x8a5a3b));
+    swirl.position.set(0, 1.25, 0.13); swirl.castShadow = true;   // 정면 나선 무늬
+    g.add(shell, swirl);
+    for (const sx of [-0.09, 0.09]) {   // 더듬이 2개 (앞으로 살짝 기울임 + 핑크 방울 끝)
+      const ant = cyl(0.015, 0.015, 0.2, 0x8a5a3b, 6);
+      ant.position.set(sx, 1.19, 0.12); ant.rotation.x = -0.55;
+      const tip = sph(0.032, 0xffb3c8, 8); tip.position.set(sx, 1.28, 0.17);
+      g.add(ant, tip);
+    }
+  } },
+  { name: '계란후라이', build: g => {
+    const white = cyl(0.28, 0.3, 0.05, 0xfffdf4, 9);   // 낮은 세그먼트 = 자연스러운 흰자 너울
+    white.position.y = 1.15;
+    const yolk = sph(0.1, 0xffc933); yolk.scale.y = 0.72; yolk.position.y = 1.2;   // 🍳 노른자
+    g.add(white, yolk);
+  } },
+  { name: '양털 샤워캡', build: g => {
+    const dome = sph(0.23, 0x9fe8dc, 14); dome.scale.set(1, 0.62, 1); dome.position.y = 1.12;   // 봉긋한 돔
+    const band = cyl(0.215, 0.215, 0.05, 0x5fc7b4); band.position.y = 1.09;   // 조임 밴드
+    g.add(dome, band);
+    [[-0.1, 1.2, 0.05], [0.09, 1.22, -0.06], [0, 1.24, 0.1]].forEach(([x, y, z]) => {   // 🐑 양털 뭉게 혹
+      const wool = sph(0.06, 0xeafcf6, 10); wool.position.set(x, y, z);
+      g.add(wool);
+    });
+  } },
+  { name: '닌자 두건', build: g => {
+    const hood = sph(0.2, 0x2f2f3a, 14); hood.scale.set(1, 0.78, 1); hood.position.y = 1.09;   // 🥷 어둠 두건
+    const plate = box(0.13, 0.05, 0.02, 0xc0c8d0); plate.position.set(0, 1.12, 0.195);   // 이마 철판
+    g.add(hood, plate);
+    for (const sx of [-0.03, 0.05]) {   // 뒤로 나부끼는 매듭 자락 2가닥
+      const tail = box(0.045, 0.2, 0.02, 0x2f2f3a);
+      tail.position.set(sx, 0.98, -0.2); tail.rotation.x = 0.35;
+      g.add(tail);
+    }
+  } },
 ];
-// 👕 의상 테마 5종 — 상의(top)와 하의(legs)를 분리 착색해 통짜 단색의 어색함 해소,
-//    build(g)가 앞치마·지느러미·멜빵 등 테마 장식 파츠를 몸통 위에 부착
+// 👕 의상 테마 8종 — 상의(top)와 하의(legs)를 분리 착색해 통짜 단색의 어색함 해소,
+//    build(g)가 앞치마·지느러미·멜빵 등 테마 장식 파츠를 몸통 위에 부착 (인덱스 = 세트 번호와 1:1)
 const CHEF_OUTFITS = [
-  { name: '클래식 조리복', top: 0xffffff, legs: 0x3a3f4a, build: g => {
+  { name: '정통 조리복', top: 0xffffff, legs: 0x3a3f4a, build: g => {
     const apron = box(0.36, 0.3, 0.03, 0xf1f1f1); apron.position.set(0, 0.42, 0.145);   // 무릎 앞치마
     const belt = box(0.44, 0.05, 0.29, 0xe0e0e0); belt.position.y = 0.585;              // 허리 묶음 끈
     g.add(apron, belt);
@@ -2093,7 +2137,27 @@ const CHEF_OUTFITS = [
       g.add(fin);
     });
   } },
-  { name: '멜빵 데님 룩', top: 0xd9534f, legs: 0x5b7db1, build: g => {
+  { name: '냥이 앞치마', top: 0xffd7e2, legs: 0x6a5a6e, build: g => {
+    const apron = box(0.34, 0.32, 0.03, 0xfff0f5); apron.position.set(0, 0.44, 0.145);   // 🐱 연핑크 앞치마
+    const muzzle = sph(0.045, 0xffffff, 10); muzzle.scale.z = 0.5; muzzle.position.set(0, 0.44, 0.165);   // 야옹 주둥이
+    g.add(apron, muzzle);
+    for (const sx of [-0.07, 0.07]) {   // 자수 냥이 세모귀 + 점 눈
+      const ear = new THREE.Mesh(new THREE.ConeGeometry(0.032, 0.06, 4), mat(0xf7a8c0));
+      ear.position.set(sx, 0.55, 0.16); ear.castShadow = false;
+      const eye = sph(0.013, 0x5a4a42, 6); eye.position.set(sx * 0.6, 0.48, 0.163); eye.castShadow = false;
+      g.add(ear, eye);
+    }
+  } },
+  { name: '병아리 원복', top: 0xffe066, legs: 0xffe066, build: g => {
+    const belly = box(0.24, 0.26, 0.02, 0xfff7d6); belly.position.set(0, 0.47, 0.14);   // 🐥 뽀얀 배판
+    g.add(belly);
+    for (const sx of [-0.3, 0.3]) {   // 옆구리 아기 날개 스텁
+      const wing = box(0.05, 0.16, 0.12, 0xf2c94c);
+      wing.position.set(sx, 0.5, -0.02); wing.rotation.z = sx > 0 ? -0.25 : 0.25;
+      g.add(wing);
+    }
+  } },
+  { name: '체크 멜빵바지', top: 0xd9534f, legs: 0x5b7db1, build: g => {
     const bib = box(0.3, 0.25, 0.02, 0x5b7db1); bib.position.set(0, 0.53, 0.145);       // 데님 가슴판
     g.add(bib);
     for (const sx of [-0.1, 0.1]) {   // 멜빵 끈 + 금장 단추
@@ -2101,6 +2165,10 @@ const CHEF_OUTFITS = [
       const btn = sph(0.02, 0xffd166, 8); btn.position.set(sx, 0.63, 0.16); btn.castShadow = false;
       g.add(strap, btn);
     }
+    [[-0.15, 0.66], [0.15, 0.6]].forEach(([x, y]) => {   // 소매 체크 패치 — 체크 셔츠 무늬 근사
+      const patch = box(0.05, 0.05, 0.01, 0xa93c38); patch.position.set(x, y, 0.14); patch.castShadow = false;
+      g.add(patch);
+    });
   } },
   { name: '곰돌이 앞치마', top: 0xfff2dc, legs: 0x6b4a35, build: g => {
     const apron = box(0.34, 0.32, 0.03, 0xd7a86e); apron.position.set(0, 0.44, 0.145);
@@ -2120,13 +2188,24 @@ const CHEF_OUTFITS = [
     towel.position.set(0.2, 0.35, 0.06); towel.rotation.z = 0.12;
     g.add(towel);
   } },
+  { name: '닌자 도복', top: 0x2f2f3a, legs: 0x2f2f3a, build: g => {
+    const belt = box(0.44, 0.06, 0.29, 0x8a2635); belt.position.y = 0.42;   // 🥷 진홍 허리띠
+    g.add(belt);
+    for (const dir of [1, -1]) {   // 가슴 X자 끈 매듭
+      const strap = box(0.05, 0.4, 0.02, 0x8a94a2);
+      strap.position.set(0, 0.55, 0.142); strap.rotation.z = dir * 0.62;
+      g.add(strap);
+    }
+    const blade = box(0.04, 0.5, 0.04, 0x4a4a52);   // 등 뒤 사선 도검
+    blade.position.set(-0.08, 0.72, -0.17); blade.rotation.z = 0.75;
+    const grip = box(0.05, 0.14, 0.05, 0x8a2635);
+    grip.position.set(-0.24, 0.87, -0.17); grip.rotation.z = 0.75;
+    g.add(blade, grip);
+  } },
 ];
-// 🎛️ 커스텀 슬라이더 행 정의 — [◀ 테마명 n/5 ▶]
-const CHEF_LOOK_ROWS = [
-  { key: 'hatType',    label: '🧢 모자',   names: CHEF_HATS.map(h => h.name) },
-  { key: 'outfitType', label: '👕 의상',   names: CHEF_OUTFITS.map(o => o.name) },
-  { key: 'hair',       label: '💇 머리색', names: CHEF_HAIR_NAMES },
-];
+// ✨ 세트 코디 8종 — 세트 i 선택 = 모자 i + 의상 i 동시 착용 (인덱스 1:1 찰떡 페어)
+const CHEF_SETS = ['정통 셰프', '아기 공룡', '냥이 알바', '삐약 병아리',
+                   '소풍 달팽이', '계란 곰돌이', '목욕탕 사장님', '그림자 닌자'];
 // 테마 일괄 적용 — 게임 속 실제 주방장(cook)과 커스텀 팝업 미리보기 모델이 공용.
 // 기존 테마 파츠(모자·장식)는 지오메트리까지 폐기 후 새 테마로 재조립 → 실루엣이 즉시 교체됨
 function applyChefThemeTo(g) {
@@ -6377,36 +6456,43 @@ function buildChefModel() {   // 미리보기 전용 미니피규어 — 실제 
   g.userData.anim = { legL, legR, armL, armR, head, body, hairM, hairB };
   return g;
 }
-function renderChefRows() {   // 🎛️ [◀ 테마명 n/5 ▶] 슬라이더 3행 (모자/의상/머리색)
+let chefTab = 'set';   // 현재 커스텀 탭: ✨ 세트 추천 / 🧢 모자 따로 / 👕 의상 따로
+const CHEF_TABS = [['set', '✨ 세트 추천'], ['hat', '🧢 모자 따로'], ['outfit', '👕 의상 따로']];
+function renderChefPicker() {   // 🎛️ 탭 3개 + 옵션 8버튼 그리드 (세트=동시 교체 · 개별=믹스매치)
+  const tabs = document.getElementById('chefTabs');
+  tabs.textContent = '';
+  for (const [id, label] of CHEF_TABS) {
+    const b = document.createElement('button');
+    b.className = 'chefTabBtn' + (chefTab === id ? ' on' : '');
+    b.textContent = label;
+    b.addEventListener('click', () => { chefTab = id; renderChefPicker(); });
+    tabs.appendChild(b);
+  }
   const wrap = document.getElementById('chefRows');
   wrap.textContent = '';
-  for (const row of CHEF_LOOK_ROWS) {
-    const r = document.createElement('div'); r.className = 'chefRow';
-    const lb = document.createElement('span'); lb.className = 'crLabel'; lb.textContent = row.label;
-    const val = document.createElement('span'); val.className = 'crVal';
-    const valHtml = () => {
-      const i = state.chefLook[row.key] || 0;
-      return '<b>' + row.names[i] + '</b><small>' + (i + 1) + ' / ' + row.names.length + '</small>';
-    };
-    const mk = dir => {   // ◀/▶ 순환 버튼 — 누를 때마다 테마 파츠가 즉시 교체됨
-      const b = document.createElement('button');
-      b.className = 'crArrow'; b.textContent = dir < 0 ? '◀' : '▶';
-      b.addEventListener('click', () => {
-        const n = row.names.length;
-        state.chefLook[row.key] = ((state.chefLook[row.key] || 0) + dir + n) % n;
-        val.innerHTML = valHtml();
-        if (chefPv) applyChefThemeTo(chefPv.model);   // 🖼️ 미리보기 실루엣 즉시 교체
-        applyChefLook();                              // 게임 속 실제 주방장도 실시간 반영
-      });
-      return b;
-    };
-    val.innerHTML = valHtml();
-    r.appendChild(lb); r.appendChild(mk(-1)); r.appendChild(val); r.appendChild(mk(1));
-    wrap.appendChild(r);
-  }
+  const lk = state.chefLook;
+  const names = chefTab === 'set' ? CHEF_SETS
+    : chefTab === 'hat' ? CHEF_HATS.map(h => h.name) : CHEF_OUTFITS.map(o => o.name);
+  const isOn = i => chefTab === 'set' ? (lk.hatType === i && lk.outfitType === i)   // 믹스매치 중엔 세트 하이라이트 없음
+    : chefTab === 'hat' ? lk.hatType === i : lk.outfitType === i;
+  names.forEach((name, i) => {
+    const b = document.createElement('button');
+    b.className = 'chefOpt' + (isOn(i) ? ' on' : '');
+    b.textContent = name;
+    b.addEventListener('click', () => {
+      if (chefTab === 'set') { lk.hatType = i; lk.outfitType = i; }   // ✨ 세트: 모자+의상 동시 착용
+      else if (chefTab === 'hat') lk.hatType = i;                     // 🧢 모자만 믹스매치
+      else lk.outfitType = i;                                         // 👕 의상만 믹스매치
+      renderChefPicker();                           // 선택 하이라이트 갱신
+      if (chefPv) applyChefThemeTo(chefPv.model);   // 🖼️ 미리보기 파츠 즉시 교체
+      applyChefLook();                              // 게임 속 실제 주방장도 실시간 반영
+    });
+    wrap.appendChild(b);
+  });
 }
 function openChefCustom() {
-  renderChefRows();
+  chefTab = 'set';   // 항상 세트 추천 탭부터 시작
+  renderChefPicker();
   chefPanel.style.display = 'block';
   chefOverlay.style.display = 'block';
   const holder = document.getElementById('chefPvBox');
