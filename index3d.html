@@ -5330,11 +5330,8 @@ function taskFixtureId(task) {
   if (task.kind === 'main') return 'pot';
   return task.c.side.station === 'fridge' ? 'fridge' : 'stand';
 }
-// 태스크의 말풍선 태그 / 배달 목적지(포장대 or 손님 좌석)
-function taskTag(t) {
-  if (t.kind === 'delivery') return t.food.type === 'main' ? t.food.menu.tag : t.food.side.tag;
-  return t.kind === 'main' ? t.c.menu.tag : t.c.side.tag;
-}
+// (taskTag 제거 — 주문 태그 말풍선은 손님 전용으로 분리, 주방장은 픽업 🍳 / 서빙 '맛있게 드세요!' 고정)
+// 배달 목적지(포장대 or 손님 좌석)
 function deliveryPackSpot() {   // 🥡 배달 센터 포장대 앞 좌표 (기물이 이사해도 추적)
   const d = tables.find(t2 => t2.key === 'delivery');
   return d ? { x: d.group.position.x + 0.5, z: d.group.position.z + 0.9, terrace: false } : null;
@@ -5582,7 +5579,9 @@ function updateWorkerServing(w, dt, kinds) {
         // 기물이 어디에 있든 그 기물 쪽을 바라보며 담기
         const fg = fixtures[taskFixtureId(t)].group.position;
         ch.rotation.y = Math.atan2(fg.x - ch.position.x, fg.z - ch.position.z);
-        showBubble(ch, taskTag(t), 1.5, 0.8);
+        // 💬 태그 분리: 주문 메뉴 태그('기본' 등)는 손님 전용 — 주방장은 범용 조리 이모지만
+        //    (손님 주문 말풍선이 주방장 머리 위에 뜬 것처럼 보이던 혼선의 원인 제거)
+        showBubble(ch, '🍳', 1.5, 0.8);
       }
       break;
     }
