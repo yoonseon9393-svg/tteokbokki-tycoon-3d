@@ -2827,7 +2827,7 @@ const SHOP_ITEMS = {
     name: '대기석', emoji: '🛋️', price: 220, theme: 'classic',
     desc: '기다리는 시간도 설레게 만드는 대기 의자.', fx: '🛋️ 대기 손님 실제 착석 · 🍱 주문 여유 +15%',
     build: buildBenchSet, cells: [[0, 0]], seats: [],
-    waitSeat: { x: 0, z: 0.02, ry: Math.PI },   // 🪑 웨이팅 손님이 실제로 앉는 대기 좌석
+    waitSeat: { x: 0, z: 0.02, ry: 0 },   // 🪑 웨이팅 손님이 실제로 앉는 대기 좌석 (ry 0 = 등받이(-z)를 등지고 길 쪽(+z) 정면 응시 — 구 π는 등받이 쪽으로 거꾸로 앉던 버그)
   },
   umbstand: {
     name: '우산꽂이', emoji: '☂️', price: 350, theme: 'classic',
@@ -3750,8 +3750,9 @@ function centerTileUpdate() {   // 매 프레임: 중앙 타일 + 패드 오프�
   if (!state.hoverTile || state.hoverTile.gx !== gx || state.hoverTile.gz !== gz)
     updatePlacementPreview(gx, gz);
 }
-// ✔ 배치 최종 확정 (탭·가상 패드 공용): 초록 상태에서만 설치/이사 완료
-// exitLoop=false(탭)면 같은 가구 연속 배치 루프 유지, true(✔ 버튼)면 확정 후 종료
+// ✔ 배치 최종 확정 (탭·✔️ 버튼 공용): 초록 상태에서만 설치/이사 완료
+// exitLoop=false(기본)면 골드/창고가 허용하는 한 같은 가구 연속 배치 루프 유지
+// (배치 종료는 ✖️ 버튼 전담 · 골드 부족 시엔 경고 토스트와 함께 자동 종료)
 function confirmPlacement(gx, gz, exitLoop = false) {
   if (!state.placing) return false;
   if (!updatePlacementPreview(gx, gz)) return false;
@@ -3781,13 +3782,16 @@ function confirmPlacement(gx, gz, exitLoop = false) {
   }
   // 🔁 연속 배치 루프: 골드/창고가 허용하면 같은 가구를 곧바로 이어서 배치 (한도 무제한)
   const rot = state.placeRot;
-  const again = !exitLoop && !SHOP_ITEMS[key].fixture &&
-    (state.gold >= SHOP_ITEMS[key].price || (state.inventory[key] || 0) > 0);
+  const canAfford = state.gold >= SHOP_ITEMS[key].price || (state.inventory[key] || 0) > 0;
+  const again = !exitLoop && !SHOP_ITEMS[key].fixture && canAfford;
   cancelPlacing();
   if (again) {
     startPlacing(key);
     state.placeRot = rot;      // 방금 쓰던 회전 유지
     centerTileUpdate();        // 🎯 중앙 타일 기준으로 곧바로 이어서 배치
+  } else if (!exitLoop && !SHOP_ITEMS[key].fixture && !canAfford) {
+    // 💸 골드 부족: 가이드를 숨기고 배치 모드 자동 종료 + 경고 안내 (조용한 종료 → 명시 안내)
+    toast('💸 골드가 부족해 연속 배치를 종료했어요! (' + SHOP_ITEMS[key].name + ' ' + SHOP_ITEMS[key].price + 'G 필요)');
   }
   return true;
 }
@@ -6406,8 +6410,8 @@ document.getElementById('exitPlaceBtn').addEventListener('click', () => {   // �
   if (editMode) exitEditMode();
 });
 document.getElementById('rotateBtn').addEventListener('click', () => rotatePlacing());
-document.getElementById('confirmBtn').addEventListener('click', () => {   // ✔️ 현재 위치에 배치 확정 + 배치 종료
-  if (state.placing && state.hoverTile) confirmPlacement(state.hoverTile.gx, state.hoverTile.gz, true);
+document.getElementById('confirmBtn').addEventListener('click', () => {   // ✔️ 배치 확정 — 골드 충분 시 같은 가구 연속 배치 유지 (종료는 ✖️ 전담)
+  if (state.placing && state.hoverTile) confirmPlacement(state.hoverTile.gx, state.hoverTile.gz);
 });
 
 // (❌ 우측 하단 조작 패드 리스너 전면 삭제 — 🎯 중앙 고정 배치가 대체: 배치=탭 · 취소/철거=상단 가이드 바 · 회전=🔄/R)
