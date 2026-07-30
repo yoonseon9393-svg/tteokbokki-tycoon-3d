@@ -5,16 +5,33 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>🍢 골목길 떡볶이 타이쿤</title>
 <style>
+  /* ── 🔡 나눔스퀘어 라운드 웹폰트 (눈누 jsdelivr) — 모던하고 따뜻한 라운드 서체 전면 적용
+     (@import는 CSS 파일 전용이라 .woff 링크는 @font-face 표준 구문으로 등록,
+      B/EB 굵기는 네이버 정적 CDN 보강 — 로드 실패 시 브라우저 합성 볼드로 자동 폴백) ── */
+  @font-face {
+    font-family: 'NanumSquareRound'; font-style: normal; font-weight: 400; font-display: swap;
+    src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_two@1.0/NanumSquareRound.woff') format('woff');
+  }
+  @font-face {
+    font-family: 'NanumSquareRound'; font-style: normal; font-weight: 700; font-display: swap;
+    src: url('https://hangeul.pstatic.net/hangeul_static/webfont/NanumSquareRound/NanumSquareRoundB.woff') format('woff');
+  }
+  @font-face {
+    font-family: 'NanumSquareRound'; font-style: normal; font-weight: 800 900; font-display: swap;
+    src: url('https://hangeul.pstatic.net/hangeul_static/webfont/NanumSquareRound/NanumSquareRoundEB.woff') format('woff');
+  }
   * { margin: 0; padding: 0; box-sizing: border-box; }
   html, body {
     width: 100%; height: 100%; overflow: hidden;
-    font-family: 'Segoe UI', 'Malgun Gothic', sans-serif;
+    font-family: 'NanumSquareRound', 'Segoe UI', 'Malgun Gothic', sans-serif;
     word-break: keep-all; overflow-wrap: break-word;   /* 🔤 전역 어절 단위 한글 줄바꿈 (모든 토스트·배너·팝업 상속) */
     touch-action: none;                 /* 브라우저 스크롤/핀치 제스처 차단 */
     overscroll-behavior: none;          /* 당겨서 새로고침 차단 */
     -webkit-user-select: none; user-select: none;
     -webkit-touch-callout: none;        /* 길게 눌러도 메뉴 안 뜨게 */
   }
+  /* 🔡 버튼·입력은 브라우저 기본 서체를 쓰므로 전역 상속 강제 — 모든 UI 텍스트가 라운드 서체로 통일 */
+  button, input, select, textarea { font-family: inherit; }
   #game { width: 100%; height: 100%; display: block; touch-action: none; }
 
   /* ── 상단 정보 바 ───────────────────────── */
@@ -438,7 +455,7 @@
   #dayBody .stamp {
     position: absolute; right: 10px; bottom: 8px; transform: rotate(-14deg);
     border: 3px solid currentColor; border-radius: 10px; padding: 2px 12px;
-    font-size: 30px; font-weight: 900; opacity: .85; font-family: sans-serif;
+    font-size: 30px; font-weight: 900; opacity: .85;   /* 🔡 등급 스탬프도 전역 라운드 서체 상속 */
   }
   #nextDayBtn {
     width: 100%; margin-top: 14px; border: none; cursor: pointer; border-radius: 16px;
