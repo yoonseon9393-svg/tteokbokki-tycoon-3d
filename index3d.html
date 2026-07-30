@@ -2121,6 +2121,53 @@ const CHEF_HATS = [
       g.add(tail);
     }
   } },
+  // ── 이하 8~15: 🧢 일상 모자/헤어 (세트 페어와 무관 — [모자 따로] 탭 전용 노출) ──
+  { name: '볼캡', build: g => {
+    const dome = sph(0.2, 0x3a5da8, 14); dome.scale.set(1, 0.6, 1); dome.position.y = 1.12;
+    const brim = box(0.26, 0.03, 0.18, 0x2f4c8c); brim.position.set(0, 1.09, 0.24);   // 둥근 챙
+    const btn = sph(0.03, 0x2f4c8c, 8); btn.position.y = 1.25;
+    g.add(dome, brim, btn);
+  } },
+  { name: '비니', build: g => {
+    const dome = sph(0.2, 0x8a8f99, 14); dome.scale.set(1, 0.68, 1); dome.position.y = 1.13;
+    const fold = cyl(0.2, 0.2, 0.07, 0x767b85); fold.position.y = 1.07;   // 접어올린 밑단
+    g.add(dome, fold);
+  } },
+  { name: '벙거지 모자', build: g => {
+    const crown = cyl(0.15, 0.19, 0.14, 0x9a8f6a); crown.position.y = 1.16;
+    const brim = cyl(0.27, 0.29, 0.035, 0x8a7f5c); brim.position.y = 1.09;   // 아래로 처진 챙
+    g.add(crown, brim);
+  } },
+  { name: '스냅백', build: g => {
+    const dome = sph(0.2, 0x2e2e33, 14); dome.scale.set(1, 0.6, 1); dome.position.y = 1.12;
+    const brim = box(0.28, 0.03, 0.2, 0x2e2e33); brim.position.set(0, 1.1, 0.26);   // 납작 일자 챙
+    const patch = box(0.12, 0.08, 0.02, 0xd9534f); patch.position.set(0, 1.14, 0.185);   // 정면 로고 패치
+    g.add(dome, brim, patch);
+  } },
+  { name: '밀짚모자', build: g => {
+    const crown = cyl(0.15, 0.18, 0.12, 0xe8cf8a); crown.position.y = 1.16;
+    const brim = cyl(0.32, 0.34, 0.03, 0xdec378); brim.position.y = 1.1;   // 넓은 챙
+    const band = cyl(0.165, 0.175, 0.045, 0xc94f4f); band.position.y = 1.13;   // 붉은 리본 밴드
+    g.add(crown, brim, band);
+  } },
+  { name: '숏컷 헤어', build: g => {
+    const vol = sph(0.21, 0x5a4632, 14); vol.scale.set(1, 0.62, 1); vol.position.y = 1.1;   // 둥근 숏컷 볼륨
+    const fringe = box(0.36, 0.08, 0.05, 0x5a4632); fringe.position.set(0, 1.05, 0.16);   // 앞머리
+    g.add(vol, fringe);
+  } },
+  { name: '포니테일', build: g => {
+    const tuft = sph(0.055, 0x5a4632, 8); tuft.position.set(0, 1.14, -0.17);   // 묶은 머리 뭉치
+    const band = cyl(0.045, 0.045, 0.04, 0xd9534f, 8); band.position.set(0, 1.12, -0.17); band.rotation.x = Math.PI / 2;
+    const tail = box(0.09, 0.3, 0.09, 0x5a4632); tail.position.set(0, 0.97, -0.24); tail.rotation.x = 0.25;   // 늘어진 꼬리
+    g.add(tuft, band, tail);
+  } },
+  { name: '리본 머리띠', build: g => {
+    const band = cyl(0.197, 0.197, 0.04, 0xff8fb0); band.position.y = 1.11;
+    const bowL = box(0.07, 0.05, 0.02, 0xff8fb0); bowL.position.set(-0.1, 1.17, 0.1); bowL.rotation.z = 0.5;
+    const bowR = box(0.07, 0.05, 0.02, 0xff8fb0); bowR.position.set(-0.04, 1.18, 0.12); bowR.rotation.z = -0.5;
+    const knot = sph(0.025, 0xe0708f, 8); knot.position.set(-0.07, 1.16, 0.12);   // 옆 리본 매듭
+    g.add(band, bowL, bowR, knot);
+  } },
 ];
 // 👕 의상 테마 8종 — 상의(top)와 하의(legs)를 분리 착색해 통짜 단색의 어색함 해소,
 //    build(g)가 앞치마·지느러미·멜빵 등 테마 장식 파츠를 몸통 위에 부착 (인덱스 = 세트 번호와 1:1)
@@ -2203,6 +2250,60 @@ const CHEF_OUTFITS = [
     const grip = box(0.05, 0.14, 0.05, 0x8a2635);
     grip.position.set(-0.24, 0.87, -0.17); grip.rotation.z = 0.75;
     g.add(blade, grip);
+  } },
+  // ── 이하 8~15: 👕 일상 캐주얼 사복 (세트 페어와 무관 — [의상 따로] 탭 전용 노출) ──
+  { name: '기본 티셔츠', top: 0xffffff, legs: 0x4a6a9c, build: g => {
+    const print = box(0.12, 0.1, 0.01, 0xffa9c1); print.position.set(0, 0.55, 0.14); print.castShadow = false;   // 가슴 프린트
+    g.add(print);
+  } },
+  { name: '캐주얼 후드티', top: 0x8a90a0, legs: 0x3a3f4a, build: g => {
+    const hood = box(0.3, 0.12, 0.1, 0x7a8090); hood.position.set(0, 0.68, -0.16);   // 뒷목 후드 뭉치
+    const pocket = box(0.22, 0.09, 0.02, 0x7a8090); pocket.position.set(0, 0.4, 0.14);   // 앞주머니
+    g.add(hood, pocket);
+    for (const sx of [-0.05, 0.05]) {   // 후드 끈 2가닥
+      const str = box(0.02, 0.12, 0.01, 0xf0f0f0); str.position.set(sx, 0.6, 0.145); str.castShadow = false;
+      g.add(str);
+    }
+  } },
+  { name: '체크 셔츠', top: 0xc94f4f, legs: 0x4a4a52, build: g => {
+    [[-0.12, 0.6], [0.08, 0.52], [-0.05, 0.42], [0.13, 0.63]].forEach(([x, y]) => {   // 체크 패치 근사
+      const p = box(0.06, 0.06, 0.01, 0x8f3535); p.position.set(x, y, 0.14); p.castShadow = false; g.add(p);
+    });
+    for (const y of [0.6, 0.5, 0.4]) {   // 단추 줄
+      const b = sph(0.014, 0xf5f5f0, 6); b.position.set(0, y, 0.145); b.castShadow = false; g.add(b);
+    }
+  } },
+  { name: '맨투맨', top: 0x33427a, legs: 0xd8cdb8, build: g => {
+    const logo = box(0.16, 0.06, 0.01, 0xf5f5f0); logo.position.set(0, 0.56, 0.14); logo.castShadow = false;   // 가슴 레터링
+    g.add(logo);
+  } },
+  { name: '청자켓', top: 0x5b7db1, legs: 0x3a3f4a, build: g => {
+    for (const sx of [-0.105, 0.105]) {   // 앞섶 데님 패널 2쪽
+      const pn = box(0.14, 0.32, 0.015, 0x4a6a9c); pn.position.set(sx, 0.5, 0.14); g.add(pn);
+    }
+    const shirt = box(0.06, 0.3, 0.01, 0xf5f5f0); shirt.position.set(0, 0.5, 0.142); shirt.castShadow = false;   // 이너 흰 티
+    g.add(shirt);
+    for (const y of [0.58, 0.46]) for (const sx of [-0.16, 0.16]) {   // 금장 단추 4개
+      const b = sph(0.013, 0xd9b24a, 6); b.position.set(sx, y, 0.15); b.castShadow = false; g.add(b);
+    }
+  } },
+  { name: '단가라 니트', top: 0xf2ead8, legs: 0x6a5a6e, build: g => {
+    [0.62, 0.52, 0.42].forEach(y => {   // 몸통을 감는 네이비 줄무늬 3줄
+      const s = box(0.43, 0.05, 0.27, 0x33427a); s.position.set(0, y, 0); s.castShadow = false; g.add(s);
+    });
+  } },
+  { name: '카라 티셔츠', top: 0x5fb8a5, legs: 0xe8d9b8, build: g => {
+    for (const sx of [-0.07, 0.07]) {   // 접힌 카라 2쪽
+      const col = box(0.1, 0.05, 0.02, 0x4da28f); col.position.set(sx, 0.7, 0.135); col.rotation.z = sx > 0 ? -0.3 : 0.3; g.add(col);
+    }
+    const pk = box(0.04, 0.12, 0.01, 0x4da28f); pk.position.set(0, 0.63, 0.142); pk.castShadow = false;   // 단추 플래킷
+    g.add(pk);
+  } },
+  { name: '집업 점퍼', top: 0x2f2f35, legs: 0x8a90a0, build: g => {
+    const zip = box(0.02, 0.34, 0.01, 0xc0c8d0); zip.position.set(0, 0.5, 0.142); zip.castShadow = false;   // 중앙 지퍼 라인
+    const colr = box(0.3, 0.06, 0.05, 0x24242a); colr.position.set(0, 0.7, 0.1);   // 세운 카라
+    const zh = sph(0.018, 0xc0c8d0, 6); zh.position.set(0, 0.38, 0.15); zh.castShadow = false;   // 지퍼 손잡이
+    g.add(zip, colr, zh);
   } },
 ];
 // ✨ 세트 코디 8종 — 세트 i 선택 = 모자 i + 의상 i 동시 착용 (인덱스 1:1 찰떡 페어)
@@ -6660,24 +6761,26 @@ function renderChefPicker() {   // 🎛️ 탭 3개 + 옵션 8버튼 그리드 (
   const wrap = document.getElementById('chefRows');
   wrap.textContent = '';
   const lk = state.chefLook;
-  const names = chefTab === 'set' ? CHEF_SETS
-    : chefTab === 'hat' ? CHEF_HATS.map(h => h.name) : CHEF_OUTFITS.map(o => o.name);
+  // ✨ 세트 탭 = 세트 8종(인덱스 0~7 페어) · 🧢/👕 개별 탭 = 세트와 겹치지 않는 일상 아이템(인덱스 8~15)만 노출
+  const opts = chefTab === 'set' ? CHEF_SETS.map((name, i) => ({ i, name }))
+    : chefTab === 'hat' ? CHEF_HATS.map((h, i) => ({ i, name: h.name })).slice(8)
+    : CHEF_OUTFITS.map((o, i) => ({ i, name: o.name })).slice(8);
   const isOn = i => chefTab === 'set' ? (lk.hatType === i && lk.outfitType === i)   // 믹스매치 중엔 세트 하이라이트 없음
     : chefTab === 'hat' ? lk.hatType === i : lk.outfitType === i;
-  names.forEach((name, i) => {
+  for (const { i, name } of opts) {
     const b = document.createElement('button');
     b.className = 'chefOpt' + (isOn(i) ? ' on' : '');
     b.textContent = name;
     b.addEventListener('click', () => {
       if (chefTab === 'set') { lk.hatType = i; lk.outfitType = i; }   // ✨ 세트: 모자+의상 동시 착용
-      else if (chefTab === 'hat') lk.hatType = i;                     // 🧢 모자만 믹스매치
-      else lk.outfitType = i;                                         // 👕 의상만 믹스매치
+      else if (chefTab === 'hat') lk.hatType = i;                     // 🧢 일상 모자만 교체 (의상 유지)
+      else lk.outfitType = i;                                         // 👕 일상 의상만 교체 (모자 유지)
       renderChefPicker();                           // 선택 하이라이트 갱신
       if (chefPv) applyChefThemeTo(chefPv.model);   // 🖼️ 미리보기 파츠 즉시 교체
       applyChefLook();                              // 게임 속 실제 주방장도 실시간 반영
     });
     wrap.appendChild(b);
-  });
+  }
 }
 function openChefCustom() {
   chefTab = 'set';   // 항상 세트 추천 탭부터 시작
