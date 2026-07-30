@@ -2410,15 +2410,15 @@ function updateBubbles(dt) {
    cells: 세트가 차지하는 격자 칸들 (회전 0도 기준, 앵커 칸으로부터의 offset)
    seats: 의자 위치(월드 단위 로컬 좌표)와 앉았을 때 바라볼 방향(ry)
 ─────────────────────────────────────────────────────────── */
-// 공용 부품: 테이블 블록
-function addTableBlock(g, cx, cz, w, d) {
+// 공용 부품: 테이블 블록 (legCol/topCol 생략 시 기본 원목색 — 테마 라인업은 팔레트 주입)
+function addTableBlock(g, cx, cz, w, d, legCol = 0xd9a066, topCol = 0xeed4a9) {
   const inX = w / 2 - 0.09, inZ = d / 2 - 0.09;
   for (const [lx, lz] of [[-inX, -inZ], [inX, -inZ], [-inX, inZ], [inX, inZ]]) {
-    const leg = box(0.08, 0.5, 0.08, 0xd9a066);
+    const leg = box(0.08, 0.5, 0.08, legCol);
     leg.position.set(cx + lx, 0.25, cz + lz);
     g.add(leg);
   }
-  const top = box(w, 0.09, d, 0xeed4a9);
+  const top = box(w, 0.09, d, topCol);
   top.position.set(cx, 0.55, cz);
   g.add(top);
   // 🍽️ 상판은 완전히 비워둠 — 음식은 주방장이 배달 완료했을 때만 올라옴 (placeTableDish)
@@ -2461,6 +2461,67 @@ function buildQuadSet() {   // 2×2칸: 원형 테이블 + 사방 의자 4
   addChair(g, 0.5, 1.18, Math.PI, 0xceb8f0);
   return g;
 }
+
+/* ── 🪵🌸🍷 테마 테이블 라인업 3종: 기본 1/2/4인과 동일 규격(칸·좌석 슬롯) — 팔레트·상판 소품만 교체 ── */
+function themedTableSets(p) {   // p = { leg, top, chairs: [의자 4색], deco(g, cx, cz): 상판 중앙 소품 }
+  return {
+    solo: () => {
+      const g = new THREE.Group();
+      addTableBlock(g, 0, -0.16, 0.6, 0.5, p.leg, p.top);
+      addChair(g, 0, 0.33, Math.PI, p.chairs[0]);
+      if (p.deco) p.deco(g, 0, -0.16);
+      return g;
+    },
+    couple: () => {
+      const g = new THREE.Group();
+      addTableBlock(g, 0.5, 0, 0.95, 0.72, p.leg, p.top);
+      addChair(g, -0.18, 0, Math.PI / 2, p.chairs[0]);
+      addChair(g, 1.18, 0, -Math.PI / 2, p.chairs[1]);
+      if (p.deco) p.deco(g, 0.5, 0);
+      return g;
+    },
+    quad: () => {
+      const g = new THREE.Group();
+      const legC = cyl(0.09, 0.13, 0.5, p.leg);
+      legC.position.set(0.5, 0.25, 0.5); g.add(legC);
+      const topC = cyl(0.58, 0.58, 0.08, p.top, 20);
+      topC.position.set(0.5, 0.55, 0.5); g.add(topC);
+      addChair(g, -0.18, 0.5, Math.PI / 2, p.chairs[0]);
+      addChair(g, 1.18, 0.5, -Math.PI / 2, p.chairs[1]);
+      addChair(g, 0.5, -0.18, 0, p.chairs[2]);
+      addChair(g, 0.5, 1.18, Math.PI, p.chairs[3]);
+      if (p.deco) p.deco(g, 0.5, 0.5);
+      return g;
+    },
+  };
+}
+// 🪵 따뜻한 우드: 진갈색 원목 + 🌿 미니 화분
+const WOOD_SETS = themedTableSets({
+  leg: 0x7a4f2c, top: 0xa9744a, chairs: [0x8a5a33, 0x9a6b3f, 0x8a5a33, 0x9a6b3f],
+  deco: (g, cx, cz) => {
+    const pot = cyl(0.05, 0.065, 0.08, 0xb0623c, 8); pot.position.set(cx, 0.63, cz); pot.castShadow = false; g.add(pot);
+    const leaf = new THREE.Mesh(new THREE.SphereGeometry(0.06, 8, 6), mat(0x5f9e54));
+    leaf.position.set(cx, 0.72, cz); leaf.castShadow = false; g.add(leaf);
+  },
+});
+// 🌸 파스텔 마카롱: 크림 상판 + 🍬 2단 마카롱 접시
+const PASTEL_SETS = themedTableSets({
+  leg: 0xf2b9cd, top: 0xfff3f7, chairs: [0xffb3c6, 0xa0c4ff, 0xffe4a0, 0xcaffbf],
+  deco: (g, cx, cz) => {
+    const m1 = cyl(0.07, 0.07, 0.045, 0xffa9c1, 10); m1.position.set(cx, 0.62, cz); m1.castShadow = false; g.add(m1);
+    const m2 = cyl(0.055, 0.055, 0.04, 0x9fe0cf, 10); m2.position.set(cx, 0.665, cz); m2.castShadow = false; g.add(m2);
+  },
+});
+// 🍷 클래식 앤틱: 다크우드 + 🕯️ 은은한 금촛대
+const ANTIQUE_SETS = themedTableSets({
+  leg: 0x4a2f24, top: 0x5f3d2e, chairs: [0x6e2f36, 0x6e2f36, 0x4a2f24, 0x6e2f36],
+  deco: (g, cx, cz) => {
+    const stick = cyl(0.025, 0.04, 0.14, 0xd9b24a, 8); stick.position.set(cx, 0.66, cz); stick.castShadow = false; g.add(stick);
+    const flame = new THREE.Mesh(new THREE.SphereGeometry(0.028, 8, 6),
+      new THREE.MeshLambertMaterial({ color: 0xffd985, emissive: 0xff9d3c, emissiveIntensity: 0.9 }));
+    flame.position.set(cx, 0.76, cz); flame.castShadow = false; g.add(flame);
+  },
+});
 
 function buildTerraceSet() {   // ⛱️ 테라스 전용: 미니 테이블 + 의자 + 파스텔 파라솔
   const g = new THREE.Group();
@@ -2816,6 +2877,87 @@ const SHOP_ITEMS = {
     name: '4인 테이블', emoji: '👨‍👩‍👧‍👦', price: 280, theme: 'classic',
     desc: '온 팀이 둘러앉는 넉넉한 원형 테이블.', fx: '🪑 4인석 기본형',
     build: buildQuadSet, cells: [[0, 0], [1, 0], [0, 1], [1, 1]],
+    seats: [
+      { x: -0.18, z: 0.5, ry: Math.PI / 2 },
+      { x: 1.18, z: 0.5, ry: -Math.PI / 2 },
+      { x: 0.5, z: -0.18, ry: 0 },
+      { x: 0.5, z: 1.18, ry: Math.PI },
+    ],
+  },
+  // ── 🪵 따뜻한 우드 테마: 원목 라인업 (기본형과 동일 칸·좌석 규격) ──
+  woodSolo: {
+    name: '우드 1인 테이블', emoji: '🪵', price: 180, theme: 'wood',
+    desc: '결 고운 원목의 온기가 감도는 미니 좌석.', fx: '🪑 1인 · 🪵 우드 감성',
+    build: WOOD_SETS.solo, cells: [[0, 0]],
+    seats: [{ x: 0, z: 0.33, ry: Math.PI }],
+  },
+  woodCouple: {
+    name: '우드 2인 테이블', emoji: '🌰', price: 340, theme: 'wood',
+    desc: '통원목 상판에 마주 앉는 아늑한 2인석.', fx: '🪑 2인 · 🪵 우드 감성',
+    build: WOOD_SETS.couple, cells: [[0, 0], [1, 0]],
+    seats: [
+      { x: -0.18, z: 0, ry: Math.PI / 2 },
+      { x: 1.18, z: 0, ry: -Math.PI / 2 },
+    ],
+  },
+  woodQuad: {
+    name: '우드 4인 원탁', emoji: '🍂', price: 620, theme: 'wood',
+    desc: '숲속 오두막 같은 넉넉한 원목 원탁.', fx: '🪑 4인 · 🪵 우드 감성',
+    build: WOOD_SETS.quad, cells: [[0, 0], [1, 0], [0, 1], [1, 1]],
+    seats: [
+      { x: -0.18, z: 0.5, ry: Math.PI / 2 },
+      { x: 1.18, z: 0.5, ry: -Math.PI / 2 },
+      { x: 0.5, z: -0.18, ry: 0 },
+      { x: 0.5, z: 1.18, ry: Math.PI },
+    ],
+  },
+  // ── 🌸 파스텔 마카롱 테마: 달콤 라인업 (기본형과 동일 칸·좌석 규격) ──
+  pastelSolo: {
+    name: '마카롱 1인 테이블', emoji: '🧁', price: 240, theme: 'pastel',
+    desc: '마카롱 한 접시가 놓인 달콤한 1인 좌석.', fx: '🪑 1인 · 🌸 파스텔 감성',
+    build: PASTEL_SETS.solo, cells: [[0, 0]],
+    seats: [{ x: 0, z: 0.33, ry: Math.PI }],
+  },
+  pastelCouple: {
+    name: '마카롱 2인 테이블', emoji: '🍰', price: 450, theme: 'pastel',
+    desc: '크림빛 상판이 사랑스러운 디저트 2인석.', fx: '🪑 2인 · 🌸 파스텔 감성',
+    build: PASTEL_SETS.couple, cells: [[0, 0], [1, 0]],
+    seats: [
+      { x: -0.18, z: 0, ry: Math.PI / 2 },
+      { x: 1.18, z: 0, ry: -Math.PI / 2 },
+    ],
+  },
+  pastelQuad: {
+    name: '마카롱 4인 원탁', emoji: '🌸', price: 820, theme: 'pastel',
+    desc: '사방이 파스텔 의자로 물든 티파티 원탁.', fx: '🪑 4인 · 🌸 파스텔 감성',
+    build: PASTEL_SETS.quad, cells: [[0, 0], [1, 0], [0, 1], [1, 1]],
+    seats: [
+      { x: -0.18, z: 0.5, ry: Math.PI / 2 },
+      { x: 1.18, z: 0.5, ry: -Math.PI / 2 },
+      { x: 0.5, z: -0.18, ry: 0 },
+      { x: 0.5, z: 1.18, ry: Math.PI },
+    ],
+  },
+  // ── 🍷 클래식 앤틱 테마: 중후 라인업 (기본형과 동일 칸·좌석 규격) ──
+  antiqueSolo: {
+    name: '앤틱 1인 테이블', emoji: '🕯️', price: 320, theme: 'antique',
+    desc: '촛불 하나가 분위기를 완성하는 고풍 1인석.', fx: '🪑 1인 · 🍷 앤틱 감성',
+    build: ANTIQUE_SETS.solo, cells: [[0, 0]],
+    seats: [{ x: 0, z: 0.33, ry: Math.PI }],
+  },
+  antiqueCouple: {
+    name: '앤틱 2인 테이블', emoji: '🍷', price: 600, theme: 'antique',
+    desc: '다크우드와 버건디가 어우러진 클래식 2인석.', fx: '🪑 2인 · 🍷 앤틱 감성',
+    build: ANTIQUE_SETS.couple, cells: [[0, 0], [1, 0]],
+    seats: [
+      { x: -0.18, z: 0, ry: Math.PI / 2 },
+      { x: 1.18, z: 0, ry: -Math.PI / 2 },
+    ],
+  },
+  antiqueQuad: {
+    name: '앤틱 4인 원탁', emoji: '🏛️', price: 1100, theme: 'antique',
+    desc: '고택 응접실에서 옮겨온 듯한 중후한 원탁.', fx: '🪑 4인 · 🍷 앤틱 감성',
+    build: ANTIQUE_SETS.quad, cells: [[0, 0], [1, 0], [0, 1], [1, 1]],
     seats: [
       { x: -0.18, z: 0.5, ry: Math.PI / 2 },
       { x: 1.18, z: 0.5, ry: -Math.PI / 2 },
@@ -6809,7 +6951,8 @@ document.getElementById('endingBtn').addEventListener('click', () => {
   panes.hall.appendChild(decoLine);
   // 🌳/🌆 홀 가구 탭: 테마별 컬렉션 섹션 (클래식 나무 / 사이버 펑크 네온)
   const themeSecs = {};
-  for (const [tid, tLabel] of [['classic', '🌳 클래식 나무 테마'], ['cyber', '🌆 사이버 펑크 네온 테마'], ['champ', '👑 대회 우승자 프리미엄']]) {
+  for (const [tid, tLabel] of [['classic', '🌳 클래식 나무 테마'], ['wood', '🪵 따뜻한 우드 테마'], ['pastel', '🌸 파스텔 마카롱 테마'],
+                               ['antique', '🍷 클래식 앤틱 테마'], ['cyber', '🌆 사이버 펑크 네온 테마'], ['champ', '👑 대회 우승자 프리미엄']]) {
     const hd = document.createElement('div');
     hd.style.cssText = 'margin:10px 0 2px;font-weight:800;color:#b58a5a;font-size:13px;';
     hd.textContent = tLabel;
