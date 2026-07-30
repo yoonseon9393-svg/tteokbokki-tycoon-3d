@@ -976,6 +976,7 @@ const state = {
   catCostumes: [],    // 🐱 보유한 코스튬 id 목록
   catWearing: null,   // 🐱 현재 장착 중인 코스튬 id (null = 기본)
   chefLook: { hatType: 0, outfitType: 0, hair: 0 },   // 👨‍🍳 주방장 외형 커스텀 (테마 모자/의상 + 머리색 인덱스)
+  storeInterior: { wallStyle: 'default', floorStyle: 'default' },   // 🎨 벽지/바닥 타일 스타일 id
   // ☀️ 일일 장사 메타 루프
   day: 1,             // 현재 일차
   daysDone: 0,        // 완료한 영업일 수 (해금 조건용)
@@ -1194,6 +1195,7 @@ function saveGame() {
       catCostumes: state.catCostumes,
       catWearing: state.catWearing,
       chefLook: state.chefLook,   // 👨‍🍳 주방장 외형 커스텀
+      storeInterior: state.storeInterior,   // 🎨 벽지/바닥 스타일
       day: state.day, daysDone: state.daysDone, dayPhase: state.dayPhase, dayTimer: state.dayTimer,
       dayGold: state.dayGold, dayServed: state.dayServed, dayVip: state.dayVip, dayFailed: state.dayFailed,
       bestGradeIdx: state.bestGradeIdx, dayHistory: state.dayHistory,
@@ -1470,14 +1472,14 @@ for (let gx = 0; gx < W; gx += 2) {
 }
 
 /* 벽 (뒤/왼쪽은 높게, 앞/오른쪽은 낮게 → 쿼터뷰에서 내부가 보임) */
-function addWall(gx, gz, h, color) {
+function addWall(gx, gz, h, color, capCol = 0xfbe3e9) {   // 🎨 capCol: 벽지 스타일별 윗단 캡 색
   // 벽 본체: 타일 틈새를 덮도록 살짝 크게(1.04) + 바닥에 0.08 파묻어서
   // 어떤 회전 각도에서도 벽 밑이 들뜨거나 얇게 끊겨 보이지 않게
   const wMesh = box(1.04, h + 0.08, 1.04, color);
   wMesh.position.set(wx(gx), h / 2 - 0.04, wz(gz));
   restaurantGroup.add(wMesh);
   // 윗단 캡: 살짝 더 넓게 얹어서 레고 블록 같은 도톰한 입체감
-  const cap = box(1.14, 0.09, 1.14, 0xfbe3e9);
+  const cap = box(1.14, 0.09, 1.14, capCol);
   cap.position.set(wx(gx), h + 0.045, wz(gz));
   restaurantGroup.add(cap);
   occupied.add(gx + ',' + gz);
@@ -3273,7 +3275,25 @@ const expansionGroup = new THREE.Group();
 scene.add(expansionGroup);
 let stringBulbs = [];   // Lv3 반짝이 알전구들
 
-// 🏗️ 매장 셸 재구성: 레벨에 맞춰 내부 바닥(크림 체크)과 벽을 다시 지음
+/* ── 🎨 벽지/바닥 타일 커스텀: 스타일 팔레트 — 상점 [벽/바닥] 탭에서 원클릭 교체 ── */
+const WALL_STYLES = {
+  default: { name: '기본 벽지',             emoji: '🏠', price: 0,   fx: '🖼️ 오리지널 핑크 톤 (무료 복귀)', high: 0xf0b9c6, low: 0xf3cbd4, cap: 0xfbe3e9 },
+  wood:    { name: '베이지 우드 패널 벽지', emoji: '🪵', price: 400, fx: '🖼️ 따뜻한 원목 패널 벽면',        high: 0xd8b98e, low: 0xe8d4ae, cap: 0xf2e3c8 },
+  pastel:  { name: '파스텔 핑크 벽지',      emoji: '🌸', price: 500, fx: '🖼️ 달콤한 마카롱 핑크 벽면',      high: 0xffc3d8, low: 0xffdce9, cap: 0xfff0f5 },
+  antique: { name: '버건디 앤틱 벽지',      emoji: '🍷', price: 700, fx: '🖼️ 금장 캡의 중후한 버건디 벽면', high: 0x8a4453, low: 0xa8606f, cap: 0xd9b24a },
+};
+const FLOOR_STYLES = {
+  default: { name: '기본 플로어 타일',   emoji: '⬜', price: 0,   fx: '🧱 오리지널 크림 체크 (무료 복귀)', a: 0xf5f2eb, b: 0xe7e0d3, pat: 'checker' },
+  wood:    { name: '오크 원목 마루',     emoji: '🪵', price: 500, fx: '🧱 결이 살아있는 널판 마루',        a: 0xc59a6a, b: 0xb0854f, pat: 'plank' },
+  pastel:  { name: '화이트-핑크 테라조', emoji: '🌸', price: 600, fx: '🧱 화사한 테라조 조각 바닥',        a: 0xfdf4f6, b: 0xffd3e2, pat: 'checker' },
+  antique: { name: '다크 헤링본 바닥',   emoji: '🍷', price: 800, fx: '🧱 어둡게 빛나는 헤링본 마루',      a: 0x7a5238, b: 0x5f3d28, pat: 'diag' },
+};
+function wallStyleDef() { return WALL_STYLES[(state.storeInterior || {}).wallStyle] || WALL_STYLES.default; }
+function floorStyleDef() { return FLOOR_STYLES[(state.storeInterior || {}).floorStyle] || FLOOR_STYLES.default; }
+// 🖼️ 스타일 교체 즉시 반영: 셸(바닥 타일+벽)만 현재 스타일로 재조립 — 가구·테라스·기물 무영향
+function applyInterior() { buildShopShell(); }
+
+// 🏗️ 매장 셸 재구성: 레벨에 맞춰 내부 바닥(선택 스타일 패턴)과 벽(선택 벽지 색)을 다시 지음
 // 오른쪽 벽이 바깥으로 이동하며 평수가 넓어지고, 벽 밖은 플라자 포장으로 처리
 function buildShopShell() {
   // 기존 셸 철거 (타일/벽 메시 + 벽 점유 칸 해제)
@@ -3292,12 +3312,19 @@ function buildShopShell() {
   const x1 = SHOP_X1[state.shopLevel];   // 내부 오른쪽 끝
   const R = x1 + 1;                      // 오른쪽 벽 칸
   const zTop = shopZ0() - 1;             // 🏗️ 뒷벽 행 (Lv4+에서 뒤로 밀림: 0 → -2 → -4 → -6)
-  // 1) 존(zTop~6행) 바닥: 매장+벽 아래는 크림 체크, 벽 밖은 플라자 포장
+  const fs = floorStyleDef(), ws = wallStyleDef();   // 🎨 현재 선택된 벽지/바닥 스타일
+  // 바닥 패턴: checker(체크) / plank(널판 줄무늬) / diag(대각 헤링본 근사) — 음수 행 대응 모듈러
+  const inFloor = (gx, gz) => {
+    if (fs.pat === 'plank') return ((gz % 2) + 2) % 2 ? fs.a : fs.b;
+    if (fs.pat === 'diag') return (((gx + gz * 2) % 3) + 3) % 3 ? fs.a : fs.b;
+    return (((gx + gz) % 2) + 2) % 2 ? fs.a : fs.b;
+  };
+  // 1) 존(zTop~6행) 바닥: 매장+벽 아래는 선택 스타일 패턴, 벽 밖은 플라자 포장
   for (let gz = zTop; gz <= 6; gz++) {
     for (let gx = 0; gx < W; gx++) {
       const inside = gx >= 1 && gx <= x1 && gz >= shopZ0() && gz <= 5;
       const color = gx <= R
-        ? ((((gx + gz) % 2) + 2) % 2 ? 0xf5f2eb : 0xe7e0d3)   // 매장 크림 체크 바닥 (음수 행 대응)
+        ? inFloor(gx, gz)                                      // 🎨 매장 바닥 — 선택 스타일
         : ((gx % 2) ? 0xd9d0be : 0xcfc4ae);                    // 매장 밖 플라자 포장 (테라스와 연결)
       const t = addTile(gx, gz, color, inside);
       shellMeshes.push(t);
@@ -3312,13 +3339,13 @@ function buildShopShell() {
     restaurantGroup.add(ext);
     shellMeshes.push(ext);
   }
-  // 2) 벽: 뒤/왼쪽 높게, 오른쪽/앞 낮게 (쿼터뷰에서 내부가 보이도록)
-  for (let gx = 0; gx <= R; gx++) addWall(gx, zTop, 1.6, 0xf0b9c6);          // 뒷벽 (레벨업 시 뒤로!)
-  for (let gz = zTop + 1; gz <= 6; gz++) addWall(0, gz, 1.6, 0xf0b9c6);      // 왼쪽 벽
-  for (let gz = zTop + 1; gz <= 6; gz++) addWall(R, gz, 0.45, 0xf3cbd4);     // 오른쪽 낮은 벽
+  // 2) 벽: 뒤/왼쪽 높게, 오른쪽/앞 낮게 (쿼터뷰에서 내부가 보이도록) — 🎨 선택 벽지 색 적용
+  for (let gx = 0; gx <= R; gx++) addWall(gx, zTop, 1.6, ws.high, ws.cap);          // 뒷벽 (레벨업 시 뒤로!)
+  for (let gz = zTop + 1; gz <= 6; gz++) addWall(0, gz, 1.6, ws.high, ws.cap);      // 왼쪽 벽
+  for (let gz = zTop + 1; gz <= 6; gz++) addWall(R, gz, 0.45, ws.low, ws.cap);      // 오른쪽 낮은 벽
   for (let gx = 1; gx <= R - 1; gx++) {
-    if (gx === 6 || gx === 7) continue;                                       // 출입문 (고정)
-    addWall(gx, 6, 0.45, 0xf3cbd4);                                           // 앞 낮은 벽
+    if (gx === 6 || gx === 7) continue;                                              // 출입문 (고정)
+    addWall(gx, 6, 0.45, ws.low, ws.cap);                                            // 앞 낮은 벽
   }
 }
 
@@ -3614,6 +3641,10 @@ function leavePath(seat, exitDir) {
     // 👨‍🍳 외형 복원 — v10.8 색상 인덱스 세이브(hat/clothes)는 테마 0(클래식)으로 자연 이관, 머리색은 유지
     const cl = saved.chefLook || {};
     state.chefLook = { hatType: cl.hatType || 0, outfitType: cl.outfitType || 0, hair: cl.hair || 0 };
+    // 🎨 벽지/바닥 복원 — 미지의 id는 기본으로 폴백 (부팅 말미 applyShopLevelVisuals→buildShopShell이 실반영)
+    const si = saved.storeInterior || {};
+    state.storeInterior = { wallStyle: WALL_STYLES[si.wallStyle] ? si.wallStyle : 'default',
+                            floorStyle: FLOOR_STYLES[si.floorStyle] ? si.floorStyle : 'default' };
     state.day = saved.day || 1;
     state.daysDone = saved.daysDone || 0;
     state.dayPhase = saved.dayPhase || 'open';
@@ -6926,7 +6957,7 @@ document.getElementById('endingBtn').addEventListener('click', () => {
     ic.appendChild(prev);
   }
   // 🗂️ 카테고리 탭: 홀 가구 / 주방 기물 / 특별 엔터
-  const TABS = [['hall', '🪑 홀'], ['kitchen', '🧰 주방'], ['ent', '🎪 알바'], ['lab', '🧪 연구']];   // (📣 홍보는 좌측 🎆 피버 버튼으로 독립)
+  const TABS = [['hall', '🪑 홀'], ['deco', '🎨 벽/바닥'], ['kitchen', '🧰 주방'], ['ent', '🎪 알바'], ['lab', '🧪 연구']];   // (📣 홍보는 좌측 🎆 피버 버튼으로 독립)
   const tabBar = document.createElement('div');
   tabBar.id = 'shopTabs';
   const panes = {};
@@ -7011,6 +7042,40 @@ document.getElementById('endingBtn').addEventListener('click', () => {
     // 🌳/🌆 홀 가구는 테마 섹션으로, 나머지는 기존 카테고리 탭으로
     ((item.cat || 'hall') === 'hall' && item.theme && themeSecs[item.theme]
       ? themeSecs[item.theme] : panes[item.cat || 'hall']).appendChild(row);
+  }
+  // 🎨 벽/바닥 탭: 벽지·바닥 스타일 원클릭 교체 (구매 즉시 매장 셸 리컬러 + 골드 차감)
+  const intRefreshers = [];
+  function interiorRow(kind, id, def) {
+    const row = document.createElement('div');
+    row.className = 'shopItem';
+    row.innerHTML = '<span class="itIcon">' + def.emoji + '</span>' +
+      '<div class="info"><span class="itName">' + def.name + '</span>' +
+      '<span class="itFx">' + def.fx + '</span></div>';
+    const btn = document.createElement('button');
+    const active = () => state.storeInterior[kind] === id;
+    const refresh = () => { btn.textContent = active() ? '✅ 적용 중' : (def.price ? def.price + 'G' : '무료'); };
+    btn.addEventListener('click', () => {
+      if (active()) { toast('✅ 이미 적용 중인 스타일이에요!'); return; }
+      if (state.gold < def.price) { toast('💸 골드가 부족해요! (' + def.price + 'G 필요)'); return; }
+      state.gold -= def.price;
+      state.storeInterior[kind] = id;
+      applyInterior();                    // 🖼️ 매장 벽/바닥 즉시 교체
+      intRefreshers.forEach(f => f());    // ✅ 적용 중 배지 일괄 갱신
+      updateUI(true);
+      saveGame();
+      toast('🎨 「' + def.name + '」 적용 완료! 매장 분위기가 확 바뀌었어요');
+      sfx('serve');
+    });
+    refresh(); intRefreshers.push(refresh);
+    row.appendChild(btn);
+    return row;
+  }
+  for (const [label, styles, kind] of [['🖼️ 벽지', WALL_STYLES, 'wallStyle'], ['🧱 바닥 타일', FLOOR_STYLES, 'floorStyle']]) {
+    const hd = document.createElement('div');
+    hd.style.cssText = 'margin:10px 0 2px;font-weight:800;color:#b58a5a;font-size:13px;';
+    hd.textContent = label;
+    panes.deco.appendChild(hd);
+    for (const [id, def] of Object.entries(styles)) panes.deco.appendChild(interiorRow(kind, id, def));
   }
   // 🧰 주방 기물 탭: 보유 기물 안내 (이동/회전은 편집 모드에서)
   for (const def of Object.values(FIXTURE_DEFS)) {
