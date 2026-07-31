@@ -6765,7 +6765,7 @@ function buildChefModel() {   // 미리보기 전용 미니피규어 — 실제 
   return g;
 }
 let chefTab = 'set';   // 현재 커스텀 탭: ✨ 세트 추천 / 🧢 모자 따로 / 👕 의상 따로
-const CHEF_TABS = [['set', '✨ 세트 추천'], ['hat', '🧢 모자 따로'], ['outfit', '👕 의상 따로']];
+const CHEF_TABS = [['set', '✨ 세트'], ['hat', '🧢 모자'], ['outfit', '👕 의상']];   // 🏷️ 간결 레이블 (v10.19)
 function renderChefPicker() {   // 🎛️ 탭 3개 + 옵션 8버튼 그리드 (세트=동시 교체 · 개별=믹스매치)
   const tabs = document.getElementById('chefTabs');
   tabs.textContent = '';
