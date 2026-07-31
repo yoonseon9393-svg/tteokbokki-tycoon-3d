@@ -2102,17 +2102,20 @@ const CHEF_HATS = [
       g.add(eye);
     }
   } },
-  { name: '달팽이 껍질', build: g => {
-    const shell = sph(0.17, 0xc98a5a); shell.position.set(0, 1.25, -0.03);   // 🐌 소용돌이 껍질
-    const swirl = new THREE.Mesh(new THREE.TorusGeometry(0.1, 0.032, 8, 16), mat(0x8a5a3b));
-    swirl.position.set(0, 1.25, 0.13); swirl.castShadow = true;   // 정면 나선 무늬
-    g.add(shell, swirl);
-    for (const sx of [-0.09, 0.09]) {   // 더듬이 2개 (앞으로 살짝 기울임 + 핑크 방울 끝)
-      const ant = cyl(0.015, 0.015, 0.2, 0x8a5a3b, 6);
-      ant.position.set(sx, 1.19, 0.12); ant.rotation.x = -0.55;
-      const tip = sph(0.032, 0xffb3c8, 8); tip.position.set(sx, 1.28, 0.17);
-      g.add(ant, tip);
-    }
+  { name: '초코 도넛', build: g => {
+    // 🍩 납작하게 눕힌 링 도넛 — 옅은 브라운 빵 베이스 + 위쪽에 진한 초코 글레이즈 층
+    const bread = new THREE.Mesh(new THREE.TorusGeometry(0.14, 0.07, 10, 20), mat(0xe0aa6a));
+    bread.rotation.x = Math.PI / 2; bread.position.y = 1.15; bread.castShadow = true;
+    const glaze = new THREE.Mesh(new THREE.TorusGeometry(0.14, 0.055, 10, 20), mat(0x5a3420));
+    glaze.rotation.x = Math.PI / 2; glaze.position.y = 1.19; glaze.castShadow = false;   // 시럽이 흘러 덮인 상단층
+    g.add(bread, glaze);
+    // ✨ 파스텔 스프링클 토핑
+    [[0.1, 0.05, 0xffb3c8, 0.5], [-0.09, 0.09, 0x9bf6ff, -0.4], [0.02, -0.12, 0xfdffb6, 1.1], [-0.11, -0.05, 0xcaffbf, 0.2]]
+      .forEach(([x, z, col, rot]) => {
+        const sp2 = box(0.045, 0.015, 0.015, col);
+        sp2.position.set(x, 1.245, z); sp2.rotation.y = rot; sp2.castShadow = false;
+        g.add(sp2);
+      });
   } },
   { name: '계란후라이', build: g => {
     const white = cyl(0.28, 0.3, 0.05, 0xfffdf4, 9);   // 낮은 세그먼트 = 자연스러운 흰자 너울
@@ -2326,7 +2329,7 @@ const CHEF_OUTFITS = [
 ];
 // ✨ 세트 코디 8종 — 세트 i 선택 = 모자 i + 의상 i 동시 착용 (인덱스 1:1 찰떡 페어)
 const CHEF_SETS = ['정통 셰프', '아기 공룡', '냥이 알바', '삐약 병아리',
-                   '소풍 달팽이', '계란 곰돌이', '목욕탕 사장님', '그림자 닌자'];
+                   '도넛 소풍룩', '계란 곰돌이', '목욕탕 사장님', '그림자 닌자'];   // 4번: 🍩 초코 도넛 + 체크 멜빵
 // 테마 일괄 적용 — 게임 속 실제 주방장(cook)과 커스텀 팝업 미리보기 모델이 공용.
 // 기존 테마 파츠(모자·장식)는 지오메트리까지 폐기 후 새 테마로 재조립 → 실루엣이 즉시 교체됨
 function applyChefThemeTo(g) {
