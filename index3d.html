@@ -5791,12 +5791,15 @@ function hallRoute(fromX, fromZ, toX, toZ) {
   return [...(gridRoute(fromX, fromZ, gate.x, gate.z) || []), gate,
           ...(gridRoute(gate.x, gate.z, toX, toZ) || [])];
 }
+// 🚶 주방장 전용 실외 서빙 차선: 인도 중앙(z2)이 아닌 도로 쪽 가장자리(z2.75) —
+//    대기줄 1·2열(z1/1.85)·거리 소품 라인(z1)·간판 기둥(z0)과 전부 이격돼 관통 없이 우회
+const CHEF_WALK_Z = SIDEWALK_Z + 0.75;
 function sideDeliverPath(fromX, fromZ, seat) {
   let pts;
   if (seat.terrace) {
     pts = hallRoute(fromX, fromZ, DOOR_X, wz(5))
-      .concat([{ x: DOOR_X, z: wz(5) }, { x: DOOR_X, z: SIDEWALK_Z },
-        { x: terraceGateX(), z: SIDEWALK_Z }, { x: terraceGateX(), z: 0.8 }, { x: terraceGateX(), z: -0.75 }]);
+      .concat([{ x: DOOR_X, z: wz(5) }, { x: DOOR_X, z: CHEF_WALK_Z },
+        { x: terraceGateX(), z: CHEF_WALK_Z }, { x: terraceGateX(), z: 0.8 }, { x: terraceGateX(), z: -0.75 }]);
   } else {
     pts = hallRoute(fromX, fromZ, seat.x, seat.z);
   }
@@ -5822,8 +5825,8 @@ function sideHomePath(w, fromSeat) {
   const gate = { x: wx(5), z: wz(1) + 0.7 };
   let pts;
   if (fromSeat && fromSeat.terrace) {
-    pts = [{ x: terraceGateX(), z: -0.75 }, { x: terraceGateX(), z: 0.8 }, { x: terraceGateX(), z: SIDEWALK_Z },
-       { x: DOOR_X, z: SIDEWALK_Z }, { x: DOOR_X, z: wz(5) }]
+    pts = [{ x: terraceGateX(), z: -0.75 }, { x: terraceGateX(), z: 0.8 }, { x: terraceGateX(), z: CHEF_WALK_Z },
+       { x: DOOR_X, z: CHEF_WALK_Z }, { x: DOOR_X, z: wz(5) }]   // 🚶 복귀도 전용 외곽 차선 — 대기줄·소품 우회
       .concat(routeToGateHome(DOOR_X, wz(5)));   // 🚧 문 앞→gate도 BFS 우회 (구 홀 중앙 고정점 직선 폴백 제거)
   } else {
     pts = routeToGateHome(w.group.position.x, w.group.position.z);   // 🚧 서빙/포장 지점→gate BFS 우회 보장
@@ -5868,8 +5871,8 @@ function deliverRoute(w, seat) {
       const dx = seat.x - p.x, dz = seat.z - p.z, d = Math.hypot(dx, dz) || 1;
       return [{ x: seat.x - dx / d * 0.7, z: seat.z - dz / d * 0.7 }];
     }
-    return [{ x: terraceGateX(), z: -0.75 }, { x: terraceGateX(), z: 0.8 }, { x: terraceGateX(), z: SIDEWALK_Z },
-            { x: DOOR_X, z: SIDEWALK_Z }, { x: DOOR_X, z: wz(5) },
+    return [{ x: terraceGateX(), z: -0.75 }, { x: terraceGateX(), z: 0.8 }, { x: terraceGateX(), z: CHEF_WALK_Z },
+            { x: DOOR_X, z: CHEF_WALK_Z }, { x: DOOR_X, z: wz(5) },   // 🚶 테라스→실내 재진입도 전용 외곽 차선
             ...sideDeliverPath(DOOR_X, wz(5), seat)];
   }
   // 주방 뒷 통로에서 홀까지 격자가 끊겨 있으면(기본 배치) 카운터 옆 전용 틈으로,
