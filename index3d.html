@@ -5172,6 +5172,31 @@ function drawVipGauge(c, ratio) {
   tex.needsUpdate = true;
 }
 
+/* ── 👑⚡⭐📸 특수 손님 4종: 스폰 20% 확률 승격 — 이동속도/대기 여유/보상 배율/머리 위 아이콘 차별화 ── */
+const CUSTOMER_TYPES = [
+  { id: 'vipRegular', name: '단골',      icon: '👑', moveSpeed: 1.0,  maxWaitTime: 1.4,  rewardMultiplier: 1.5, thanks: '역시 우리 단골집이 최고야~' },
+  { id: 'hurry',      name: '급한 손님', icon: '⚡', moveSpeed: 1.8,  maxWaitTime: 0.55, rewardMultiplier: 2.0, thanks: '빨라서 살았다! 값은 두 배로!' },
+  { id: 'celebrity',  name: '연예인',    icon: '⭐', moveSpeed: 1.1,  maxWaitTime: 1.0,  rewardMultiplier: 1.2, rush: 3, thanks: '팬 여러분, 여기 인생 맛집!' },
+  { id: 'foodie',     name: '미식가',    icon: '📸', moveSpeed: 0.85, maxWaitTime: 1.25, rewardMultiplier: 2.5, thanks: '이 맛은 기록해야 해… 완벽!' },
+];
+function makeTypeIcon(c, icon) {   // 머리 위 유형 아이콘 미니 스프라이트 (말풍선과 별개 — 상시 표시, 그룹과 함께 이동/폐기)
+  const cnv = document.createElement('canvas'); cnv.width = 64; cnv.height = 64;
+  const x = cnv.getContext('2d');
+  x.font = '44px serif'; x.textAlign = 'center'; x.textBaseline = 'middle';
+  x.fillText(icon, 32, 36);
+  const tex = new THREE.CanvasTexture(cnv); tex.colorSpace = THREE.SRGBColorSpace;
+  const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false }));
+  sp.scale.set(0.34, 0.34, 1); sp.position.set(0, 1.38, 0); sp.renderOrder = 998;
+  c.group.add(sp);
+}
+function rollCustomerType(c) {   // 🎲 스폰 시 20% 확률로 특수 손님 승격 (스폰 전 경로 공용)
+  if (Math.random() >= 0.2) return;
+  const def = pick(CUSTOMER_TYPES);
+  c.ctype = def;
+  c.speed *= def.moveSpeed;   // ⚡ 급한 손님 잰걸음 · 📸 미식가 느긋한 걸음
+  makeTypeIcon(c, def.icon);
+}
+
 // 🚶 입구 옆 웨이팅 줄 직행 스폰 — 만석 분기 + 🎯 Day 1 3 PM 튜토 강제 연출 공용
 //    snap=true면 걸어오는 지연 없이 줄 자리에 '즉시 서 있는' 상태로 생성 (배너와 동시 노출 보장)
 function spawnQueueCustomer(snap = false) {
@@ -5193,6 +5218,7 @@ function spawnQueueCustomer(snap = false) {
     exitDir: Math.random() < 0.5 ? 1 : -1,
   };
   decorateOrder(c);   // 🌶️ 맵기/토핑 커스텀
+  rollCustomerType(c);   // 👑⚡⭐📸 특수 손님 20% 승격
   customers.push(c);
   feverGreet(c);      // 🎆 피버 손님: 전용 대사 + SNS 코디 / 평시 호기심 대사
   waitingQueue.push(c);
@@ -5303,6 +5329,7 @@ function spawnCustomer() {
       gem.position.set(0, 1.28, 0.1); g.add(gem);
     }
   }
+  rollCustomerType(c);   // 👑⚡⭐📸 특수 손님 20% 승격
   customers.push(c);
   feverGreet(c);   // 🎆 피버 손님: 전용 대사 + SNS 코디
 }
@@ -5508,7 +5535,8 @@ function updateCustomers(dt) {
             (c.sideWait = (c.sideWait || 0) + dt * (c.nearBench ? 0.6 : 1)
               * (1 - ((furnPassive(c.seat) || {}).patience || 0))   // 🪑 프리미엄 가구: 인내심 최대 +25%
               * (c.benchRested ? 0.85 : 1)) <   // 🛋️ 대기석에서 쉬고 온 손님: 인내심 게이지 감소 15% 완화
-            (c.vip ? 4 : 8) * (hasFurn('arcade') ? 1.4 : 1)) break;   // 🕹️ 오락기: 대기 인내심 한도 ×1.4
+            (c.vip ? 4 : 8) * (hasFurn('arcade') ? 1.4 : 1)
+              * (c.ctype ? c.ctype.maxWaitTime : 1)) break;   // 🕹️ 오락기 ×1.4 · 👑⚡ 특수 손님 유형별 대기 여유 (⚡ 0.55배 빨리 닳음)
         if (c.timer <= 0) {
           head.rotation.x = 0;
           setSitPose(c.group, false);       // 자리에서 일어나기
@@ -5537,6 +5565,15 @@ function updateCustomers(dt) {
           if (hasFurn('smartStove')) income += 15;   // 📟 스마트 레인지: 그릇당 팁 +15G
           if (c.trait === 'glutton') income *= 2;   // 🐷 대식가: 2그릇 값을 통 크게 지불
           if (c.regular === 'youtuber') income *= 2;   // 🎥 유튜버: 기본 골드 2배 쾌척
+          // 👑⚡⭐📸 특수 손님: 유형별 보너스 골드 배율 + ⭐ 연예인은 퇴장 시 붐비기 효과
+          if (c.ctype) {
+            income = Math.round(income * c.ctype.rewardMultiplier);
+            showBubble(c.group, c.ctype.icon + ' ' + c.ctype.thanks, 1.55, 1.8);
+            if (c.ctype.rush) {   // ⭐ 소문 듣고 손님 3명 연달아 입장
+              for (let ri = 0; ri < c.ctype.rush; ri++) setTimeout(spawnCustomer, 500 + ri * 700);
+              toast('⭐ 연예인이 다녀간 맛집! 소문 듣고 손님들이 몰려와요');
+            }
+          }
           if (c.regular === 'owner') {   // 👑 건물주: 대형 팁
             dropCoin(c.seat.x - Math.sin(c.seat.ry) * 0.45, c.seat.z - Math.cos(c.seat.ry) * 0.45, 60, true);
             showBubble(c.group, '👑 수고비일세, 받아두게나~', 1.55, 1.8);
