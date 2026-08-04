@@ -5834,9 +5834,15 @@ function sideHomePath(w, fromSeat) {
   pts.push(gate, kitchenSlip(), { x: wx(4), z: wz(1) }, { x: w.home.x, z: w.home.z });
   return pts;
 }
-// 복귀 경로: 주방 안쪽이면 직행, 테라스 쪽이면 아치문 경유, 실내면 BFS 우회
+// 🍳 주방 뒷 통로(gx1~4 · gz1 스트립) 판정 — z만 보던 구 판정은 확장 홀(주방 '뒤편' gz≤0 행)을
+//    통로로 오판해 냉장고(5,1)·튀김대(6,1~7,1)·카운터(gz2)를 직선 관통시켰음 → x·z 동시 검사로 교정
+function inKitchenAisle(x, z) {
+  return Math.abs(z - wz(1)) < 0.6 && x > wx(1) - 0.6 && x < wx(4) + 0.6;
+}
+// 복귀 경로: 주방 통로 안이면 직행, 테라스 쪽이면 아치문 경유, 그 외(홀 전역)는 BFS 우회 → gate 진입
 function homeRoute(w) {
-  if (w.group.position.z < wz(1) + 0.5) return [{ x: wx(4), z: wz(1) }, { x: w.home.x, z: w.home.z }];
+  if (inKitchenAisle(w.group.position.x, w.group.position.z))
+    return [{ x: wx(4), z: wz(1) }, { x: w.home.x, z: w.home.z }];
   const outside = w.group.position.x > wx(SHOP_X1[state.shopLevel]) + 0.6;
   return sideHomePath(w, outside ? { terrace: true } : null);
 }
@@ -5853,11 +5859,11 @@ function routeToPickup(w, spot) {
   let r = gridRoute(p.x, p.z, spot.x, spot.z);
   if (r) { r.push(spot); return r; }
   const gate = { x: wx(5), z: wz(1) + 0.7 }, aisle = { x: wx(4), z: wz(1) };
-  if (p.z < wz(1) + 0.5) {          // 통로 안 → 밖: 틈으로 나가서 목적지까지 BFS (🚪 slip 경유 — 냉장고 모서리 관통 방지)
+  if (inKitchenAisle(p.x, p.z)) {   // 통로 안 → 밖: 틈으로 나가서 목적지까지 BFS (🚪 slip 경유 — 냉장고 모서리 관통 방지)
     r = gridRoute(gate.x, gate.z, spot.x, spot.z) || [];
     return [aisle, kitchenSlip(), gate, ...r, spot];
   }
-  if (spot.z < wz(1) + 0.5) {       // 밖 → 통로 안: 틈 앞까지 BFS로 우회한 뒤 진입 (🚪 slip 경유)
+  if (inKitchenAisle(spot.x, spot.z)) {   // 밖 → 통로 안: 틈 앞까지 BFS로 우회한 뒤 진입 (🚪 slip 경유)
     r = gridRoute(p.x, p.z, gate.x, gate.z) || [];
     return [...r, gate, kitchenSlip(), aisle, spot];
   }
@@ -5877,7 +5883,7 @@ function deliverRoute(w, seat) {
   }
   // 주방 뒷 통로에서 홀까지 격자가 끊겨 있으면(기본 배치) 카운터 옆 전용 틈으로,
   // 기물 이사로 길이 열렸으면 BFS가 알아서 새 경로를 찾음
-  if (p.z < wz(1) + 0.5 && !gridRoute(p.x, p.z, wx(5), wz(3)))
+  if (inKitchenAisle(p.x, p.z) && !gridRoute(p.x, p.z, wx(5), wz(3)))
     return [{ x: wx(4), z: wz(1) }, kitchenSlip(), { x: wx(5), z: wz(1) + 0.7 },   // 🚪 slip 경유 — 냉장고 모서리 관통 방지
             ...sideDeliverPath(wx(5), wz(1) + 0.7, seat)];
   return sideDeliverPath(p.x, p.z, seat);
